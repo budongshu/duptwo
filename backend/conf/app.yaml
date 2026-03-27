@@ -1,0 +1,66 @@
+# ============================================================
+# datauptwo 后端配置（自动生成）
+# 来源: deploy/config.yaml
+# ============================================================
+
+base:
+  mode: prod
+  port: 18421
+  username: admin
+  password: admin123
+  version: v1.0.0
+  language: zh
+  install_dir: ./data
+  serve_web: true
+
+database:
+  type: sqlite
+  path: ./data/registry.db
+
+log:
+  level: info
+  time_zone: Asia/Shanghai
+  log_name: datauptwo
+  max_backup: 30
+  max_size: 100
+
+session:
+  timeout: 7200
+  secret: fCxGypurV94EOkMhipQdEzgJgp3w5YQc
+
+cors:
+  allow_origins:
+    - "http://localhost"
+    - "http://localhost:8080"
+    - "http://localhost:4004"
+  allow_methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  allow_headers:
+    - Origin
+    - Content-Type
+    - Authorization
+    - Accept-Language
+    - X-Submit-Source
+    - X-API-Key
+    - X-Token
+  max_age: 86400
+
+jwt:
+  secret: GZ0AIWmQbpQ4Rd4Faen3mD6eIckRQHEZ
+
+# Active Directory (LDAP) 认证配置
+ad:
+  enabled: false
+  server: ldap://192.168.1.100
+  port: 389
+  use_ssl: false
+  base_dn: OU=Users,DC=company,DC=com
+  bind_dn: CN=admin,DC=company,DC=com
+  bind_password: ""
+  user_filter: "(sAMAccountName=%s)"
+  auto_register: false
+  default_role_id: 3

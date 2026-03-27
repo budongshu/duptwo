@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# 临时/废弃文件
+is-tmp/
+*.md
+!README.md
+!DEPLOY.md
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 本地数据（构建时不需要）
+data/
+logs/
+*.log
+
+# 本地配置文件
+conf/app.yaml
+**/*.local
+
+# Docker 相关
+deploy/docker/conf/
+deploy/docker/ssl/
+Dockerfile*
+docker-compose*.override.yml
+
+# 测试文件
+**/*_test.go
+**/*.test.ts
+**/*.spec.ts
+**/__tests__/
+
+# Node.js 依赖（前端构建后已复制到 web 目录）
+frontend/node_modules/
+
+# 临时构建产物
+dist/
+backend/bin/
+
+# 临时文件
+*.tmp
+*.temp
+*.bak
+.DS_Store

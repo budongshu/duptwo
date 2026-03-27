@@ -1,0 +1,51 @@
+# ============================================================
+# duptwo Docker Compose（SQLite 轻量版，无需 MySQL）
+# 来源: deploy/config.yaml
+# ============================================================
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: duptwo-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - app-data:/app/data
+      - app-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - duptwo
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: duptwo-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    networks:
+      - duptwo
+
+volumes:
+  app-data:
+    driver: local
+  app-logs:
+    driver: local
+
+networks:
+  duptwo:
+    driver: bridge

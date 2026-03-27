@@ -1,0 +1,1147 @@
+basePath: /
+definitions:
+  datauptwo_app_dto.AdminEnableMFAReq:
+    properties:
+      code:
+        type: string
+      userId:
+        type: integer
+    required:
+    - code
+    - userId
+    type: object
+  datauptwo_app_dto.ChangePasswordReq:
+    properties:
+      newPassword:
+        maxLength: 128
+        minLength: 6
+        type: string
+      oldPassword:
+        type: string
+    required:
+    - newPassword
+    - oldPassword
+    type: object
+  datauptwo_app_dto.LoginReq:
+    properties:
+      captcha:
+        type: string
+      captchaId:
+        type: string
+      password:
+        maxLength: 128
+        minLength: 6
+        type: string
+      username:
+        maxLength: 32
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  datauptwo_app_dto.MFAEnableReq:
+    properties:
+      code:
+        type: string
+    required:
+    - code
+    type: object
+  datauptwo_app_dto.MFAVerifyReq:
+    properties:
+      code:
+        type: string
+      tmpToken:
+        description: 临时token，用于MFA验证
+        type: string
+      userId:
+        type: integer
+    required:
+    - code
+    - userId
+    type: object
+  datauptwo_app_dto.RegisterReq:
+    properties:
+      email:
+        maxLength: 128
+        type: string
+      nickname:
+        maxLength: 64
+        type: string
+      password:
+        maxLength: 64
+        minLength: 6
+        type: string
+      username:
+        maxLength: 64
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  datauptwo_app_dto.ResetMFAReq:
+    properties:
+      userId:
+        type: integer
+    required:
+    - userId
+    type: object
+  datauptwo_app_dto.ResetPasswordReq:
+    properties:
+      newPassword:
+        maxLength: 128
+        minLength: 6
+        type: string
+      userId:
+        type: integer
+    required:
+    - newPassword
+    - userId
+    type: object
+  datauptwo_app_dto.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+    type: object
+  datauptwo_app_dto.RoleCreateReq:
+    properties:
+      code:
+        maxLength: 64
+        type: string
+      description:
+        maxLength: 256
+        type: string
+      name:
+        maxLength: 64
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      sort:
+        type: integer
+    required:
+    - code
+    - name
+    type: object
+  datauptwo_app_dto.RoleUpdateReq:
+    properties:
+      code:
+        maxLength: 64
+        type: string
+      description:
+        maxLength: 256
+        type: string
+      id:
+        type: integer
+      name:
+        maxLength: 64
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      sort:
+        type: integer
+    required:
+    - code
+    - id
+    - name
+    type: object
+  datauptwo_app_dto.UploadRecordCreateReq:
+    properties:
+      data:
+        additionalProperties: true
+        description: 动态字段数据
+        type: object
+      dataType:
+        maxLength: 64
+        type: string
+      filePath:
+        maxLength: 512
+        type: string
+      fileSize:
+        minimum: 0
+        type: integer
+      projectName:
+        maxLength: 128
+        type: string
+      remark:
+        maxLength: 512
+        type: string
+      status:
+        type: string
+      uploader:
+        maxLength: 64
+        type: string
+    required:
+    - dataType
+    - filePath
+    - uploader
+    type: object
+  datauptwo_app_dto.UploadRecordUpdateReq:
+    properties:
+      data:
+        additionalProperties: true
+        description: 动态字段数据
+        type: object
+      id:
+        type: integer
+      remark:
+        maxLength: 512
+        type: string
+      status:
+        enum:
+        - pending
+        - processing
+        - completed
+        - failed
+        type: string
+    required:
+    - id
+    - status
+    type: object
+  datauptwo_app_dto.UserCreateReq:
+    properties:
+      email:
+        type: string
+      groupId:
+        type: integer
+      mfaEnabled:
+        type: boolean
+      nickname:
+        maxLength: 64
+        type: string
+      password:
+        maxLength: 128
+        minLength: 6
+        type: string
+      phone:
+        maxLength: 32
+        type: string
+      roleId:
+        type: integer
+      status:
+        type: string
+      username:
+        maxLength: 32
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  datauptwo_app_dto.UserGroupCreateReq:
+    properties:
+      code:
+        maxLength: 64
+        type: string
+      description:
+        maxLength: 256
+        type: string
+      name:
+        maxLength: 64
+        type: string
+      sort:
+        type: integer
+    required:
+    - code
+    - name
+    type: object
+  datauptwo_app_dto.UserGroupUpdateReq:
+    properties:
+      code:
+        maxLength: 64
+        type: string
+      description:
+        maxLength: 256
+        type: string
+      id:
+        type: integer
+      name:
+        maxLength: 64
+        type: string
+      sort:
+        type: integer
+    required:
+    - code
+    - id
+    - name
+    type: object
+  datauptwo_app_dto.UserUpdateReq:
+    properties:
+      email:
+        type: string
+      groupId:
+        type: integer
+      id:
+        type: integer
+      mfaEnabled:
+        type: boolean
+      nickname:
+        maxLength: 64
+        type: string
+      phone:
+        maxLength: 32
+        type: string
+      roleId:
+        type: integer
+      status:
+        type: string
+    required:
+    - id
+    type: object
+host: localhost:18421
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: datauptwo 数据管理平台 API 文档
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: datauptwo API
+  version: "1.0"
+paths:
+  /api/audit/login-logs:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 获取登录日志列表
+      tags:
+      - Audit
+  /api/audit/login-logs/export:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 导出登录日志
+      tags:
+      - Audit
+  /api/audit/operation-logs:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 获取操作日志列表
+      tags:
+      - Audit
+  /api/audit/operation-logs/export:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 导出操作日志
+      tags:
+      - Audit
+  /api/auth/captcha:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      summary: 获取登录验证码
+      tags:
+      - Auth
+  /api/auth/change-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 密码信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.ChangePasswordReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 修改密码
+      tags:
+      - Auth
+  /api/auth/current:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 获取当前用户信息
+      tags:
+      - Auth
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 登录信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.LoginReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      summary: 用户登录
+      tags:
+      - Auth
+  /api/auth/mfa/disable:
+    post:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 禁用MFA
+      tags:
+      - Auth
+  /api/auth/mfa/enable:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: MFA启用信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.MFAEnableReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 启用MFA
+      tags:
+      - Auth
+  /api/auth/mfa/status:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 获取MFA状态
+      tags:
+      - Auth
+  /api/auth/mfa/verify:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: MFA验证信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.MFAVerifyReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      summary: MFA验证
+      tags:
+      - Auth
+  /api/auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 注册信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.RegisterReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      summary: 用户注册
+      tags:
+      - Auth
+  /api/roles:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 角色列表
+      tags:
+      - Role
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 角色信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.RoleCreateReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 创建角色
+      tags:
+      - Role
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 角色信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.RoleUpdateReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 更新角色
+      tags:
+      - Role
+  /api/roles/{id}:
+    delete:
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 删除角色
+      tags:
+      - Role
+    get:
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 获取角色详情
+      tags:
+      - Role
+  /api/roles/all:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 获取所有角色
+      tags:
+      - Role
+  /api/user-groups:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 用户组列表
+      tags:
+      - UserGroup
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户组信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.UserGroupCreateReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 创建用户组
+      tags:
+      - UserGroup
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户组信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.UserGroupUpdateReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 更新用户组
+      tags:
+      - UserGroup
+  /api/user-groups/{id}:
+    delete:
+      parameters:
+      - description: 用户组ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 删除用户组
+      tags:
+      - UserGroup
+    get:
+      parameters:
+      - description: 用户组ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 获取用户组详情
+      tags:
+      - UserGroup
+  /api/user-groups/all:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 获取所有用户组
+      tags:
+      - UserGroup
+  /api/users:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      - description: 角色ID
+        in: query
+        name: roleId
+        type: integer
+      - description: 用户组ID
+        in: query
+        name: groupId
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 用户列表
+      tags:
+      - User
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.UserCreateReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 创建用户
+      tags:
+      - User
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.UserUpdateReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 更新用户
+      tags:
+      - User
+  /api/users/{id}:
+    delete:
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 删除用户
+      tags:
+      - User
+    get:
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 获取用户详情
+      tags:
+      - User
+  /api/users/admin-enable-mfa:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 启用MFA信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.AdminEnableMFAReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 管理员为用户启用MFA
+      tags:
+      - User
+  /api/users/all:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 获取所有用户
+      tags:
+      - User
+  /api/users/generate-mfa-secret:
+    get:
+      parameters:
+      - description: 用户ID
+        in: query
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 生成MFA密钥
+      tags:
+      - User
+  /api/users/reset-mfa:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 重置MFA信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.ResetMFAReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 重置用户MFA
+      tags:
+      - User
+  /api/users/reset-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 重置密码信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.ResetPasswordReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      security:
+      - Bearer: []
+      summary: 重置用户密码
+      tags:
+      - User
+  /api/v1/upload-records:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 数据类型
+        in: query
+        name: dataType
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      - description: 上传人
+        in: query
+        name: uploader
+        type: string
+      - description: 开始日期
+        in: query
+        name: startDate
+        type: string
+      - description: 结束日期
+        in: query
+        name: endDate
+        type: string
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      summary: 上传记录列表
+      tags:
+      - UploadRecord
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 上传记录信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.UploadRecordCreateReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      summary: 创建上传记录
+      tags:
+      - UploadRecord
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 记录信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.UploadRecordUpdateReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      summary: 更新上传记录
+      tags:
+      - UploadRecord
+  /api/v1/upload-records/{id}:
+    delete:
+      parameters:
+      - description: 记录ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      summary: 删除上传记录
+      tags:
+      - UploadRecord
+    get:
+      parameters:
+      - description: 记录ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      summary: 获取上传记录详情
+      tags:
+      - UploadRecord
+  /api/v1/upload-records/export:
+    get:
+      parameters:
+      - description: 数据类型
+        in: query
+        name: dataType
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      - description: 上传人
+        in: query
+        name: uploader
+        type: string
+      - description: 开始日期
+        in: query
+        name: startDate
+        type: string
+      - description: 结束日期
+        in: query
+        name: endDate
+        type: string
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        type: string
+      responses:
+        "200":
+          description: Excel文件
+          schema:
+            type: file
+      summary: 导出上传记录
+      tags:
+      - UploadRecord
+  /api/v1/upload-records/recent:
+    get:
+      parameters:
+      - description: 数量限制
+        in: query
+        name: limit
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      summary: 获取最近上传记录
+      tags:
+      - UploadRecord
+  /api/v1/upload-records/statistics:
+    get:
+      parameters:
+      - description: 开始日期
+        in: query
+        name: startDate
+        type: string
+      - description: 结束日期
+        in: query
+        name: endDate
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      summary: 获取上传记录统计
+      tags:
+      - UploadRecord
+  /public/upload-records:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 上传记录信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/datauptwo_app_dto.UploadRecordCreateReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      summary: 公开创建上传记录
+      tags:
+      - PublicUploadRecord
+  /public/upload-records/{serialNo}:
+    get:
+      parameters:
+      - description: 流水号
+        in: path
+        name: serialNo
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+      summary: 根据流水号查询上传记录
+      tags:
+      - PublicUploadRecord
+swagger: "2.0"

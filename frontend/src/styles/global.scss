@@ -1,0 +1,92 @@
+/* Global Styles — 导入设计系统 */
+@import '@/assets/styles/design-system.css';
+
+/* 页面通用布局 */
+.page {
+  width: 100%;
+  min-height: 100vh;
+  background: var(--color-page-bg);
+  padding: var(--space-6);
+  overflow-x: hidden;
+  animation: page-content-in 0.4s var(--ease-out) both;
+}
+
+@keyframes page-content-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 页面标题栏 */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.card-header .header-title {
+  font-family: 'Manrope', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  padding-left: var(--space-3);
+  position: relative;
+}
+
+.card-header .header-title::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 2px;
+  width: 4px; height: 16px;
+  background: var(--color-primary);
+  border-radius: 2px;
+}
+
+/* 搜索栏 */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  flex-wrap: wrap;
+}
+
+/* 分页 */
+.pagination {
+  margin-top: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* 卡片基础样式 */
+.panel-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+/* 页面切换动画 */
+.fade-transform-enter-active,
+.fade-transform-leave-active {
+  transition: opacity var(--duration-normal) var(--ease-out),
+              transform var(--duration-normal) var(--ease-out);
+}
+.fade-transform-enter-from {
+  opacity: 0; transform: translateX(8px);
+}
+.fade-transform-leave-to {
+  opacity: 0; transform: translateX(-8px);
+}
+
+/* 路由过渡 */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all var(--duration-normal) var(--ease-out);
+}
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0; transform: translateY(8px);
+}

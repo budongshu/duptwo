@@ -1,0 +1,247 @@
+# ============================================================
+# duptwo Kubernetes 部署清单（自动生成）
+# 来源: deploy/config.yaml
+# 数据库: sqlite
+# ============================================================
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: duptwo
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: duptwo-config
+  namespace: duptwo
+data:
+  app.yaml: |
+    base:
+      mode: prod
+      port: 8080
+      version: v2.0
+      language: zh
+      install_dir: ./data
+      serve_web: true
+
+    database:
+      type: sqlite
+      path: ./data/registry.db
+
+    log:
+      level: info
+      time_zone: Asia/Shanghai
+      log_name: duptwo
+      max_backup: 30
+      max_size: 100
+
+    session:
+      timeout: 7200
+      secret: CHANGE_THIS_SESSION_SECRET
+
+    cors:
+      allow_origins:
+        - "http://localhost"
+        - "http://localhost:8080"
+        - "http://localhost:4004"
+      allow_methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      allow_headers:
+        - Origin
+        - Content-Type
+        - Authorization
+      max_age: 86400
+
+    jwt:
+      secret: CHANGE_THIS_JWT_SECRET
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: duptwo-secret
+  namespace: duptwo
+type: Opaque
+stringData:
+  DB_PASSWORD: ""
+  SESSION_SECRET: CHANGE_THIS_SESSION_SECRET
+  JWT_SECRET: CHANGE_THIS_JWT_SECRET
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: duptwo-data-pvc
+  namespace: duptwo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: duptwo-app
+  namespace: duptwo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: duptwo
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: duptwo
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - duptwo
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: app
+          image: your-registry.com/duptwo:v2.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: duptwo-secret
+                  key: DB_PASSWORD
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: duptwo-secret
+                  key: SESSION_SECRET
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: duptwo-secret
+                  key: JWT_SECRET
+          volumeMounts:
+            - name: config
+              mountPath: /app/conf/app.yaml
+              subPath: app.yaml
+              readOnly: true
+            - name: data
+              mountPath: /app/data
+            - name: logs
+              mountPath: /app/logs
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: duptwo-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: duptwo-data-pvc
+        - name: logs
+          emptyDir: {}
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: duptwo-svc
+  namespace: duptwo
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+  selector:
+    app: duptwo
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: duptwo-ingress
+  namespace: duptwo
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: duptwo.example.com
+      http:
+        paths:
+          - path: /swagger
+            pathType: Prefix
+            backend:
+              service:
+                name: duptwo-svc
+                port:
+                  number: 8080
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: duptwo-svc
+                port:
+                  number: 8080
+          - path: /public
+            pathType: Prefix
+            backend:
+              service:
+                name: duptwo-svc
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: duptwo-svc
+                port:
+                  number: 8080
