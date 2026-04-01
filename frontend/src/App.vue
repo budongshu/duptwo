@@ -1,5 +1,7 @@
 <template>
-  <router-view />
+  <el-config-provider :locale="elLocale">
+    <router-view />
+  </el-config-provider>
   <DeveloperTerminal
     v-model:visible="terminalVisible"
     :history="terminalHistory"
@@ -15,18 +17,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, provide, onMounted } from 'vue'
+import { ref, provide, onMounted, onUnmounted, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { ElConfigProvider } from 'element-plus'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import en from 'element-plus/es/locale/lang/en'
 import DeveloperTerminal from '@/components/DeveloperTerminal.vue'
 import MilestoneBadge from '@/components/MilestoneBadge.vue'
 import { useMilestones } from '@/composables/useMilestones'
+import { useUser } from '@/composables/useUser'
+
+const { locale } = useI18n()
+
+const elLocale = computed(() => (locale.value === 'zh' ? zhCn : en))
 
 const milestone = useMilestones()
+const user = useUser()
 const milestoneVisible = ref(false)
 const currentMilestone = ref<any>(null)
 const milestoneBadgeRef = ref<any>(null)
 
 // Watch for milestone unlocks and show notification
-import { watch } from 'vue'
 watch(() => milestone.showBadge.value, (v) => {
   if (v) {
     currentMilestone.value = milestone.currentBadge.value
@@ -36,10 +47,16 @@ watch(() => milestone.showBadge.value, (v) => {
 
 // Provide trackExport for child components
 provide('trackExport', milestone.trackExport)
+// Provide refreshUser for permission refresh after role changes
+provide('refreshUser', user.refreshUser)
 
 const applyTheme = () => {
-  const theme = localStorage.getItem('theme') || 'blue'
-  document.documentElement.setAttribute('data-theme', theme)
+  // 仅通过 el-theme-dark class 控制深色模式（与 Element Plus 联动）
+  if (localStorage.getItem('isDark') === 'true') {
+    document.documentElement.classList.add('el-theme-dark')
+  } else {
+    document.documentElement.classList.remove('el-theme-dark')
+  }
 }
 
 // ========== Easter Eggs ==========
@@ -180,9 +197,15 @@ Available commands:
       terminalLoading.value = false
       break
     case 'whoami':
-      terminalHistory.value.push({ type: 'output', content: `User: ${localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!).nickname || 'admin' : 'admin'}` })
-      terminalHistory.value.push({ type: 'output', content: `Role: ${localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!).roleName || 'Administrator' : 'Administrator'}` })
-      terminalHistory.value.push({ type: 'output', content: `Theme: ${localStorage.getItem('theme') || 'blue'}` })
+      try {
+        const userData = JSON.parse(localStorage.getItem('user') || '{}')
+        terminalHistory.value.push({ type: 'output', content: `User: ${userData.nickname || userData.username || 'admin'}` })
+        terminalHistory.value.push({ type: 'output', content: `Role: ${userData.roleName || 'Administrator'}` })
+        terminalHistory.value.push({ type: 'output', content: `Theme: ${localStorage.getItem('theme') || 'blue'}` })
+      } catch {
+        terminalHistory.value.push({ type: 'output', content: 'User: admin' })
+        terminalHistory.value.push({ type: 'output', content: 'Role: Administrator' })
+      }
       break
     case 'stats':
       terminalHistory.value.push({ type: 'output', content: `\n╔═══════════════════════════════╗\n║     SYSTEM STATISTICS          ║\n╠═══════════════════════════════╣\n║  CPU:    ████████░░  78%       ║\n║  Memory: ██████████  96%       ║\n║  Disk:   ██████░░░░  62%       ║\n║  Uptime: ${new Date().toLocaleTimeString().padEnd(17)} ║\n║  Status: ALL SYSTEMS GO        ║\n╚═══════════════════════════════╝` })
@@ -369,12 +392,20 @@ onMounted(() => {
   applyTheme()
   printConsoleArt()
   document.addEventListener('keydown', handleGlobalKey)
+  user.initUser()
 })
 
 // Provide easter egg handlers for child components
 provide('easterEggs', {
   handleLogoClick,
-  openMilestones: () => milestoneBadgeRef.value?.drawerVisible && (milestoneBadgeRef.value.drawerVisible = true),
+  openMilestones: () => {
+    milestoneBadgeRef.value?.openDrawer?.()
+  },
+})
+
+onUnmounted(() => {
+  if (logoTimer) clearTimeout(logoTimer)
+  if (logoAnimTimer) clearTimeout(logoAnimTimer)
 })
 </script>
 

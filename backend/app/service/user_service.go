@@ -34,6 +34,11 @@ func (s *UserService) Create(req dto.UserCreateReq) (*dto.UserResp, error) {
 		return nil, errors.New("用户名已存在")
 	}
 
+	// 校验密码策略
+	if valid, reason := ValidatePassword(req.Password); !valid {
+		return nil, errors.New(reason)
+	}
+
 	// 哈希密码
 	hashedPassword, err := HashPassword(req.Password)
 	if err != nil {
@@ -205,6 +210,11 @@ func (s *UserService) ResetPassword(userID uint, newPassword string) error {
 	user, err := s.userRepo.GetByID(userID)
 	if err != nil {
 		return errors.New("用户不存在")
+	}
+
+	// 校验密码策略
+	if valid, reason := ValidatePassword(newPassword); !valid {
+		return errors.New(reason)
 	}
 
 	hashedPassword, err := HashPassword(newPassword)

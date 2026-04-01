@@ -34,7 +34,7 @@
           <template v-if="getVisibleItems(group.items).length > 0">
             <!-- 分组标题 -->
             <div v-if="!isCollapsed" class="nav-group-header" @click="toggleGroup(group.key)">
-              <span class="nav-group-title">{{ group.label }}</span>
+              <span class="nav-group-title">{{ t(group.labelKey) }}</span>
               <svg class="nav-group-chevron" :class="{ 'is-up': collapsedGroups.has(group.key) }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <polyline points="6 15 12 9 18 15" />
               </svg>
@@ -45,25 +45,25 @@
 
             <!-- 菜单项 -->
             <div v-if="!isCollapsed && !collapsedGroups.has(group.key)" class="nav-group-body">
-              <template v-for="item in getVisibleItems(group.items)" :key="item.path || item.name">
+              <template v-for="item in getVisibleItems(group.items)" :key="item.path || item.nameKey">
 
                 <!-- 顶级父菜单（含子项） -->
                 <div v-if="item.children" class="nav-parent">
                   <div
                     class="nav-item nav-item--parent"
                     :class="{ 'is-active': isChildActive(item) }"
-                    @click="toggleGroup('sub_' + item.name)"
+                    @click="toggleGroup('sub_' + item.nameKey)"
                   >
                     <div class="nav-item__icon-wrap">
                       <component :is="item.icon" class="nav-icon" />
                     </div>
-                    <span class="nav-item__label">{{ item.name }}</span>
-                    <svg class="nav-parent-chevron" :class="{ 'is-open': !collapsedGroups.has('sub_' + item.name) }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <span class="nav-item__label">{{ t(item.nameKey) }}</span>
+                    <svg class="nav-parent-chevron" :class="{ 'is-open': !collapsedGroups.has('sub_' + item.nameKey) }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
                   </div>
                   <!-- 子菜单 -->
-                  <div v-if="!collapsedGroups.has('sub_' + item.name)" class="nav-children">
+                  <div v-if="!collapsedGroups.has('sub_' + item.nameKey)" class="nav-children">
                     <router-link
                       v-for="child in item.children.filter(c => hasPermission(c.perm))"
                       :key="child.path"
@@ -74,7 +74,7 @@
                       <div class="nav-item__icon-wrap">
                         <component :is="child.icon" class="nav-icon" />
                       </div>
-                      <span class="nav-item__label">{{ child.name }}</span>
+                      <span class="nav-item__label">{{ t(child.nameKey!) }}</span>
                       <span v-if="isActive(child.path!)" class="nav-item__active-dot"></span>
                     </router-link>
                   </div>
@@ -90,7 +90,7 @@
                   <div class="nav-item__icon-wrap">
                     <component :is="item.icon" class="nav-icon" />
                   </div>
-                  <span class="nav-item__label">{{ item.name }}</span>
+                  <span class="nav-item__label">{{ t(item.nameKey) }}</span>
                   <span v-if="item.isNew" class="nav-tag-new">NEW</span>
                   <span v-else-if="item.badge" class="nav-badge">{{ item.badge }}</span>
                   <span v-if="isActive(item.path!)" class="nav-item__active-dot"></span>
@@ -107,7 +107,7 @@
                 :to="item.path"
                 class="nav-item nav-item--icon-only"
                 :class="{ 'is-active': isActive(item.path) }"
-                :title="item.name + (item.isNew ? ' (NEW)' : '')"
+                :title="t(item.nameKey) + (item.isNew ? ' (NEW)' : '')"
               >
                 <component :is="item.icon" class="nav-icon" />
                 <span v-if="item.isNew" class="nav-tag-new nav-tag-new--dot"></span>
@@ -152,21 +152,32 @@
         <!-- 用户下拉菜单 -->
         <transition name="dropdown-anim">
           <div v-if="showUserMenu && !isCollapsed" class="user-dropdown">
-            <div class="dropdown-header">切换主题</div>
-            <div class="dropdown-theme-grid">
-              <span v-for="t in themes" :key="t.value" class="theme-swatch" :class="{ active: currentTheme === t.value }" :style="{ background: t.color }" :title="t.label" @click="switchTheme(t.value)">
-                {{ t.label }}
-              </span>
+            <!-- 深色模式 + 语言切换 -->
+            <div class="dropdown-theme-row">
+              <div class="dropdown-mode-btn" :class="{ active: isDark }" @click="toggleDark" :title="isDark ? t('theme.switchLight') : t('theme.switchDark')">
+                <!-- Sun icon (light mode active → click to go dark) -->
+                <svg v-if="isDark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+                <!-- Moon icon (dark mode active → click to go light) -->
+                <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+              </div>
+              <div class="dropdown-lang-btns">
+                <span class="dropdown-lang-btn" :class="{ active: locale === 'zh' }" @click="switchLocale('zh')">中</span>
+                <span class="dropdown-lang-btn" :class="{ active: locale === 'en' }" @click="switchLocale('en')">EN</span>
+              </div>
             </div>
             <div class="dropdown-divider"></div>
             <div class="dropdown-item" @click="router.push('/profile'); showUserMenu = false">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              个人设置
+              {{ t('nav.profile') }}
             </div>
             <div class="dropdown-divider"></div>
             <div class="dropdown-item dropdown-item--danger" @click="handleLogout">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              退出登录
+              {{ t('nav.logout') }}
             </div>
           </div>
         </transition>
@@ -187,16 +198,34 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, h, watch, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessageBox } from 'element-plus'
 import type { UserInfo } from '@/api/auth'
 
 const route = useRoute()
 const router = useRouter()
+const { locale, t } = useI18n()
 const easterEggs = inject<{ handleLogoClick: () => void }>('easterEggs')
 const isCollapsed = ref(false)
 const showUserMenu = ref(false)
 const currentUser = ref<UserInfo | null>(null)
-const collapsedGroups = ref(new Set<string>(['center', 'system', 'audit']))
+const collapsedGroups = ref(new Set<string>(['audit']))
+const isDark = ref(localStorage.getItem('isDark') === 'true')
+
+const toggleDark = () => {
+  isDark.value = !isDark.value
+  localStorage.setItem('isDark', String(isDark.value))
+  if (isDark.value) {
+    document.documentElement.classList.add('el-theme-dark')
+  } else {
+    document.documentElement.classList.remove('el-theme-dark')
+  }
+}
+
+const switchLocale = (l: 'zh' | 'en') => {
+  locale.value = l
+  localStorage.setItem('locale', l)
+}
 
 // 健康状态
 const healthStatus = ref<'healthy' | 'unhealthy' | 'checking'>('checking')
@@ -336,7 +365,7 @@ const LoginLogIcon = () => h('svg', iconProps, [
   h('line', { x1: 15, y1: 12, x2: 3, y2: 12 })
 ])
 
-// ========== 菜单配置 ==========
+// ========== 菜单配置（使用 i18n key）==========
 // 支持嵌套子菜单的类型
 interface NavItem {
   path?: string
@@ -348,50 +377,68 @@ interface NavItem {
   children?: NavItem[]
 }
 
-const menuGroups = reactive<{ key: string; label: string; items: NavItem[] }[]>([
+// i18n key 常量
+const menuGroups = reactive([
   {
-    key: 'data', label: '数据中心',
+    key: 'data',
+    labelKey: 'sidebar.dataCenter',
     items: [
-      { path: '/upload-record', name: '数据概览', icon: DashboardIcon, perm: 'upload:read' },
-      { path: '/upload-record/list', name: '上传记录', icon: UploadRecordIcon, perm: 'upload:read' }
+      { path: '/upload-record', nameKey: 'nav.dashboard', icon: DashboardIcon, perm: 'upload:read' },
+      { path: '/upload-record/list', nameKey: 'nav.uploadRecords', icon: UploadRecordIcon, perm: 'upload:read' }
     ]
   },
   {
-    key: 'center', label: '项目中心',
+    key: 'center',
+    labelKey: 'sidebar.projectCenter',
     items: [
       {
-        name: '项目列表', icon: ProjectIcon, perm: 'project:read',
+        nameKey: 'nav.projectList', icon: ProjectIcon, perm: 'project:read',
         children: [
-          { path: '/projects', name: '项目管理', icon: ProjectManageIcon, perm: 'project:read' },
+          { path: '/projects', nameKey: 'nav.projectManage', icon: ProjectManageIcon, perm: 'project:read' },
         ]
       },
-      { path: '/personnel', name: '人员管理', icon: PersonnelIcon, perm: 'personnel:read' },
+      { path: '/personnel', nameKey: 'nav.personnel', icon: PersonnelIcon, perm: 'personnel:read' },
     ]
   },
   {
-    key: 'person', label: '组织人员',
+    key: 'person',
+    labelKey: 'sidebar.orgPersonnel',
     items: [
-      { path: '/users', name: '用户管理', icon: UserIcon, perm: 'user:read' },
-      { path: '/roles', name: '角色管理', icon: RoleIcon, perm: 'role:read' },
-      { path: '/user-groups', name: '用户组', icon: GroupIcon, perm: 'role:read' }
+      { path: '/users', nameKey: 'nav.userManage', icon: UserIcon, perm: 'user:read' },
+      { path: '/roles', nameKey: 'nav.roleManage', icon: RoleIcon, perm: 'role:read' },
+      { path: '/user-groups', nameKey: 'nav.userGroups', icon: GroupIcon, perm: 'role:read' }
     ]
   },
   {
-    key: 'system', label: '系统设置',
+    key: 'system',
+    labelKey: 'sidebar.system',
     items: [
-      { path: '/field-config', name: '字段配置', icon: FieldConfigIcon, perm: 'field-config:read' },
-      { path: '/system/ad-settings', name: 'AD域配置', icon: ADAuthorityIcon, perm: 'config:read' },
-      { path: '/system/security-settings', name: '安全设置', icon: SecurityIcon, perm: 'config:read' }
+      { path: '/field-config', nameKey: 'nav.fieldConfig', icon: FieldConfigIcon, perm: 'field-config:read' },
+      { path: '/system/ad-settings', nameKey: 'nav.adSettings', icon: ADAuthorityIcon, perm: 'config:read' },
+      { path: '/system/security-settings', nameKey: 'nav.securitySettings', icon: SecurityIcon, perm: 'config:read' }
     ]
   },
   {
-    key: 'audit', label: '日志审计',
+    key: 'audit',
+    labelKey: 'sidebar.audit',
     items: [
-      { path: '/audit/operation-log', name: '操作日志', icon: OperationLogIcon, perm: 'audit:operation:read' },
-      { path: '/audit/login-log', name: '登录日志', icon: LoginLogIcon, perm: 'audit:login:read' }
+      { path: '/audit/operation-log', nameKey: 'nav.operationLog', icon: OperationLogIcon, perm: 'audit:operation:read' },
+      { path: '/audit/login-log', nameKey: 'nav.loginLog', icon: LoginLogIcon, perm: 'audit:login:read' }
     ]
   }
 ])
+
+// 兼容类型：nameKey 用于 i18n，name 用于普通文本
+interface NavItem {
+  path?: string
+  name?: string
+  nameKey?: string
+  icon: () => ReturnType<typeof h>
+  perm?: string
+  isNew?: boolean
+  badge?: string
+  children?: NavItem[]
+}
 
 const hasPermission = (perm: string | undefined) => {
   if (!perm) return true
@@ -431,9 +478,11 @@ const isChildActive = (item: NavItem): boolean => {
 }
 
 const toggleGroup = (key: string) => {
-  collapsedGroups.value.has(key)
-    ? collapsedGroups.value.delete(key)
-    : collapsedGroups.value.add(key)
+  if (collapsedGroups.value.has(key)) {
+    collapsedGroups.value.delete(key)
+  } else {
+    collapsedGroups.value.add(key)
+  }
 }
 
 const isActive = (path: string) => route.path === path
@@ -475,10 +524,14 @@ onMounted(() => {
   loadUser()
   checkHealth()
   healthTimer = setInterval(checkHealth, 30000)
-  const saved = localStorage.getItem('theme')
-  if (saved) {
-    document.documentElement.setAttribute('data-theme', saved)
+  // 初始化深色模式
+  if (localStorage.getItem('isDark') === 'true') {
+    document.documentElement.classList.add('el-theme-dark')
+    isDark.value = true
   }
+  // 初始化语言
+  const savedLocale = localStorage.getItem('locale') as 'zh' | 'en'
+  if (savedLocale) locale.value = savedLocale
 })
 
 onUnmounted(() => {
@@ -1117,6 +1170,63 @@ onUnmounted(() => {
   z-index: 200;
 }
 
+.dropdown-theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px 8px;
+}
+
+.dropdown-mode-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--theme-sidebar-dropdown-item);
+  transition: all 0.15s ease;
+  background: transparent;
+
+  &:hover {
+    background: var(--theme-sidebar-hover-bg);
+    color: var(--theme-sidebar-dropdown-item-hover);
+  }
+
+  &.active {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+  }
+}
+
+.dropdown-lang-btns {
+  display: flex;
+  gap: 2px;
+  background: var(--theme-sidebar-hover-bg);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.dropdown-lang-btn {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  color: var(--theme-sidebar-dropdown-item);
+  opacity: 0.5;
+  transition: all 0.15s ease;
+
+  &:hover { opacity: 0.8; }
+  &.active {
+    background: var(--color-primary);
+    color: #fff;
+    opacity: 1;
+  }
+}
+
 .dropdown-header {
   font-family: 'DM Sans', sans-serif;
   font-size: 10px;
@@ -1124,40 +1234,8 @@ onUnmounted(() => {
   color: var(--theme-sidebar-dropdown-item);
   text-transform: uppercase;
   letter-spacing: 1px;
-  padding: 8px 10px 6px;
+  padding: 4px 10px 4px;
   opacity: 0.6;
-}
-
-.dropdown-theme-grid {
-  display: flex;
-  gap: 6px;
-  padding: 2px 10px 8px;
-}
-
-.theme-swatch {
-  flex: 1;
-  padding: 4px 6px;
-  border-radius: 5px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.85);
-  cursor: pointer;
-  text-align: center;
-  transition: all 0.15s ease;
-  border: 1.5px solid transparent;
-  opacity: 0.5;
-
-  &:hover {
-    opacity: 0.85;
-    transform: scale(1.05);
-  }
-
-  &.active {
-    opacity: 1;
-    border-color: rgba(255,255,255,0.6);
-    box-shadow: 0 0 6px rgba(255,255,255,0.2);
-  }
 }
 
 .dropdown-item {

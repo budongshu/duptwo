@@ -1,441 +1,335 @@
 <template>
   <div class="security-page">
-    <!-- 页面标题栏 -->
+    <!-- 页面标题 -->
     <header class="page-header">
       <div class="header-left">
-        <h1 class="page-title">登录安全</h1>
-        <span class="page-subtitle">密码策略 · 登录限制 · 会话管理</span>
+        <h1 class="page-title">{{ t('security.title') }}</h1>
+        <span class="page-subtitle">{{ t('security.subtitle') }}</span>
       </div>
-      <div class="header-actions">
-        <el-button type="primary" :loading="saving" @click="handleSave" size="default" class="save-btn">
-          <svg v-if="!saving" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          保存全部设置
-        </el-button>
-      </div>
+      <el-button type="primary" :loading="saving" @click="handleSave">
+        <el-icon v-if="!saving"><Lock /></el-icon>
+        {{ t('security.saveAll') }}
+      </el-button>
     </header>
 
-    <!-- 安全态势总览 -->
-    <div class="security-overview" v-if="!loadingOverview">
-      <div class="overview-item overview-item--warn" @click="scrollTo('login')">
-        <div class="overview-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        </div>
-        <div class="overview-data">
-          <div class="overview-value">{{ overview.totalLockedUsers }}</div>
-          <div class="overview-label">锁定用户</div>
-        </div>
-        <div class="overview-arrow">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    <!-- 安全总览卡片 -->
+    <div class="overview-cards" v-loading="loadingOverview">
+      <div class="overview-card overview-card--warn" @click="activeTab = 'login'; showLockDrawer('users')">
+        <el-icon class="overview-icon"><Warning /></el-icon>
+        <div class="overview-info">
+          <div class="overview-num">{{ overview.totalLockedUsers }}</div>
+          <div class="overview-label">{{ t('security.lockedUsers') }}</div>
         </div>
       </div>
-      <div class="overview-item overview-item--danger" @click="scrollTo('ip')">
-        <div class="overview-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-        </div>
-        <div class="overview-data">
-          <div class="overview-value">{{ overview.totalLockedIPs }}</div>
-          <div class="overview-label">封禁IP</div>
-        </div>
-        <div class="overview-arrow">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      <div class="overview-card overview-card--danger" @click="activeTab = 'ip'; showLockDrawer('ips')">
+        <el-icon class="overview-icon"><CircleClose /></el-icon>
+        <div class="overview-info">
+          <div class="overview-num">{{ overview.totalLockedIPs }}</div>
+          <div class="overview-label">{{ t('security.blockedIPs') }}</div>
         </div>
       </div>
-      <div class="overview-item overview-item--success" @click="scrollTo('ip')">
-        <div class="overview-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        </div>
-        <div class="overview-data">
-          <div class="overview-value">{{ overview.whitelistCount || 0 }}</div>
-          <div class="overview-label">IP白名单</div>
-        </div>
-        <div class="overview-arrow">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      <div class="overview-card overview-card--success" @click="activeTab = 'ip'">
+        <el-icon class="overview-icon"><Guide /></el-icon>
+        <div class="overview-info">
+          <div class="overview-num">{{ overview.whitelistCount || 0 }}</div>
+          <div class="overview-label">{{ t('security.ipWhitelist') }}</div>
         </div>
       </div>
-      <div class="overview-item overview-item--info">
-        <div class="overview-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        </div>
-        <div class="overview-data">
-          <div class="overview-value">{{ overview.blacklistCount || 0 }}</div>
-          <div class="overview-label">IP黑名单</div>
+      <div class="overview-card overview-card--info" @click="activeTab = 'ip'">
+        <el-icon class="overview-icon"><Lock /></el-icon>
+        <div class="overview-info">
+          <div class="overview-num">{{ overview.blacklistCount || 0 }}</div>
+          <div class="overview-label">{{ t('security.ipBlacklist') }}</div>
         </div>
       </div>
     </div>
 
-    <!-- 主体内容：4个配置区块横排 -->
-    <div class="config-grid">
+    <!-- 当前配置状态 -->
+    <div class="status-panel">
+      <div class="status-title">
+        <el-icon><Monitor /></el-icon>
+        <span>{{ t('security.currentStatus') }}</span>
+      </div>
+      <div class="status-tags">
+        <el-tag :type="form.captchaEnabled ? 'success' : 'info'" size="small" effect="plain">
+          <el-icon><Picture /></el-icon>
+          验证码 {{ form.captchaEnabled ? '已启用' : '已禁用' }}
+        </el-tag>
+        <el-tag :type="form.inactiveAutoDisable ? 'warning' : 'info'" size="small" effect="plain">
+          <el-icon><Timer /></el-icon>
+          不活跃 {{ form.inactiveAutoDisable ? form.inactiveDaysThreshold + '天自动禁用' : '未启用' }}
+        </el-tag>
+        <el-tag type="info" size="small" effect="plain">
+          <el-icon><User /></el-icon>
+          登录锁定 {{ form.userLoginMaxAttempts }}次 / {{ form.userLoginLockMinutes }}分钟
+        </el-tag>
+        <el-tag type="info" size="small" effect="plain">
+          <el-icon><Key /></el-icon>
+          密码 {{ form.passwordMinLength }}位
+          <template v-if="form.passwordRequireUppercase || form.passwordRequireLowercase || form.passwordRequireDigit || form.passwordRequireSpecial">
+            ({{
+              (form.passwordRequireUppercase ? '大写 ' : '') +
+              (form.passwordRequireLowercase ? '小写 ' : '') +
+              (form.passwordRequireDigit ? '数字 ' : '') +
+              (form.passwordRequireSpecial ? '特殊' : '')
+            }})
+          </template>
+        </el-tag>
+        <el-tag type="info" size="small" effect="plain">
+          <el-icon><Clock /></el-icon>
+          会话 {{ form.sessionTimeoutHours }}小时
+        </el-tag>
+        <el-tag type="info" size="small" effect="plain">
+          <el-icon><Connection /></el-icon>
+          IP限制 {{ form.ipLoginMaxAttempts }}次 / {{ form.ipLoginLockMinutes }}分钟
+        </el-tag>
+      </div>
+    </div>
 
-      <!-- 区块1：登录安全 -->
-      <div class="config-block" id="block-login">
-        <div class="config-block-header">
-          <div class="block-icon block-icon--blue">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          </div>
-          <div class="block-titles">
-            <div class="block-title">登录安全</div>
-            <div class="block-subtitle">验证码 · 不活跃用户 · 登录限制</div>
-          </div>
-          <div class="block-badge" :class="form.captchaEnabled ? 'badge--on' : 'badge--off'">
-            {{ form.captchaEnabled ? '验证码已启用' : '验证码未启用' }}
-          </div>
-        </div>
-        <div class="config-block-body">
+    <!-- 配置标签页 -->
+    <div class="security-tabs" v-loading="loadingSettings">
+      <el-tabs v-model="activeTab">
+      <!-- 登录安全 -->
+      <el-tab-pane :label="t('security.loginBlock.title')" name="login">
+        <div class="config-section">
           <!-- 验证码 -->
-          <div class="field-group">
-            <div class="field-group-label">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              登录验证码
+          <div class="config-row">
+            <div class="config-label">
+              <el-icon><Picture /></el-icon>
+              <span>{{ t('security.loginBlock.captchaLabel') }}</span>
             </div>
-            <div class="field-row">
-              <div class="field-info">
-                <div class="field-name">启用登录验证码</div>
-                <div class="field-desc">连续登录失败N次后自动显示图形验证码</div>
-              </div>
-              <el-switch v-model="form.captchaEnabled" size="small" />
-            </div>
-            <div class="field-row field-row--indent" v-if="form.captchaEnabled">
-              <div class="field-info">
-                <div class="field-name">触发阈值（次）</div>
-                <div class="field-desc">连续失败此次数后启用验证码</div>
-              </div>
-              <el-input-number v-model="form.captchaMinLen" :min="1" :max="10" size="small" controls-position="right" />
+            <div class="config-control">
+              <el-switch v-model="form.captchaEnabled" />
+              <span class="control-hint" v-if="form.captchaEnabled">
+                {{ t('security.loginBlock.enableCaptchaDesc') }}
+                <el-input-number v-model="form.captchaMinLen" :min="1" :max="10" size="small" controls-position="right" />
+                {{ t('security.loginBlock.captchaThreshold') }}
+              </span>
             </div>
           </div>
 
-          <!-- 不活跃用户 -->
-          <div class="field-group">
-            <div class="field-group-label">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              不活跃自动禁用
+          <!-- 不活跃自动禁用 -->
+          <div class="config-row">
+            <div class="config-label">
+              <el-icon><Timer /></el-icon>
+              <span>{{ t('security.loginBlock.inactiveLabel') }}</span>
             </div>
-            <div class="field-row">
-              <div class="field-info">
-                <div class="field-name">启用不活跃自动禁用</div>
-                <div class="field-desc">超过指定天数未登录的用户自动标记为禁用</div>
-              </div>
-              <el-switch v-model="form.inactiveAutoDisable" size="small" />
-            </div>
-            <div class="field-row field-row--indent" v-if="form.inactiveAutoDisable">
-              <div class="field-info">
-                <div class="field-name">不活跃天数阈值</div>
-                <div class="field-desc">超过此天数未登录将被自动禁用</div>
-              </div>
-              <el-input-number v-model="form.inactiveDaysThreshold" :min="1" :max="365" size="small" controls-position="right" />
+            <div class="config-control">
+              <el-switch v-model="form.inactiveAutoDisable" />
+              <span class="control-hint" v-if="form.inactiveAutoDisable">
+                {{ t('security.loginBlock.inactiveDaysDesc') }}
+                <el-input-number v-model="form.inactiveDaysThreshold" :min="1" :max="365" size="small" controls-position="right" />
+                {{ t('common.days') }}
+              </span>
             </div>
           </div>
 
           <!-- 用户登录限制 -->
-          <div class="field-group">
-            <div class="field-group-label">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-              用户级别登录限制
+          <div class="config-row">
+            <div class="config-label">
+              <el-icon><User /></el-icon>
+              <span>{{ t('security.loginBlock.userLimitLabel') }}</span>
             </div>
-            <div class="field-row">
-              <div class="field-info">
-                <div class="field-name">最大连续失败次数</div>
-                <div class="field-desc">同一用户名连续失败达到此次数后账号被锁定</div>
+            <div class="config-control config-control--inline">
+              <div class="inline-item">
+                <span class="inline-label">{{ t('security.loginBlock.maxAttempts') }}</span>
+                <el-input-number v-model="form.userLoginMaxAttempts" :min="1" :max="20" size="small" controls-position="right" />
               </div>
-              <el-input-number v-model="form.userLoginMaxAttempts" :min="1" :max="20" size="small" controls-position="right" />
-            </div>
-            <div class="field-row">
-              <div class="field-info">
-                <div class="field-name">账号锁定时长</div>
-                <div class="field-desc">锁定后自动解锁的等待时间</div>
-              </div>
-              <div class="input-with-unit">
-                <el-input-number v-model="form.userLoginLockMinutes" :min="1" :max="10080" size="small" controls-position="right" style="width: 100px" />
-                <span class="unit-label">分钟</span>
+              <div class="inline-item">
+                <span class="inline-label">{{ t('security.loginBlock.lockDuration') }}</span>
+                <el-input-number v-model="form.userLoginLockMinutes" :min="1" :max="10080" size="small" controls-position="right" />
+                <span class="unit">{{ t('common.minutes') }}</span>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </el-tab-pane>
 
-      <!-- 区块2：IP安全 -->
-      <div class="config-block" id="block-ip">
-        <div class="config-block-header">
-          <div class="block-icon block-icon--amber">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-          </div>
-          <div class="block-titles">
-            <div class="block-title">IP访问控制</div>
-            <div class="block-subtitle">登录限制 · 黑白名单</div>
-          </div>
-          <div class="block-badge" :class="form.ipLoginMaxAttempts > 0 ? 'badge--on' : 'badge--off'">
-            {{ form.ipLoginMaxAttempts > 0 ? 'IP限流已启用' : '未限制' }}
-          </div>
-        </div>
-        <div class="config-block-body">
+      <!-- IP访问控制 -->
+      <el-tab-pane :label="t('security.ipBlock.title')" name="ip">
+        <div class="config-section">
           <!-- IP登录限制 -->
-          <div class="field-group">
-            <div class="field-group-label">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-              IP级别登录限制
+          <div class="config-row">
+            <div class="config-label">
+              <el-icon><Monitor /></el-icon>
+              <span>{{ t('security.ipBlock.ipLimitLabel') }}</span>
             </div>
-            <div class="field-row">
-              <div class="field-info">
-                <div class="field-name">最大连续失败次数</div>
-                <div class="field-desc">同一IP连续失败达到此次数后IP被封禁</div>
+            <div class="config-control config-control--inline">
+              <div class="inline-item">
+                <span class="inline-label">{{ t('security.ipBlock.maxAttempts') }}</span>
+                <el-input-number v-model="form.ipLoginMaxAttempts" :min="1" :max="100" size="small" controls-position="right" />
               </div>
-              <el-input-number v-model="form.ipLoginMaxAttempts" :min="1" :max="100" size="small" controls-position="right" />
-            </div>
-            <div class="field-row">
-              <div class="field-info">
-                <div class="field-name">IP封禁时长</div>
-                <div class="field-desc">封禁后自动解封的等待时间</div>
-              </div>
-              <div class="input-with-unit">
-                <el-input-number v-model="form.ipLoginLockMinutes" :min="1" :max="10080" size="small" controls-position="right" style="width: 100px" />
-                <span class="unit-label">分钟</span>
+              <div class="inline-item">
+                <span class="inline-label">{{ t('security.ipBlock.banDuration') }}</span>
+                <el-input-number v-model="form.ipLoginLockMinutes" :min="1" :max="10080" size="small" controls-position="right" />
+                <span class="unit">{{ t('common.minutes') }}</span>
               </div>
             </div>
           </div>
 
           <!-- IP白名单 -->
-          <div class="field-group">
-            <div class="field-group-label">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              IP白名单
+          <div class="config-row config-row--vertical">
+            <div class="config-label">
+              <el-icon><Guide /></el-icon>
+              <span>{{ t('security.ipBlock.whitelistLabel') }}</span>
             </div>
-            <div class="field-row field-row--vertical">
-              <div class="field-info">
-                <div class="field-name">允许访问的IP / 网段</div>
-                <div class="field-desc">多个用英文逗号分隔，支持CIDR格式。白名单非空时仅白名单IP可登录。</div>
-              </div>
-              <el-input v-model="form.ipWhitelist" type="textarea" :rows="3" placeholder="如：192.168.1.100, 10.0.0.0/8" clearable size="default" />
+            <div class="config-control config-control--full">
+              <el-input
+                v-model="form.ipWhitelist"
+                type="textarea"
+                :rows="2"
+                :placeholder="t('security.ipBlock.whitelistPlaceholder')"
+                clearable
+              />
+              <span class="input-hint">{{ t('security.ipBlock.whitelistDesc') }}</span>
             </div>
           </div>
 
           <!-- IP黑名单 -->
-          <div class="field-group">
-            <div class="field-group-label">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-              IP黑名单
+          <div class="config-row config-row--vertical">
+            <div class="config-label">
+              <el-icon><CircleClose /></el-icon>
+              <span>{{ t('security.ipBlock.blacklistLabel') }}</span>
             </div>
-            <div class="field-row field-row--vertical">
-              <div class="field-info">
-                <div class="field-name">禁止访问的IP / 网段</div>
-                <div class="field-desc">黑名单优先级高于白名单，可一次性封禁整个网段。</div>
-              </div>
-              <el-input v-model="form.ipBlacklist" type="textarea" :rows="3" placeholder="如：1.2.3.4, 5.6.7.0/24" clearable size="default" />
+            <div class="config-control config-control--full">
+              <el-input
+                v-model="form.ipBlacklist"
+                type="textarea"
+                :rows="2"
+                :placeholder="t('security.ipBlock.blacklistPlaceholder')"
+                clearable
+              />
+              <span class="input-hint">{{ t('security.ipBlock.blacklistDesc') }}</span>
             </div>
           </div>
         </div>
-      </div>
+      </el-tab-pane>
 
+      <!-- 密码策略 -->
+      <el-tab-pane :label="t('security.passwordBlock.title')" name="password">
+        <div class="config-section">
+          <!-- 密码长度和过期 -->
+          <div class="config-row">
+            <div class="config-label">
+              <el-icon><Key /></el-icon>
+              <span>{{ t('security.passwordBlock.strengthLabel') }}</span>
+            </div>
+            <div class="config-control config-control--inline">
+              <div class="inline-item">
+                <span class="inline-label">{{ t('security.passwordBlock.minLength') }}</span>
+                <el-input-number v-model="form.passwordMinLength" :min="6" :max="128" size="small" controls-position="right" />
+              </div>
+              <div class="inline-item">
+                <span class="inline-label">{{ t('security.passwordBlock.expiry') }}</span>
+                <el-input-number v-model="form.passwordExpiryDays" :min="0" :max="365" size="small" controls-position="right" />
+                <span class="unit">{{ t('common.days') }}</span>
+                <span class="input-hint inline-hint">{{ t('security.passwordBlock.expiryDesc') }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 密码组成规则 -->
+          <div class="config-row config-row--vertical">
+            <div class="config-label">
+              <el-icon><Connection /></el-icon>
+              <span>{{ t('security.passwordBlock.compositionLabel') }}</span>
+            </div>
+            <div class="config-control config-control--full">
+              <div class="checkbox-grid">
+                <el-checkbox v-model="form.passwordRequireUppercase">
+                  {{ t('security.passwordBlock.uppercase') }}
+                  <template #sub>
+                    <span class="checkbox-sub">{{ t('security.passwordBlock.uppercaseDesc') }}</span>
+                  </template>
+                </el-checkbox>
+                <el-checkbox v-model="form.passwordRequireLowercase">
+                  {{ t('security.passwordBlock.lowercase') }}
+                  <template #sub>
+                    <span class="checkbox-sub">{{ t('security.passwordBlock.lowercaseDesc') }}</span>
+                  </template>
+                </el-checkbox>
+                <el-checkbox v-model="form.passwordRequireDigit">
+                  {{ t('security.passwordBlock.digit') }}
+                  <template #sub>
+                    <span class="checkbox-sub">{{ t('security.passwordBlock.digitDesc') }}</span>
+                  </template>
+                </el-checkbox>
+                <el-checkbox v-model="form.passwordRequireSpecial">
+                  {{ t('security.passwordBlock.special') }}
+                  <template #sub>
+                    <span class="checkbox-sub">{{ t('security.passwordBlock.specialDesc') }}</span>
+                  </template>
+                </el-checkbox>
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-tab-pane>
+
+      <!-- 会话管理 -->
+      <el-tab-pane :label="t('security.sessionBlock.title')" name="session">
+        <div class="config-section">
+          <div class="config-row">
+            <div class="config-label">
+              <el-icon><Clock /></el-icon>
+              <span>{{ t('security.sessionBlock.timeoutLabel') }}</span>
+            </div>
+            <div class="config-control config-control--inline">
+              <el-input-number v-model="form.sessionTimeoutHours" :min="1" :max="168" size="default" controls-position="right" />
+              <span class="unit">{{ t('common.hours') }}</span>
+              <span class="input-hint">{{ t('security.sessionBlock.timeoutDesc') }}</span>
+            </div>
+          </div>
+        </div>
+      </el-tab-pane>
+    </el-tabs>
     </div>
 
-    <!-- 第二行：密码安全 + 会话管理 -->
-    <div class="config-grid config-grid--2">
-
-      <!-- 区块3：密码策略 -->
-      <div class="config-block" id="block-password">
-        <div class="config-block-header">
-          <div class="block-icon block-icon--green">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          </div>
-          <div class="block-titles">
-            <div class="block-title">密码策略</div>
-            <div class="block-subtitle">强度要求 · 有效期</div>
-          </div>
-          <div class="block-badge" :class="form.passwordMinLength >= 8 ? 'badge--on' : 'badge--warn'">
-            最小{{ form.passwordMinLength }}位
-          </div>
-        </div>
-        <div class="config-block-body">
-          <!-- 密码强度 -->
-          <div class="field-group">
-            <div class="field-group-label">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              密码强度要求
+    <!-- 锁定列表抽屉 -->
+    <el-drawer v-model="lockDrawerVisible" :title="lockDrawerTitle" size="420px" direction="rtl">
+      <div class="lock-drawer-body">
+        <el-empty v-if="lockList.length === 0" :description="lockDrawerType === 'users' ? t('security.noLockedUsers') : t('security.noBlockedIPs')" />
+        <div v-else class="lock-list">
+          <div v-for="item in lockList" :key="item.id" class="lock-item">
+            <div class="lock-item-info">
+              <el-tag :type="lockDrawerType === 'users' ? 'warning' : 'danger'" size="small">
+                {{ lockDrawerType === 'users' ? t('security.lockTag') : 'Banned' }}
+              </el-tag>
+              <span class="lock-target">{{ item.target }}</span>
+              <span class="lock-count">{{ t('security.failCount', { count: item.failCount }) }}</span>
             </div>
-            <div class="field-row">
-              <div class="field-info">
-                <div class="field-name">密码最小长度</div>
-                <div class="field-desc">密码至少需要包含的字符数，建议不少于8位</div>
-              </div>
-              <el-input-number v-model="form.passwordMinLength" :min="6" :max="128" size="small" controls-position="right" />
-            </div>
-            <div class="field-row">
-              <div class="field-info">
-                <div class="field-name">密码过期时间</div>
-                <div class="field-desc">0表示永不过期，单位为天</div>
-              </div>
-              <div class="input-with-unit">
-                <el-input-number v-model="form.passwordExpiryDays" :min="0" :max="365" size="small" controls-position="right" style="width: 100px" />
-                <span class="unit-label">天</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 密码组成 -->
-          <div class="field-group">
-            <div class="field-group-label">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              密码组成规则
-            </div>
-            <div class="toggle-grid">
-              <div class="toggle-item" :class="{ active: form.passwordRequireUppercase }" @click="form.passwordRequireUppercase = !form.passwordRequireUppercase">
-                <div class="toggle-check">
-                  <svg v-if="form.passwordRequireUppercase" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <div class="toggle-text">
-                  <div class="toggle-name">大写字母</div>
-                  <div class="toggle-desc">必须包含 A-Z</div>
-                </div>
-              </div>
-              <div class="toggle-item" :class="{ active: form.passwordRequireLowercase }" @click="form.passwordRequireLowercase = !form.passwordRequireLowercase">
-                <div class="toggle-check">
-                  <svg v-if="form.passwordRequireLowercase" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <div class="toggle-text">
-                  <div class="toggle-name">小写字母</div>
-                  <div class="toggle-desc">必须包含 a-z</div>
-                </div>
-              </div>
-              <div class="toggle-item" :class="{ active: form.passwordRequireDigit }" @click="form.passwordRequireDigit = !form.passwordRequireDigit">
-                <div class="toggle-check">
-                  <svg v-if="form.passwordRequireDigit" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <div class="toggle-text">
-                  <div class="toggle-name">数字</div>
-                  <div class="toggle-desc">必须包含 0-9</div>
-                </div>
-              </div>
-              <div class="toggle-item" :class="{ active: form.passwordRequireSpecial }" @click="form.passwordRequireSpecial = !form.passwordRequireSpecial">
-                <div class="toggle-check">
-                  <svg v-if="form.passwordRequireSpecial" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <div class="toggle-text">
-                  <div class="toggle-name">特殊字符</div>
-                  <div class="toggle-desc">必须包含 !@#$%^&*</div>
-                </div>
-              </div>
-            </div>
+            <el-button type="danger" size="small" plain :title="t('security.unlock')" @click="handleUnlock(item)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+            </el-button>
           </div>
         </div>
       </div>
-
-      <!-- 区块4：会话管理 -->
-      <div class="config-block" id="block-session">
-        <div class="config-block-header">
-          <div class="block-icon block-icon--purple">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </div>
-          <div class="block-titles">
-            <div class="block-title">会话管理</div>
-            <div class="block-subtitle">超时配置</div>
-          </div>
-        </div>
-        <div class="config-block-body">
-          <div class="field-group">
-            <div class="field-group-label">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              会话超时
-            </div>
-            <div class="field-row">
-              <div class="field-info">
-                <div class="field-name">会话超时时长</div>
-                <div class="field-desc">用户无操作后自动退出登录的时长</div>
-              </div>
-              <div class="input-with-unit">
-                <el-input-number v-model="form.sessionTimeoutHours" :min="1" :max="168" size="small" controls-position="right" style="width: 100px" />
-                <span class="unit-label">小时</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 当前锁定情况 -->
-          <div class="lock-widgets">
-            <div class="lock-widget" @click="loadLockedUsers(); showLockPanel = 'users'">
-              <div class="lock-widget-icon lock-widget-icon--warn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              </div>
-              <div class="lock-widget-data">
-                <div class="lock-widget-num">{{ overview.totalLockedUsers }}</div>
-                <div class="lock-widget-label">锁定用户</div>
-              </div>
-            </div>
-            <div class="lock-widget" @click="loadLockedIPs(); showLockPanel = 'ips'">
-              <div class="lock-widget-icon lock-widget-icon--danger">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-              </div>
-              <div class="lock-widget-data">
-                <div class="lock-widget-num">{{ overview.totalLockedIPs }}</div>
-                <div class="lock-widget-label">封禁IP</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- 锁定面板（弹出一个drawer） -->
-    <el-drawer v-model="lockDrawerVisible" size="480px" direction="rtl">
-      <template #header>
-        <div class="lock-drawer-head">
-          <span class="lock-drawer-tag">锁定</span>
-          <span class="lock-drawer-title">{{ lockPanelTitle }}</span>
-        </div>
-      </template>
-      <template v-if="showLockPanel === 'users'">
-        <div class="lock-list">
-          <div v-if="lockedUsers.length === 0" class="lock-empty">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            <span>暂无被锁定的用户</span>
-          </div>
-          <div v-for="user in lockedUsers" :key="user.target" class="lock-record">
-            <div class="lock-record-left">
-              <div class="lock-record-name">{{ user.target }}</div>
-              <div class="lock-record-meta">
-                <span>失败 {{ user.failCount }} 次</span>
-                <span>{{ formatTime(user.lockedAt) }}</span>
-              </div>
-            </div>
-            <el-button type="danger" size="small" plain @click="handleUnlockUser(user.target)">解锁</el-button>
-          </div>
-        </div>
-      </template>
-      <template v-else>
-        <div class="lock-list">
-          <div v-if="lockedIPs.length === 0" class="lock-empty">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-            <span>暂无被封禁的IP</span>
-          </div>
-          <div v-for="ip in lockedIPs" :key="ip.target" class="lock-record">
-            <div class="lock-record-left">
-              <div class="lock-record-name">{{ ip.target }}</div>
-              <div class="lock-record-meta">
-                <span>失败 {{ ip.failCount }} 次</span>
-                <span>{{ formatTime(ip.lockedAt) }}</span>
-              </div>
-            </div>
-            <el-button type="danger" size="small" plain @click="handleUnlockIP(ip.target)">解锁</el-button>
-          </div>
-        </div>
-      </template>
     </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { AdminApi, type SecuritySettings, type LockoutRecord } from '@/api/admin'
+import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
+import { Lock, Warning, CircleClose, Guide, Picture, Timer, User, Monitor, Key, Connection, Clock } from '@element-plus/icons-vue'
+import { AdminApi, SecuritySettings } from '@/api/admin'
+import { usePasswordPolicy } from '@/composables/usePasswordPolicy'
 
+const { clearCache } = usePasswordPolicy()
+
+const { t } = useI18n()
+
+// 状态
+const activeTab = ref('login')
 const saving = ref(false)
 const loadingOverview = ref(false)
-const loadingLockUsers = ref(false)
-const loadingLockIPs = ref(false)
-const lockedUsers = ref<LockoutRecord[]>([])
-const lockedIPs = ref<LockoutRecord[]>([])
+const loadingSettings = ref(false)
 const lockDrawerVisible = ref(false)
-const showLockPanel = ref<'users' | 'ips'>('users')
+const lockDrawerType = ref<'users' | 'ips'>('users')
+const lockList = ref<any[]>([])
 
-const lockPanelTitle = computed(() => showLockPanel.value === 'users' ? '锁定用户列表' : '封禁IP列表')
-
+// 总览数据
 const overview = reactive({
   totalLockedUsers: 0,
   totalLockedIPs: 0,
@@ -443,6 +337,7 @@ const overview = reactive({
   blacklistCount: 0,
 })
 
+// 表单数据
 const form = reactive<SecuritySettings>({
   id: 0,
   captchaEnabled: true,
@@ -456,7 +351,7 @@ const form = reactive<SecuritySettings>({
   ipWhitelist: '',
   ipBlacklist: '',
   passwordExpiryDays: 0,
-  passwordMinLength: 6,
+  passwordMinLength: 8,
   passwordRequireUppercase: false,
   passwordRequireLowercase: false,
   passwordRequireDigit: false,
@@ -464,615 +359,388 @@ const form = reactive<SecuritySettings>({
   sessionTimeoutHours: 24,
 })
 
-const loadSettings = async () => {
-  try {
-    const res = await AdminApi.getSecuritySettings()
-    if (res.code === 200 && res.data) {
-      Object.assign(form, res.data)
-    }
-  } catch (e) {
-    ElMessage.error('加载安全设置失败')
-  }
-}
+const lockDrawerTitle = computed(() =>
+  lockDrawerType.value === 'users' ? t('security.lockedUsersList') : t('security.blockedIPsList')
+)
 
-const loadOverview = async () => {
+// 加载安全设置
+async function loadSettings() {
+  loadingSettings.value = true
   try {
-    const res = await AdminApi.getSecurityOverview()
-    if (res.code === 200 && res.data) {
-      Object.assign(overview, res.data)
-    }
-  } catch (e) {
-    // ignore
-  }
-}
-
-const loadLockedUsers = async () => {
-  loadingLockUsers.value = true
-  try {
-    const res = await AdminApi.getLockedUsers()
-    if (res.code === 200) {
-      lockedUsers.value = res.data || []
-    }
-  } catch (e) {
-    ElMessage.error('加载锁定用户失败')
+    const data = await AdminApi.getSecuritySettings()
+    // 使用单独赋值确保 Vue 响应式正确更新
+    form.id = data.id ?? 0
+    form.captchaEnabled = data.captchaEnabled ?? true
+    form.captchaMinLen = data.captchaMinLen ?? 3
+    form.inactiveAutoDisable = data.inactiveAutoDisable ?? false
+    form.inactiveDaysThreshold = data.inactiveDaysThreshold ?? 90
+    form.userLoginMaxAttempts = data.userLoginMaxAttempts ?? 5
+    form.userLoginLockMinutes = data.userLoginLockMinutes ?? 30
+    form.ipLoginMaxAttempts = data.ipLoginMaxAttempts ?? 20
+    form.ipLoginLockMinutes = data.ipLoginLockMinutes ?? 60
+    form.ipWhitelist = data.ipWhitelist ?? ''
+    form.ipBlacklist = data.ipBlacklist ?? ''
+    form.passwordExpiryDays = data.passwordExpiryDays ?? 0
+    form.passwordMinLength = data.passwordMinLength ?? 8
+    form.passwordRequireUppercase = data.passwordRequireUppercase ?? false
+    form.passwordRequireLowercase = data.passwordRequireLowercase ?? false
+    form.passwordRequireDigit = data.passwordRequireDigit ?? false
+    form.passwordRequireSpecial = data.passwordRequireSpecial ?? false
+    form.sessionTimeoutHours = data.sessionTimeoutHours ?? 24
+  } catch {
+    ElMessage.error(t('security.messages.loadSettingsFailed'))
   } finally {
-    loadingLockUsers.value = false
+    loadingSettings.value = false
   }
 }
 
-const loadLockedIPs = async () => {
-  loadingLockIPs.value = true
+// 加载总览
+async function loadOverview() {
+  loadingOverview.value = true
   try {
-    const res = await AdminApi.getLockedIPs()
-    if (res.code === 200) {
-      lockedIPs.value = res.data || []
-    }
-  } catch (e) {
-    ElMessage.error('加载锁定IP失败')
+    const data = await AdminApi.getSecurityOverview()
+    Object.assign(overview, data)
+  } catch {
+    // 总览加载失败不影响主功能
   } finally {
-    loadingLockIPs.value = false
+    loadingOverview.value = false
   }
 }
 
-const handleSave = async () => {
+// 保存设置
+async function handleSave() {
   saving.value = true
   try {
-    const res = await AdminApi.updateSecuritySettings(form)
-    if (res.code === 200) {
-      ElMessage.success('安全设置已保存')
-      loadOverview()
-    } else {
-      ElMessage.error(res.message || '保存失败')
-    }
-  } catch (e) {
-    ElMessage.error('保存失败')
+    await AdminApi.updateSecuritySettings(form)
+    ElMessage.success(t('security.messages.saveSuccess'))
+    loadOverview()
+    loadSettings()
+    clearCache() // 清除密码策略缓存
+  } catch {
+    ElMessage.error(t('security.messages.saveFailed'))
   } finally {
     saving.value = false
   }
 }
 
-const handleUnlockUser = async (username: string) => {
+// 显示锁定抽屉
+async function showLockDrawer(type: 'users' | 'ips') {
+  lockDrawerType.value = type
+  lockDrawerVisible.value = true
   try {
-    await ElMessageBox.confirm(`确定要解锁用户 "${username}" 吗？`, '解锁确认', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
-    const res = await AdminApi.unlockUser(username)
-    if (res.code === 200) {
-      ElMessage.success('用户已解锁')
-      loadLockedUsers()
-      loadOverview()
+    if (type === 'users') {
+      lockList.value = await AdminApi.getLockedUsers()
     } else {
-      ElMessage.error(res.message || '解锁失败')
+      lockList.value = await AdminApi.getLockedIPs()
     }
-  } catch {}
+  } catch {
+    ElMessage.error(type === 'users' ? t('security.messages.loadLockedUsersFailed') : t('security.messages.loadLockedIPsFailed'))
+    lockList.value = []
+  }
 }
 
-const handleUnlockIP = async (ip: string) => {
+// 解锁
+async function handleUnlock(item: any) {
+  const target = item.target
+  const confirmMsg = lockDrawerType.value === 'users'
+    ? t('security.messages.unlockUserConfirm', { username: target })
+    : t('security.messages.unlockIPConfirm', { ip: target })
+
   try {
-    await ElMessageBox.confirm(`确定要解锁IP "${ip}" 吗？`, '解锁确认', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
-    const res = await AdminApi.unlockIP(ip)
-    if (res.code === 200) {
-      ElMessage.success('IP已解锁')
-      loadLockedIPs()
-      loadOverview()
+    if (lockDrawerType.value === 'users') {
+      await AdminApi.unlockUser(target)
+      ElMessage.success(t('security.messages.userUnlocked'))
     } else {
-      ElMessage.error(res.message || '解锁失败')
+      await AdminApi.unlockIP(target)
+      ElMessage.success(t('security.messages.ipUnlocked'))
     }
-  } catch {}
-}
-
-const scrollTo = (id: string) => {
-  const el = document.getElementById('block-' + id)
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
-const formatTime = (timeStr: string) => {
-  if (!timeStr) return '-'
-  const d = new Date(timeStr)
-  return d.toLocaleString('zh-CN')
+    lockList.value = lockList.value.filter(i => i.target !== target)
+    loadOverview()
+  } catch {
+    ElMessage.error(t('security.messages.unlockFailed'))
+  }
 }
 
 onMounted(() => {
   loadSettings()
-  loadingOverview.value = true
-  loadOverview().finally(() => { loadingOverview.value = false })
-  loadLockedUsers()
-  loadLockedIPs()
+  loadOverview()
 })
 </script>
 
-<style scoped lang="scss">
-/* ==================== 页面布局 ==================== */
+<style scoped>
 .security-page {
-  padding: var(--space-4);
+  padding: 24px;
   min-height: 100vh;
-  background: var(--color-page-bg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  overflow: visible;
+  background: #f5f7fa;
 }
 
-/* ==================== 页面标题栏 ==================== */
+/* 页面标题 */
 .page-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4) var(--space-5);
-  box-shadow: var(--shadow-xs);
-  border: 1px solid var(--color-border-light);
-  animation: card-rise 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  justify-content: space-between;
+  margin-bottom: 20px;
 }
-
-@keyframes card-rise {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 .header-left {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
+  flex-direction: column;
+  gap: 4px;
 }
-
 .page-title {
-  font-family: 'Manrope', sans-serif;
-  font-size: 17px;
-  font-weight: 800;
-  color: var(--color-text-primary);
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
   margin: 0;
-  letter-spacing: -0.3px;
 }
-
 .page-subtitle {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  font-weight: 500;
+  font-size: 13px;
+  color: #909399;
 }
 
-.header-actions { display: flex; gap: var(--space-2); }
-.save-btn { font-weight: 700; }
-
-/* ==================== 安全态势总览 ==================== */
-.security-overview {
+/* 总览卡片 */
+.overview-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-3);
-  animation: card-rise 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.05s;
-  animation-fill-mode: both;
+  gap: 16px;
+  margin-bottom: 20px;
 }
-
-.overview-item {
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-light);
-  padding: var(--space-4);
+.overview-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  box-shadow: var(--shadow-xs);
+  gap: 14px;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: 4px;
-  }
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
-  }
-
-  &--warn::before { background: var(--color-warning); }
-  &--danger::before { background: var(--color-danger); }
-  &--success::before { background: var(--color-success); }
-  &--info::before { background: var(--color-primary); }
+  transition: box-shadow 0.2s, transform 0.2s;
+  border: 1px solid #ebeef5;
 }
-
+.overview-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  transform: translateY(-1px);
+}
 .overview-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  .overview-item--warn & { background: var(--color-warning-bg); color: var(--color-warning); }
-  .overview-item--danger & { background: var(--color-danger-bg); color: var(--color-danger); }
-  .overview-item--success & { background: rgba(22, 163, 74, 0.1); color: var(--color-success); }
-  .overview-item--info & { background: var(--color-primary-light-9); color: var(--color-primary); }
-}
-
-.overview-data { flex: 1; }
-
-.overview-value {
-  font-family: 'Manrope', sans-serif;
   font-size: 28px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-  line-height: 1;
-  letter-spacing: -0.5px;
-}
-
-.overview-label {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  margin-top: 4px;
-  font-weight: 600;
-}
-
-.overview-arrow {
-  color: var(--color-text-muted);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  .overview-item:hover & { opacity: 1; }
-}
-
-/* ==================== 配置网格 ==================== */
-.config-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-  animation: card-rise 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.1s;
-  animation-fill-mode: both;
-}
-
-.config-grid--2 {
-  grid-template-columns: 1fr 1fr;
-  animation-delay: 0.15s;
-}
-
-/* ==================== 配置区块 ==================== */
-.config-block {
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-light);
-  box-shadow: var(--shadow-xs);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.config-block-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-4);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border-light);
-  position: relative;
-}
-
-.block-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
-
-  &--blue { background: rgba(0, 94, 235, 0.1); color: var(--color-primary); }
-  &--amber { background: rgba(245, 158, 11, 0.1); color: var(--chart-amber); }
-  &--green { background: rgba(22, 163, 74, 0.1); color: var(--color-success); }
-  &--purple { background: rgba(139, 92, 246, 0.1); color: var(--chart-purple); }
 }
-
-.block-titles {
-  flex: 1;
+.overview-card--warn .overview-icon { color: #e6a23c; }
+.overview-card--danger .overview-icon { color: #f56c6c; }
+.overview-card--success .overview-icon { color: #67c23a; }
+.overview-card--info .overview-icon { color: #409eff; }
+.overview-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-
-.block-title {
-  font-family: 'Manrope', sans-serif;
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-  letter-spacing: -0.2px;
-}
-
-.block-subtitle {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  font-weight: 500;
-}
-
-.block-badge {
-  font-size: 10.5px;
+.overview-num {
+  font-size: 22px;
   font-weight: 700;
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
-  white-space: nowrap;
-
-  &.badge--on { background: rgba(22, 163, 74, 0.1); color: var(--color-success); }
-  &.badge--off { background: var(--gray-100); color: var(--color-text-muted); }
-  &.badge--warn { background: var(--color-warning-bg); color: var(--color-warning); }
-}
-
-.config-block-body {
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-/* ==================== 字段分组 ==================== */
-.field-group {
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.field-group-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 2px;
-
-  svg { color: var(--color-primary); flex-shrink: 0; }
-}
-
-.field-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(0,0,0,0.04);
-  &:last-child { border-bottom: none; }
-
-  &--indent { padding-left: var(--space-3); }
-  &--vertical { flex-direction: column; align-items: stretch; gap: var(--space-2); }
-}
-
-.field-info { flex: 1; min-width: 0; }
-
-.field-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  margin-bottom: 2px;
-}
-
-.field-desc {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  line-height: 1.4;
-}
-
-.input-with-unit {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.unit-label {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-/* ==================== 密码开关网格 ==================== */
-.toggle-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
-}
-
-.toggle-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface);
-  border: 1.5px solid var(--color-border-light);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all 0.15s ease;
-
-  &:hover { border-color: var(--color-primary); }
-
-  &.active {
-    border-color: var(--color-success);
-    background: rgba(22, 163, 74, 0.05);
-    .toggle-check { background: var(--color-success); border-color: var(--color-success); color: white; }
-    .toggle-name { color: var(--color-success); }
-  }
-}
-
-.toggle-check {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1.5px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.15s ease;
-}
-
-.toggle-text { display: flex; flex-direction: column; gap: 1px; }
-
-.toggle-name {
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.toggle-desc {
-  font-size: 10px;
-  color: var(--color-text-muted);
-}
-
-/* ==================== 锁定widgets ==================== */
-.lock-widgets {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-}
-
-.lock-widget {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border: 1.5px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all 0.15s ease;
-
-  &:hover {
-    border-color: var(--color-primary);
-    transform: scale(1.01);
-  }
-}
-
-.lock-widget-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  &--warn { background: var(--color-warning-bg); color: var(--color-warning); }
-  &--danger { background: var(--color-danger-bg); color: var(--color-danger); }
-}
-
-.lock-widget-data { display: flex; flex-direction: column; gap: 2px; }
-
-.lock-widget-num {
-  font-family: 'Manrope', sans-serif;
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--color-text-primary);
+  color: #303133;
   line-height: 1;
 }
+.overview-label {
+  font-size: 13px;
+  color: #909399;
+}
 
-.lock-widget-label {
-  font-size: 11px;
-  color: var(--color-text-muted);
+/* 当前配置状态 */
+.status-panel {
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+  padding: 14px 20px;
+  margin-bottom: 16px;
+}
+
+.status-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
   font-weight: 600;
+  color: #606266;
+  margin-bottom: 12px;
+
+  .el-icon { color: #409eff; }
 }
 
-/* ==================== 锁定列表（drawer） ==================== */
-.lock-list {
+.status-tags {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.lock-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-8) var(--space-4);
-  color: var(--color-text-muted);
-  font-size: 13px;
-  font-weight: 500;
-  svg { opacity: 0.4; }
-}
-
-.lock-record {
+:deep(.el-tag) {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  transition: all 0.15s ease;
+  gap: 4px;
+  font-size: 12px;
+  cursor: default;
 
-  &:hover {
-    border-color: var(--color-primary);
-    background: var(--color-primary-light-9);
-  }
+  .el-icon { font-size: 12px; }
 }
 
-.lock-record-left { display: flex; flex-direction: column; gap: 3px; }
-
-.lock-record-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  font-family: 'SF Mono', monospace;
+/* 标签页 */
+.security-tabs {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px 24px;
+  border: 1px solid #ebeef5;
 }
 
-.lock-record-meta {
+/* 配置区块 */
+.config-section {
   display: flex;
-  gap: var(--space-3);
-  font-size: 11px;
-  color: var(--color-text-muted);
+  flex-direction: column;
+  gap: 4px;
 }
-
-/* ==================== Element Plus覆写 ==================== */
-:deep(.el-input-number .el-input__inner) { text-align: left; }
-:deep(.el-input__wrapper) { border-radius: var(--radius-sm) !important; box-shadow: none !important; border: 1.5px solid var(--color-border-light) !important; &:focus { border-color: var(--color-primary) !important; } }
-:deep(.el-textarea__inner) { border-radius: var(--radius-sm) !important; box-shadow: none !important; border: 1.5px solid var(--color-border-light) !important; &:focus { border-color: var(--color-primary) !important; } }
-:deep(.el-drawer__header) { padding: 16px 20px; margin-bottom: 0; border-bottom: 1px solid var(--color-border-light); color: var(--color-text-primary); }
-:deep(.el-drawer__body) { padding: 0; overflow-y: auto; }
-
-.lock-drawer-head {
+.config-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.config-row:last-child {
+  border-bottom: none;
+}
+.config-row--vertical {
+  flex-direction: column;
+  gap: 10px;
+}
+.config-label {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 160px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  padding-top: 4px;
+}
+.config-label .el-icon {
+  color: #409eff;
+}
+.config-control {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.config-control--full {
+  width: 100%;
+}
+.config-control--inline {
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.control-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #909399;
+}
+.inline-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.inline-label {
+  font-size: 13px;
+  color: #606266;
+  white-space: nowrap;
+}
+.unit {
+  font-size: 13px;
+  color: #909399;
+}
+.input-hint {
+  font-size: 12px;
+  color: #c0c4cc;
   width: 100%;
 }
 
-.lock-drawer-tag {
-  font-size: 10px;
-  font-weight: 800;
-  font-family: 'DM Sans', sans-serif;
-  padding: 2px 8px;
-  border-radius: 4px;
-  letter-spacing: 0.5px;
-  background: var(--color-danger-bg);
-  color: var(--color-danger);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+/* 复选框网格 */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 24px;
+  width: 100%;
+}
+:deep(.el-checkbox) {
+  display: flex;
+  align-items: flex-start;
+  white-space: normal;
+  line-height: 1.6;
+}
+:deep(.el-checkbox__label) {
+  font-size: 13px;
+  color: #606266;
+}
+.checkbox-sub {
+  display: block;
+  font-size: 12px;
+  color: #c0c4cc;
+  line-height: 1.4;
+  margin-top: 2px;
 }
 
-.lock-drawer-title {
-  font-family: 'Manrope', 'DM Sans', sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text-primary);
+/* 锁定列表 */
+.lock-drawer-body {
+  padding: 0 4px;
+}
+.lock-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lock-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px solid #ebeef5;
+}
+.lock-item-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lock-target {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  font-family: monospace;
+}
+.lock-count {
+  font-size: 12px;
+  color: #909399;
 }
 
-/* ==================== 响应式 ==================== */
-@media (max-width: 1200px) {
-  .security-overview { grid-template-columns: repeat(2, 1fr); }
-  .config-grid, .config-grid--2 { grid-template-columns: 1fr; }
+/* 响应式 */
+@media (max-width: 1024px) {
+  .overview-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .checkbox-grid {
+    grid-template-columns: 1fr;
+  }
 }
 @media (max-width: 768px) {
-  .security-page { padding: var(--space-3); }
-  .security-overview { grid-template-columns: 1fr 1fr; }
-  .toggle-grid { grid-template-columns: 1fr; }
+  .overview-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+  .config-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .config-label {
+    min-width: unset;
+  }
 }
 </style>

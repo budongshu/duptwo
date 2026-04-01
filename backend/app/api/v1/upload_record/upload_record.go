@@ -3,9 +3,11 @@ package api
 import (
 	"datauptwo/app/dto"
 	"datauptwo/app/service"
+	"datauptwo/global"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -239,6 +241,115 @@ func (api *UploadRecordApi) GetTemplate(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: template})
 }
 
+// Preview 预览上传文件（解析Excel，返回行数）
+// @Summary 预览Excel文件行数
+// @Tags UploadRecord
+// @Security Bearer
+// @Accept multipart/form-data
+// @Param file formData file true "Excel文件"
+// @Success 200 {object} dto.Response
+// @Router /api/v1/upload-records/preview [post]
+func (api *UploadRecordApi) Preview(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "请上传Excel文件"})
+		return
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: "无法读取上传文件"})
+		return
+	}
+	defer src.Close()
+
+	f, err := excelize.OpenReader(src)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "无法解析Excel文件，请确保是标准xlsx格式"})
+		return
+	}
+	defer f.Close()
+
+	sheets := f.GetSheetList()
+	if len(sheets) == 0 {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "Excel文件中没有工作表"})
+		return
+	}
+
+	rows, err := f.GetRows(sheets[0])
+	if err != nil || len(rows) < 2 {
+		c.JSON(http.StatusOK, dto.Response{Code: 200, Data: map[string]interface{}{"totalRows": 0, "dataRows": 0, "sheetName": sheets[0]}})
+		return
+	}
+
+	colNameToCode := map[string]string{
+		"数据类型":        "dataType",
+		"项目名称":        "projectName",
+		"目标路径":        "destPath",
+		"文件大小(字节)":   "fileSize",
+		"上传人":          "uploader",
+		"上传状态":        "status",
+		"备注":           "remark",
+		"创建时间":        "createdAt",
+	}
+
+	// 查找表头行（包含"数据类型"的行）
+	headerRowIndex := -1
+	var headerRow []string
+	for i, row := range rows {
+		for _, cell := range row {
+			cellClean := strings.TrimSuffix(strings.TrimSpace(cell), " *")
+			if cellClean == "数据类型" {
+				headerRowIndex = i
+				headerRow = row
+				break
+			}
+		}
+		if headerRowIndex >= 0 {
+			break
+		}
+	}
+
+	if headerRowIndex < 0 {
+		c.JSON(http.StatusOK, dto.Response{Code: 200, Data: map[string]interface{}{"totalRows": 0, "dataRows": 0, "sheetName": sheets[0], "error": "未找到有效表头"}})
+		return
+	}
+
+	// 建立列索引映射
+	colIndex := make(map[string]int)
+	for idx, colName := range headerRow {
+		colNameClean := strings.TrimSuffix(strings.TrimSpace(colName), " *")
+		colIndex[colNameClean] = idx
+	}
+
+	dataRows := 0
+	for i := headerRowIndex + 1; i < len(rows); i++ {
+		row := rows[i]
+		rowMap := make(map[string]string)
+		for colName, idx := range colIndex {
+			if idx < len(row) {
+				code := colNameToCode[colName]
+				if code == "" {
+					code = colName
+				}
+				rowMap[code] = row[idx]
+			}
+		}
+		// 跳过空行
+		if rowMap["dataType"] == "" && rowMap["destPath"] == "" && rowMap["uploader"] == "" {
+			continue
+		}
+		dataRows++
+	}
+
+	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: map[string]interface{}{
+		"totalRows":  len(rows) - headerRowIndex - 1,
+		"dataRows":   dataRows,
+		"sheetName":  sheets[0],
+		"headers":    headerRow,
+	}})
+}
+
 // Import 批量导入上传记录
 // @Summary 批量导入上传记录
 // @Tags UploadRecord
@@ -283,21 +394,62 @@ func (api *UploadRecordApi) Import(c *gin.Context) {
 		return
 	}
 
-	// 第一行是表头，建立列索引映射
-	headerRow := rows[0]
-	colIndex := make(map[string]int)
-	for idx, colName := range headerRow {
-		colIndex[colName] = idx
+	// 中文列名 → 字段代码映射（与模板生成顺序一致）
+	colNameToCode := map[string]string{
+		"数据类型":        "dataType",
+		"项目名称":        "projectName",
+		"目标路径":        "destPath",
+		"文件大小(字节)":   "fileSize",
+		"上传人":          "uploader",
+		"上传状态":        "status",
+		"备注":           "remark",
+		"创建时间":        "createdAt",
 	}
 
-	// 将数据行转换为 map[字段代码]值
+	// 查找表头行（包含"数据类型"的行，可能是"数据类型"或"数据类型 *"）
+	headerRowIndex := -1
+	var headerRow []string
+	for i, row := range rows {
+		for _, cell := range row {
+			// 去掉可能的 " *" 后缀
+			cellClean := strings.TrimSuffix(strings.TrimSpace(cell), " *")
+			if cellClean == "数据类型" {
+				headerRowIndex = i
+				headerRow = row
+				break
+			}
+		}
+		if headerRowIndex >= 0 {
+			break
+		}
+	}
+
+	if headerRowIndex < 0 {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "未找到有效的表头行（需包含「数据类型」列）"})
+		return
+	}
+
+	global.AppLogger.Info("导入Excel表头行索引: %d, 列名: %v", headerRowIndex, headerRow)
+
+	// 建立列索引映射
+	colIndex := make(map[string]int)
+	for idx, colName := range headerRow {
+		colNameClean := strings.TrimSuffix(strings.TrimSpace(colName), " *")
+		colIndex[colNameClean] = idx
+	}
+
 	dataRows := []map[string]string{}
-	for i := 1; i < len(rows); i++ {
+	for i := headerRowIndex + 1; i < len(rows); i++ {
 		row := rows[i]
 		rowMap := make(map[string]string)
 		for colName, idx := range colIndex {
 			if idx < len(row) {
-				rowMap[colName] = row[idx]
+				// 将中文列名映射为英文字段代码
+				code := colNameToCode[colName]
+				if code == "" {
+					code = colName // 未识别的列名保留原值（兼容自定义列）
+				}
+				rowMap[code] = row[idx]
 			}
 		}
 		// 跳过空行
@@ -306,6 +458,8 @@ func (api *UploadRecordApi) Import(c *gin.Context) {
 		}
 		dataRows = append(dataRows, rowMap)
 	}
+
+	global.AppLogger.Info("导入Excel识别到 %d 行数据行（总行数=%d）", len(dataRows), len(rows))
 
 	result := api.uploadRecordService.ImportRecords(dataRows)
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: fmt.Sprintf("导入完成：成功 %d 行，失败 %d 行", result.Success, result.Failed), Data: result})

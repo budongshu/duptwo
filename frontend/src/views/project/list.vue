@@ -1,973 +1,913 @@
 <template>
   <div class="project-page">
-    <!-- 页面标题栏 -->
+    <!-- 页面标题 -->
     <header class="page-header">
       <div class="header-left">
-        <h1 class="page-title">项目管理</h1>
-        <span class="page-subtitle">项目信息库</span>
+        <h1 class="page-title">{{ t('project.list.title') }}</h1>
+        <span class="page-subtitle">{{ t('project.list.subtitle') }}</span>
       </div>
       <div class="header-actions">
-        <!-- 视图切换 -->
-        <div class="view-toggle">
-          <button class="view-btn" :class="{ active: viewMode === 'dashboard' }" @click="switchView('dashboard')" title="仪表盘视图">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/>
-              <rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>
-            </svg>
-          </button>
-          <button class="view-btn" :class="{ active: viewMode === 'kanban' }" @click="switchView('kanban')" title="看板视图">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="11" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/>
-            </svg>
-          </button>
-          <button class="view-btn" :class="{ active: viewMode === 'grid' }" @click="switchView('grid')" title="卡片视图">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-              <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-            </svg>
-          </button>
-        </div>
-        <el-button type="primary" size="small" @click="handleCreate">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          新增项目
+      <div class="view-tabs">
+        <button class="view-tab" :class="{ active: viewMode === 'grid' }" @click="switchView('grid')">
+          <el-icon><Grid /></el-icon>
+          <span>{{ t('project.list.viewGrid') }}</span>
+        </button>
+        <button class="view-tab" :class="{ active: viewMode === 'kanban' }" @click="switchView('kanban')">
+          <el-icon><Menu /></el-icon>
+          <span>{{ t('project.list.viewKanban') }}</span>
+        </button>
+        <button class="view-tab" :class="{ active: viewMode === 'detail' }" @click="switchView('detail')">
+          <el-icon><Tickets /></el-icon>
+          <span>{{ t('project.list.viewBento') }}</span>
+        </button>
+      </div>
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          {{ t('project.list.addProject') }}
         </el-button>
       </div>
     </header>
 
+    <!-- KPI 统计 -->
+    <div class="kpi-cards" v-if="!loading && pagination.total > 0">
+      <div class="kpi-card" @click="handleReset">
+        <div class="kpi-num">{{ pagination.total }}</div>
+        <div class="kpi-label">{{ t('project.list.allProjects') }}</div>
+      </div>
+      <div class="kpi-card kpi-card--green" @click="filterByStage('running')">
+        <div class="kpi-num">{{ activeCount }}</div>
+        <div class="kpi-label">{{ t('project.stage.running') }}</div>
+      </div>
+      <div class="kpi-card kpi-card--amber" @click="filterByRecords">
+        <div class="kpi-num">{{ formatNumber(totalRecords) }}</div>
+        <div class="kpi-label">{{ t('project.list.uploadRecords') }}</div>
+      </div>
+      <div class="kpi-card kpi-card--purple" @click="filterBySize">
+        <div class="kpi-num">{{ formatBytes(totalDataSize) }}</div>
+        <div class="kpi-label">{{ t('project.list.totalDataSize') }}</div>
+      </div>
+    </div>
+
     <!-- 筛选栏 -->
     <div class="filter-bar">
-      <div class="filter-left">
-        <el-input
-          v-model="searchKeyword"
-          placeholder="搜索项目名称/编号"
-          clearable
-          size="small"
-          class="search-input"
-          @keyup.enter="handleSearch"
-        />
-        <el-select v-model="searchStatus" placeholder="状态" clearable size="small" style="width: 110px">
-          <el-option label="启用" value="active" />
-          <el-option label="禁用" value="inactive" />
-        </el-select>
-        <el-select v-model="searchStage" placeholder="阶段" clearable size="small" style="width: 120px">
-          <el-option v-for="s in stageOptions" :key="s.value" :label="s.label" :value="s.value" />
-        </el-select>
-      </div>
-      <div class="filter-right">
-        <span class="result-count">共 <strong>{{ pagination.total }}</strong> 个项目<span v-if="activeKpi" class="filter-active-hint">（已筛选）</span></span>
-        <el-button type="primary" size="small" @click="handleSearch">查询</el-button>
-        <el-button size="small" @click="handleReset">重置</el-button>
-      </div>
-    </div>
-
-    <!-- KPI 统计栏（仅仪表盘视图） -->
-    <div class="kpi-stats-bar" v-if="viewMode === 'dashboard' && !loading && pagination.total > 0">
-      <div class="kpi-card" :class="{ 'kpi-card--active': activeKpi === 'all' }" @click="filterByKpi('all')">
-        <div class="kpi-card-inner">
-          <div class="kpi-card-icon kpi-card-icon--blue">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          </div>
-          <div class="kpi-card-body">
-            <div class="kpi-card-value">{{ pagination.total }}</div>
-            <div class="kpi-card-label">全部项目</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="kpi-card" :class="{ 'kpi-card--active': activeKpi === 'active' }" @click="filterByKpi('active')">
-        <div class="kpi-card-inner">
-          <div class="kpi-card-icon kpi-card-icon--green">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </div>
-          <div class="kpi-card-body">
-            <div class="kpi-card-value">{{ activeCount }}</div>
-            <div class="kpi-card-label">运营中</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="kpi-card" :class="{ 'kpi-card--active': activeKpi === 'size' }" @click="filterByKpi('size')">
-        <div class="kpi-card-inner">
-          <div class="kpi-card-icon kpi-card-icon--purple">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-          </div>
-          <div class="kpi-card-body">
-            <div class="kpi-card-value">{{ formatBytes(totalDataSize) }}</div>
-            <div class="kpi-card-label">上传数据总量</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="kpi-card" :class="{ 'kpi-card--active': activeKpi === 'records' }" @click="filterByKpi('records')">
-        <div class="kpi-card-inner">
-          <div class="kpi-card-icon kpi-card-icon--amber">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          </div>
-          <div class="kpi-card-body">
-            <div class="kpi-card-value">{{ totalRecords.toLocaleString() }}</div>
-            <div class="kpi-card-label">上传记录</div>
-          </div>
-        </div>
+      <el-input
+        v-model="searchKeyword"
+        :placeholder="t('project.list.searchPlaceholder')"
+        style="width: 240px"
+        clearable
+        @input="debouncedSearch"
+        @keyup.enter="handleSearch"
+      >
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
+      <el-select v-model="searchStage" :placeholder="t('project.list.stage')" clearable style="width: 140px" @change="debouncedSearch">
+        <el-option v-for="s in stageOptions" :key="s.value" :label="t('project.stage.' + s.value)" :value="s.value" />
+      </el-select>
+      <el-select v-model="searchStatus" :placeholder="t('project.form.statusLabel')" clearable style="width: 140px" @change="debouncedSearch">
+        <el-option :label="t('common.enabled')" value="active" />
+        <el-option :label="t('common.disabled')" value="inactive" />
+      </el-select>
+      <el-button @click="handleReset" text>重置</el-button>
+      <div class="filter-tip">
+        共 {{ pagination.total }} 个项目
       </div>
     </div>
 
-    <!-- 项目详情横幅 -->
-    <div v-if="selectedProject" class="project-detail-banner">
-      <div class="banner-inner">
-        <!-- 左侧: 头像 + 核心信息 -->
-        <div class="banner-left">
-          <div class="banner-avatar" :style="{ background: getProjectColor(selectedProject.code) }">
-            {{ getInitials(selectedProject.name) }}
-          </div>
-          <div class="banner-core">
-            <div class="banner-name">{{ selectedProject.name }}</div>
-            <div class="banner-code">
-              <code>{{ selectedProject.code }}</code>
-            </div>
-          </div>
-          <span class="banner-stage-badge" :style="{ background: getStageColor(selectedProject.stage).bg, color: getStageColor(selectedProject.stage).text }">
-            {{ getStageLabel(selectedProject.stage) }}
-          </span>
-          <span :class="['banner-status-badge', selectedProject.status === 'active' ? 'badge--on' : 'badge--off']">
-            {{ selectedProject.status === 'active' ? '启用' : '禁用' }}
-          </span>
-        </div>
-
-        <!-- 中间: 关键指标 -->
-        <div class="banner-metrics">
-          <div class="banner-metric">
-            <span class="metric-num">{{ selectedProject.recordCount || 0 }}</span>
-            <span class="metric-lbl">数据记录</span>
-          </div>
-          <div class="metric-sep"></div>
-          <div class="banner-metric">
-            <span class="metric-num">{{ formatFileSize(selectedProject.totalDataSize || 0) }}</span>
-            <span class="metric-lbl">总数据量</span>
-          </div>
-          <div class="metric-sep"></div>
-          <div class="banner-metric">
-            <span class="metric-num">{{ selectedProject.onsiteStations?.length || 0 }}</span>
-            <span class="metric-lbl">驻场点</span>
-          </div>
-        </div>
-
-        <!-- 右侧: 团队成员 -->
-        <div class="banner-team">
-          <div class="team-row" v-if="selectedProject.projectPerson">
-            <span class="team-role">👤</span>
-            <span class="team-name">{{ selectedProject.projectPerson }}</span>
-          </div>
-          <div class="team-row" v-if="selectedProject.opsPerson">
-            <span class="team-role">💻</span>
-            <span class="team-name">{{ selectedProject.opsPerson }}</span>
-          </div>
-          <div class="team-row" v-if="selectedProject.developerPerson">
-            <span class="team-role">🛠</span>
-            <span class="team-name">{{ selectedProject.developerPerson }}</span>
-          </div>
-          <div class="team-row empty" v-if="!selectedProject.projectPerson && !selectedProject.opsPerson && !selectedProject.developerPerson">
-            暂无团队成员
-          </div>
-        </div>
-
-        <!-- 操作按钮 -->
-        <div class="banner-actions">
-          <el-button size="small" @click="selectedProject = null">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            收起
-          </el-button>
-          <el-button type="primary" size="small" @click="handleEdit(selectedProject)">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            编辑
-          </el-button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== 仪表盘视图 ==================== -->
-    <div v-if="viewMode === 'dashboard' && !loading && tableData.length > 0" class="dashboard-container" v-loading="loading">
-
-      <!-- 第一行：大数字 + 阶段分布 -->
-      <div class="db-row db-row--hero">
-        <!-- 左侧：核心数字 4宫格 -->
-        <div class="db-hero-kpis">
-          <div class="db-kpi-large" @click="filterByKpi('all')">
-            <div class="kpi-ring kpi-ring--total">
-              <svg width="72" height="72" viewBox="0 0 72 72">
-                <circle cx="36" cy="36" r="30" fill="none" stroke="var(--color-border-light)" stroke-width="5"/>
-                <circle cx="36" cy="36" r="30" fill="none" stroke="var(--color-primary)" stroke-width="5"
-                  stroke-dasharray="188.5" :stroke-dashoffset="188.5 - (188.5 * Math.min(pagination.total / (pagination.total || 1), 1))"
-                  stroke-linecap="round" transform="rotate(-90 36 36)" class="kpi-arc"/>
-              </svg>
-              <div class="kpi-ring-text">
-                <span class="kpi-ring-num">{{ pagination.total }}</span>
-                <span class="kpi-ring-label">项目</span>
-              </div>
-            </div>
-            <div class="kpi-meta">
-              <span class="kpi-main-label">全部项目</span>
-              <span class="kpi-sub-label">当前全部项目</span>
-            </div>
-          </div>
-
-          <div class="db-kpi-divider"></div>
-
-          <div class="db-kpi-stat-row">
-            <div class="db-kpi-stat" @click="filterByKpi('active')">
-              <span class="stat-dot" style="background:#22c55e"></span>
-              <span class="stat-num">{{ activeCount }}</span>
-              <span class="stat-label">运营中</span>
-            </div>
-            <div class="db-kpi-stat" @click="filterByKpi('size')">
-              <span class="stat-dot" style="background:#a855f7"></span>
-              <span class="stat-num stat-num--sm">{{ formatBytes(totalDataSize) }}</span>
-              <span class="stat-label">数据总量</span>
-            </div>
-            <div class="db-kpi-stat" @click="filterByKpi('records')">
-              <span class="stat-dot" style="background:#f59e0b"></span>
-              <span class="stat-num">{{ totalRecords.toLocaleString() }}</span>
-              <span class="stat-label">上传记录</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 右侧：阶段分布 -->
-        <div class="db-stage-dist">
-          <div class="db-panel-header">
-            <span class="db-panel-title">阶段分布</span>
-            <span class="db-panel-sub">各阶段项目数量</span>
-          </div>
-          <div class="stage-bars">
-            <div v-for="col in kanbanColumns" :key="col.key" class="stage-bar-item">
-              <div class="stage-bar-label">
-                <span class="stage-bar-dot" :style="{ background: col.color }"></span>
-                <span class="stage-bar-name">{{ col.label }}</span>
-              </div>
-              <div class="stage-bar-track">
-                <div class="stage-bar-fill"
-                  :style="{
-                    width: `${Math.max((tableData.filter(p => p.stage === col.key).length / (tableData.length || 1)) * 100, 4)}%`,
-                    background: col.color
-                  }">
-                </div>
-              </div>
-              <span class="stage-bar-count">{{ tableData.filter(p => p.stage === col.key).length }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 第二行：最近项目 + 项目角色分布 -->
-      <div class="db-row">
-        <!-- 最近项目 -->
-        <div class="db-panel db-panel--recent">
-          <div class="db-panel-header">
-            <span class="db-panel-title">最近项目</span>
-            <span class="db-panel-sub">按更新时间排序</span>
-          </div>
-          <div class="recent-list">
-            <div v-for="project in [...tableData].sort((a,b) => new Date(b.updatedAt||0).getTime() - new Date(a.updatedAt||0).getTime()).slice(0, 6)" :key="project.id" class="recent-item" @click="handleCardClick(project)">
-              <div class="recent-avatar" :style="{ background: getProjectColor(project.code) }">{{ getInitials(project.name) }}</div>
-              <div class="recent-info">
-                <span class="recent-name">{{ project.name }}</span>
-                <span class="recent-code">{{ project.code }}</span>
-              </div>
-              <span class="recent-stage" :style="{ background: getStageColor(project.stage).bg, color: getStageColor(project.stage).text }">{{ getStageLabel(project.stage) }}</span>
-              <span class="recent-date">{{ formatDate(project.updatedAt) }}</span>
-            </div>
-            <div v-if="tableData.length === 0" class="recent-empty">暂无项目数据</div>
-          </div>
-        </div>
-
-        <!-- 项目角色分布 -->
-        <div class="db-panel db-panel--roles">
-          <div class="db-panel-header">
-            <span class="db-panel-title">团队覆盖</span>
-            <span class="db-panel-sub">有团队人员的项目</span>
-          </div>
-          <div class="role-dist-list">
-            <div class="role-dist-item">
-              <span class="role-icon">👤</span>
-              <span class="role-label">项目人员</span>
-              <div class="role-bar-track">
-                <div class="role-bar-fill" :style="{ width: `${Math.round((tableData.filter(p => p.projectPerson).length / (tableData.length||1)) * 100)}%` }"></div>
-              </div>
-              <span class="role-pct">{{ Math.round((tableData.filter(p => p.projectPerson).length / (tableData.length||1)) * 100) }}%</span>
-            </div>
-            <div class="role-dist-item">
-              <span class="role-icon">💻</span>
-              <span class="role-label">运维人员</span>
-              <div class="role-bar-track">
-                <div class="role-bar-fill" :style="{ width: `${Math.round((tableData.filter(p => p.opsPerson).length / (tableData.length||1)) * 100)}%` }"></div>
-              </div>
-              <span class="role-pct">{{ Math.round((tableData.filter(p => p.opsPerson).length / (tableData.length||1)) * 100) }}%</span>
-            </div>
-            <div class="role-dist-item">
-              <span class="role-icon">🛠</span>
-              <span class="role-label">开发人员</span>
-              <div class="role-bar-track">
-                <div class="role-bar-fill" :style="{ width: `${Math.round((tableData.filter(p => p.developerPerson).length / (tableData.length||1)) * 100)}%` }"></div>
-              </div>
-              <span class="role-pct">{{ Math.round((tableData.filter(p => p.developerPerson).length / (tableData.length||1)) * 100) }}%</span>
-            </div>
-            <div class="role-dist-item">
-              <span class="role-icon">🧪</span>
-              <span class="role-label">测试人员</span>
-              <div class="role-bar-track">
-                <div class="role-bar-fill" :style="{ width: `${Math.round((tableData.filter(p => p.testerPerson).length / (tableData.length||1)) * 100)}%` }"></div>
-              </div>
-              <span class="role-pct">{{ Math.round((tableData.filter(p => p.testerPerson).length / (tableData.length||1)) * 100) }}%</span>
-            </div>
-            <div class="role-dist-item">
-              <span class="role-icon">💰</span>
-              <span class="role-label">商务人员</span>
-              <div class="role-bar-track">
-                <div class="role-bar-fill" :style="{ width: `${Math.round((tableData.filter(p => p.businessPerson).length / (tableData.length||1)) * 100)}%` }"></div>
-              </div>
-              <span class="role-pct">{{ Math.round((tableData.filter(p => p.businessPerson).length / (tableData.length||1)) * 100) }}%</span>
-            </div>
-            <div class="role-dist-item">
-              <span class="role-icon">🛡</span>
-              <span class="role-label">合规专员</span>
-              <div class="role-bar-track">
-                <div class="role-bar-fill" :style="{ width: `${Math.round((tableData.filter(p => p.compliancePerson).length / (tableData.length||1)) * 100)}%` }"></div>
-              </div>
-              <span class="role-pct">{{ Math.round((tableData.filter(p => p.compliancePerson).length / (tableData.length||1)) * 100) }}%</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 仪表盘空状态 -->
-    <div v-if="viewMode === 'dashboard' && !loading && tableData.length === 0" class="dashboard-empty">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
-      <p>暂无项目数据，切换其他视图或新增项目</p>
-    </div>
-
-    <!-- 项目看板视图 -->
-    <div v-if="viewMode === 'kanban' && !loading" class="kanban-container">
-      <div class="kanban-board">
-        <div
-          v-for="col in kanbanColumns"
-          :key="col.key"
-          class="kanban-column"
-        >
-          <!-- 栏头 -->
-          <div class="kanban-col-header" :style="{ '--col-color': col.color }">
-            <span class="col-dot" :style="{ background: col.color }"></span>
-            <span class="col-title">{{ col.label }}</span>
-            <span class="col-count">{{ kanbanData[col.key]?.length || 0 }}</span>
-          </div>
-          <!-- 栏内容 -->
-          <div class="kanban-col-body">
-            <div
-              v-for="project in (kanbanData[col.key] || [])"
-              :key="project.id"
-              class="kanban-card"
-              @click="handleKanbanCardClick(project)"
-            >
-              <!-- 项目名 + 状态 -->
-              <div class="kanban-card-top">
-                <div class="kanban-card-avatar" :style="{ background: getProjectColor(project.code) }">
-                  {{ getInitials(project.name) }}
-                </div>
-                <div class="kanban-card-title-area">
-                  <div class="kanban-card-name">{{ project.name }}</div>
-                  <div class="kanban-card-code">{{ project.code }}</div>
-                </div>
-                <span class="kanban-status-pill" :class="project.status === 'active' ? 'pill--on' : 'pill--off'">
-                  {{ project.status === 'active' ? '启用' : '禁用' }}
-                </span>
-              </div>
-
-              <!-- 描述 -->
-              <div class="kanban-card-desc" v-if="project.description">{{ project.description }}</div>
-
-              <!-- 核心指标 -->
-              <div class="kanban-metrics">
-                <div class="metric-item">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  <span class="metric-val">{{ project.recordCount || 0 }}</span>
-                  <span class="metric-label">条记录</span>
-                </div>
-                <div class="metric-sep"></div>
-                <div class="metric-item">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                  <span class="metric-val">{{ formatFileSize(project.totalDataSize || 0) }}</span>
-                  <span class="metric-label">数据量</span>
-                </div>
-              </div>
-
-              <!-- 底部操作 -->
-              <div class="kanban-card-footer">
-                <div class="kanban-actions">
-                  <button class="kanban-action-btn" @click.stop="handleEdit(project)" title="编辑">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  </button>
-                  <button class="kanban-action-btn kanban-action-btn--danger" @click.stop="handleDelete(project)" title="删除">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                  </button>
-                </div>
-                <span class="kanban-card-date">{{ formatDate(project.createdAt) }}</span>
-              </div>
-            </div>
-
-            <!-- 空栏 -->
-            <div v-if="!kanbanData[col.key]?.length" class="kanban-empty-col">
-              暂无数
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 项目卡片网格 -->
+    <!-- 网格视图 -->
     <div v-if="viewMode === 'grid'" class="project-grid" v-loading="loading">
       <div
         v-for="(project, idx) in tableData"
         :key="project.id"
         class="project-card"
-        :class="{ 'card-selected': selectedIds.includes(project.id) }"
-        :style="{ animationDelay: `${idx * 0.05}s` }"
-        @click="handleCardClick(project)"
+        :style="{ animationDelay: `${idx * 0.03}s` }"
+        @click="handleEdit(project)"
       >
-        <!-- 左侧彩色 accent 条 -->
-        <div class="card-accent-bar" :style="{ background: getProjectColor(project.code) }"></div>
+        <!-- 卡片头部 -->
+        <div class="card-head">
+          <div class="card-avatar" :style="getProjectBgStyle(project.code)">
+            {{ getInitials(project.name) }}
+          </div>
+          <div class="card-info">
+            <div class="card-name">{{ project.name }}</div>
+            <div class="card-code">{{ project.code }}</div>
+          </div>
+          <el-tag :type="project.status === 'active' ? 'success' : 'info'" size="small">
+            {{ t('project.stage.' + project.stage) }}
+          </el-tag>
+        </div>
 
-        <!-- 卡片主体 -->
-        <div class="card-inner">
-          <!-- 头部：头像 + 文字 -->
-          <div class="card-header">
-            <!-- 项目头像 -->
-            <div class="card-avatar" :style="{ background: getProjectColor(project.code) }">
+        <!-- 卡片描述 -->
+        <div class="card-desc" v-if="project.description">{{ project.description }}</div>
+
+        <!-- 卡片指标 -->
+        <div class="card-metrics">
+          <div class="metric-item">
+            <el-icon><Document /></el-icon>
+            <span>{{ formatNumber(project.recordCount || 0) }}</span>
+            <small>{{ t('project.list.records') }}</small>
+          </div>
+          <div class="metric-item">
+            <el-icon><Cpu /></el-icon>
+            <span>{{ formatBytes(project.totalDataSize || 0) }}</span>
+          </div>
+          <div class="metric-item">
+            <el-icon><User /></el-icon>
+            <span>{{ getTeamCount(project) }}</span>
+            <small>成员</small>
+          </div>
+        </div>
+
+        <!-- 卡片底部 -->
+        <div class="card-footer">
+          <div class="card-avatar-list" v-if="getTeamMembers(project).length > 0">
+            <div
+              v-for="(member, mi) in getTeamMembers(project).slice(0, 5)"
+              :key="mi"
+              class="avatar-mini"
+              :style="{ background: getAvatarColor(member) }"
+              :title="member"
+            >
+              {{ member.charAt(0).toUpperCase() }}
+            </div>
+          </div>
+          <span class="card-time">{{ formatDate(project.updatedAt) }}</span>
+        </div>
+      </div>
+
+      <!-- 空状态 -->
+      <div v-if="!loading && tableData.length === 0" class="empty-state">
+        <el-icon class="empty-icon"><Folder /></el-icon>
+        <p class="empty-title">{{ t('project.list.noProjectData') }}</p>
+        <p class="empty-hint">{{ t('project.list.noProjectHint') }}</p>
+      </div>
+    </div>
+
+    <!-- 看板视图 -->
+    <div v-if="viewMode === 'kanban' && !loading" class="kanban-board">
+      <div v-for="col in kanbanColumns" :key="col.key" class="kanban-col">
+        <div class="kanban-col-head">
+          <span class="kanban-dot" :style="{ background: col.color }"></span>
+          <span class="kanban-title">{{ t('project.stage.' + col.key) }}</span>
+          <el-badge :value="kanbanData[col.key]?.length || 0" :max="99" />
+        </div>
+        <div class="kanban-col-body">
+          <div
+            v-for="p in (kanbanData[col.key] || [])"
+            :key="p.id"
+            class="kanban-card"
+          >
+            <!-- 卡片头部 -->
+            <div class="kanban-card-head">
+              <div class="kanban-avatar" :style="getProjectBgStyle(p.code)">
+                {{ getInitials(p.name) }}
+              </div>
+              <div class="kanban-info">
+                <div class="kanban-name" @click="showDetail(p)">{{ p.name }}</div>
+                <div class="kanban-code">{{ p.code }}</div>
+              </div>
+              <el-tag :type="p.status === 'active' ? 'success' : 'info'" size="small">{{ p.status === 'active' ? t('common.enabled') : t('common.disabled') }}</el-tag>
+            </div>
+
+            <!-- 项目标签 -->
+            <div class="kanban-tags" v-if="p.companyAddr || p.projectPeriod || getTeamMembers(p).length > 0">
+              <el-tag type="warning" size="small" effect="plain">{{ t('project.stage.' + p.stage) }}</el-tag>
+              <el-tag size="small" effect="plain" v-if="p.companyAddr">{{ p.companyAddr }}</el-tag>
+              <el-tag size="small" effect="plain" v-if="p.projectPeriod">{{ p.projectPeriod }}</el-tag>
+              <el-tag size="small" effect="plain" v-if="getTeamMembers(p).length > 0">
+                <el-icon><User /></el-icon> {{ getTeamMembers(p).length }}人
+              </el-tag>
+              <el-tag size="small" effect="plain" v-if="p.onsiteStations && p.onsiteStations.length > 0">
+                <el-icon><LocationInformation /></el-icon> {{ p.onsiteStations.length }}个驻场点
+              </el-tag>
+            </div>
+
+            <!-- 团队成员列表 -->
+            <div class="kanban-members" v-if="getTeamMembers(p).length > 0">
+              <div class="kanban-member" v-for="member in getTeamMembers(p).slice(0, 5)" :key="member">
+                <div class="kanban-member-avatar" :style="{ background: getAvatarColor(member) }">
+                  {{ member.charAt(0).toUpperCase() }}
+                </div>
+                <span class="kanban-member-name">{{ member }}</span>
+              </div>
+              <span v-if="getTeamMembers(p).length > 5" class="kanban-member-more">+{{ getTeamMembers(p).length - 5 }}人</span>
+            </div>
+
+            <!-- 驻场点列表 -->
+            <div class="kanban-stations" v-if="p.onsiteStations && p.onsiteStations.length > 0">
+              <div class="kanban-station" v-for="(s, si) in p.onsiteStations.slice(0, 3)" :key="si">
+                <el-icon><LocationInformation /></el-icon>
+                <span>{{ s.location || s.person || '驻场点' }}</span>
+                <span v-if="s.phone" class="station-phone">{{ s.phone }}</span>
+              </div>
+              <span v-if="p.onsiteStations.length > 3" class="kanban-station-more">+{{ p.onsiteStations.length - 3 }}个驻场点</span>
+            </div>
+
+            <!-- 底部指标和操作 -->
+            <div class="kanban-card-foot">
+              <span class="kanban-metric">
+                <el-icon><Document /></el-icon> {{ formatNumber(p.recordCount || 0) }}
+              </span>
+              <span class="kanban-metric">
+                <el-icon><Cpu /></el-icon> {{ formatBytes(p.totalDataSize || 0) }}
+              </span>
+              <div class="kanban-actions" @click.stop>
+                <TableActions :actions="[
+                  { key: 'switch-bento', label: t('common.view'), type: 'default' },
+                  { key: 'delete', label: t('common.delete'), type: 'danger' }
+                ]" @action="(key) => key === 'switch-bento' ? (switchView('detail'), detailVisible = false) : handleDelete(p)" />
+              </div>
+            </div>
+          </div>
+          <div v-if="!kanbanData[col.key]?.length" class="kanban-empty">{{ t('project.list.noData') }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 详情视图 -->
+    <!-- 瀑布视图 -->
+    <div v-if="viewMode === 'detail'" class="bento-view" v-loading="loading">
+      <div class="bento-grid">
+        <div
+          v-for="(project, idx) in tableData"
+          :key="project.id"
+          class="bento-card"
+          :style="{ animationDelay: `${idx * 0.04}s` }"
+          @click="openEditFromDetail(project)"
+        >
+          <!-- 卡片顶部 -->
+          <div class="bento-top">
+            <div class="bento-avatar" :style="{ background: getProjectColor(project.code) }">
               {{ getInitials(project.name) }}
             </div>
-
-            <div class="card-title-area">
-              <div class="card-name">{{ project.name }}</div>
-              <div class="card-meta-tags">
-                <span class="card-code-chip">
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  {{ project.code }}
-                </span>
-                <span class="card-status-pill" :class="project.status === 'active' ? 'pill--active' : 'pill--inactive'">
-                  <span class="pill-dot"></span>
-                  {{ project.status === 'active' ? '启用' : '禁用' }}
-                </span>
-                <span class="record-chip">
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  {{ project.recordCount || 0 }} 条
-                </span>
-                <span class="stage-chip" :style="{ background: getStageColor(project.stage).bg, color: getStageColor(project.stage).text }">
-                  {{ getStageLabel(project.stage) }}
-                </span>
-              </div>
+            <div class="bento-top-badges">
+              <el-tag :type="project.status === 'active' ? 'success' : 'info'" size="small">
+                {{ project.status === 'active' ? t('common.enabled') : t('common.disabled') }}
+              </el-tag>
+              <el-tag type="warning" size="small" effect="plain">
+                {{ t('project.stage.' + project.stage) }}
+              </el-tag>
             </div>
-
-            <!-- 选择框 -->
-            <div
-              class="card-checkbox"
-              :class="{ checked: selectedIds.includes(project.id) }"
-              @click.stop="toggleSelect(project.id)"
-            >
-              <svg v-if="selectedIds.includes(project.id)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            <!-- 悬浮编辑按钮 -->
+            <div class="bento-actions" @click.stop>
+              <el-button size="small" text @click="openEditFromDetail(project)">
+                <el-icon><Edit /></el-icon>
+                {{ t('common.edit') }}
+              </el-button>
             </div>
           </div>
 
-          <!-- 描述（无则不显示） -->
-          <div class="card-desc" v-if="project.description">{{ project.description }}</div>
+          <!-- 卡片主体 -->
+          <div class="bento-body">
+            <!-- 项目名 + 编号 -->
+            <div class="bento-header">
+              <div class="bento-name">{{ project.name }}</div>
+              <div class="bento-code">
+                <el-icon><Link /></el-icon>
+                {{ project.code }}
+              </div>
+            </div>
 
-          <!-- 信息网格（2列 x 4行） -->
-          <div class="card-info-grid">
-            <div class="info-cell">
-              <div class="info-icon icon-person">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <!-- 核心指标 -->
+            <div class="bento-metrics">
+              <div class="bento-metric">
+                <div class="bento-metric-num">{{ formatNumber(project.recordCount || 0) }}</div>
+                <div class="bento-metric-label">{{ t('project.list.records') }}</div>
               </div>
-              <div class="info-text">
-                <span class="info-label">项目人员</span>
-                <span class="info-value">{{ project.projectPerson || '-' }}</span>
+              <div class="bento-metric-sep"></div>
+              <div class="bento-metric">
+                <div class="bento-metric-num">{{ formatBytes(project.totalDataSize || 0) }}</div>
+                <div class="bento-metric-label">{{ t('project.list.size') }}</div>
               </div>
-            </div>
-            <div class="info-cell">
-              <div class="info-icon icon-ops">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              </div>
-              <div class="info-text">
-                <span class="info-label">运维人员</span>
-                <span class="info-value">{{ project.opsPerson || '-' }}</span>
+              <div class="bento-metric-sep"></div>
+              <div class="bento-metric">
+                <div class="bento-metric-num">{{ getTeamCount(project) }}</div>
+                <div class="bento-metric-label">成员</div>
               </div>
             </div>
-            <div class="info-cell">
-              <div class="info-icon icon-dev">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-              </div>
-              <div class="info-text">
-                <span class="info-label">开发人员</span>
-                <span class="info-value">{{ project.developerPerson || '-' }}</span>
-              </div>
-            </div>
-            <div class="info-cell">
-              <div class="info-icon icon-test">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-              </div>
-              <div class="info-text">
-                <span class="info-label">测试人员</span>
-                <span class="info-value">{{ project.testerPerson || '-' }}</span>
-              </div>
-            </div>
-            <div class="info-cell">
-              <div class="info-icon icon-biz">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              </div>
-              <div class="info-text">
-                <span class="info-label">商务人员</span>
-                <span class="info-value">{{ project.businessPerson || '-' }}</span>
-              </div>
-            </div>
-            <div class="info-cell">
-              <div class="info-icon icon-compliance">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-              </div>
-              <div class="info-text">
-                <span class="info-label">合规专员</span>
-                <span class="info-value">{{ project.compliancePerson || '-' }}</span>
-              </div>
-            </div>
-            <div class="info-cell info-cell--full">
-              <div class="info-icon icon-location">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              </div>
-              <div class="info-text">
-                <span class="info-label">公司地点</span>
-                <span class="info-value">{{ project.companyAddr || '-' }}</span>
-              </div>
-            </div>
-          </div>
 
-          <!-- 解决方案（全宽） -->
-          <div class="card-solution" v-if="project.solution">
-            <div class="solution-label">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              解决方案
+            <!-- 项目描述 -->
+            <div class="bento-desc" v-if="project.description">
+              {{ project.description }}
             </div>
-            <div class="solution-text">{{ project.solution }}</div>
-          </div>
 
-          <!-- 驻场点标签云 -->
-          <div class="card-stations" v-if="project.onsiteStations && project.onsiteStations.length > 0">
-            <div class="stations-label">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              驻场点
+            <!-- 项目信息 -->
+            <div class="bento-info-row" v-if="project.companyAddr || project.projectPeriod">
+              <div class="bento-info-item" v-if="project.companyAddr">
+                <el-icon><Location /></el-icon>
+                <span>{{ project.companyAddr }}</span>
+              </div>
+              <div class="bento-info-item" v-if="project.projectPeriod">
+                <el-icon><Clock /></el-icon>
+                <span>{{ project.projectPeriod }}</span>
+              </div>
             </div>
-            <div class="stations-cloud">
-              <span v-for="(station, sidx) in project.onsiteStations" :key="sidx" class="station-tag">{{ station.location }}</span>
-            </div>
-          </div>
 
-          <!-- 卡片底部 -->
-          <div class="card-footer">
-            <div class="card-actions">
-              <TableActions :actions="[
-                { key: 'edit', label: '编辑', type: 'primary' },
-                { key: 'delete', label: '删除', type: 'danger' }
-              ]" @action="(key) => handleAction(key, project)" />
+            <!-- 解决方案 -->
+            <div class="bento-solution" v-if="project.solution">
+              <div class="bento-solution-label">
+                <el-icon><Connection /></el-icon>
+                {{ t('project.form.solutionLabel') }}
+                <span v-if="project.solutionPerson" class="solution-person">
+                  · {{ project.solutionPerson }}
+                </span>
+              </div>
+              <div class="bento-solution-text">{{ project.solution }}</div>
+            </div>
+
+            <!-- 团队成员 -->
+            <div class="bento-team" v-if="getTeamMembers(project).length > 0">
+              <div class="bento-team-label">
+                <el-icon><User /></el-icon>
+                团队成员
+                <span class="bento-team-count">{{ getTeamMembers(project).length }}</span>
+              </div>
+              <div class="bento-team-list">
+                <div
+                  v-for="member in getDisplayMembers(project, 6).visible"
+                  :key="member"
+                  class="bento-member-chip"
+                  :title="member + ' · ' + getMemberRole(project, member)"
+                >
+                  <div class="bento-member-avatar" :style="{ background: getAvatarColor(member) }">
+                    {{ member.charAt(0).toUpperCase() }}
+                  </div>
+                  <span class="bento-member-name">{{ member }}</span>
+                </div>
+                <div class="bento-member-overflow" v-if="getDisplayMembers(project, 6).overflow > 0">
+                  +{{ getDisplayMembers(project, 6).overflow }}
+                </div>
+              </div>
+            </div>
+
+            <!-- 驻场点 -->
+            <div class="bento-stations" v-if="project.onsiteStations && project.onsiteStations.length > 0">
+              <div class="bento-stations-label">
+                <el-icon><LocationInformation /></el-icon>
+                {{ t('project.list.onsiteStations') }}
+                <span class="bento-station-count">{{ project.onsiteStations.length }}</span>
+              </div>
+              <div class="bento-station-list">
+                <div
+                  v-for="(s, si) in project.onsiteStations"
+                  :key="si"
+                  class="bento-station-chip"
+                >
+                  <el-icon><LocationInformation /></el-icon>
+                  <span class="station-location">{{ s.location || '—' }}</span>
+                  <span class="station-person" v-if="s.person">{{ s.person }}</span>
+                  <span class="station-phone" v-if="s.phone">{{ s.phone }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 底部时间 -->
+            <div class="bento-footer">
+              <span class="bento-time">
+                <el-icon><Timer /></el-icon>
+                更新于 {{ formatDate(project.updatedAt) }}
+              </span>
             </div>
           </div>
         </div>
       </div>
 
       <!-- 空状态 -->
-      <div v-if="!loading && tableData.length === 0" class="empty-state" style="grid-column: 1 / -1">
-        <svg class="empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-        <p class="empty-text">暂无项目，点击上方按钮新增</p>
+      <div v-if="!loading && tableData.length === 0" class="empty-state">
+        <el-icon class="empty-icon"><Folder /></el-icon>
+        <p class="empty-title">{{ t('project.list.noProjectData') }}</p>
+        <p class="empty-hint">{{ t('project.list.noProjectHint') }}</p>
       </div>
     </div>
 
+    <!-- 加载骨架 -->
+    <div v-if="loading" class="project-grid">
+      <div v-for="i in 8" :key="i" class="skeleton-card"></div>
+    </div>
+
     <!-- 分页 -->
-    <div class="pagination-wrapper" v-if="pagination.total > 0 && viewMode !== 'dashboard'">
+    <div class="pagination-wrapper" v-if="pagination.total > 0 && viewMode === 'grid'">
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.pageSize"
         :total="pagination.total"
-        :page-sizes="[12, 24, 48, 96]"
+        :page-sizes="[12, 24, 48]"
         layout="sizes, prev, pager, next"
         background
       />
     </div>
 
-    <!-- 编辑/新增侧边栏 -->
+    <!-- 新增/编辑抽屉 -->
     <el-drawer
       v-model="drawerVisible"
       direction="rtl"
-      size="580px"
+      size="560px"
       :with-header="false"
       :destroy-on-close="true"
       class="project-drawer"
     >
-      <!-- 侧边栏头部 -->
       <div class="drawer-head">
-        <div class="drawer-head-tag">
-          <span class="drawer-mode-tag" :class="isEdit ? 'tag--edit' : 'tag--new'">{{ isEdit ? '编辑' : '新增' }}</span>
-          <span class="drawer-entity-label">{{ isEdit ? form.name || '项目' : '新增项目' }}</span>
+        <div class="drawer-avatar" :style="{ background: getProjectColor(form.code) }">
+          {{ dialogPreviewInitials }}
         </div>
-        <button class="drawer-close-btn" @click="drawerVisible = false">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        <div class="drawer-title">
+          <span class="drawer-mode" :class="isEdit ? 'mode--edit' : 'mode--new'">
+            {{ isEdit ? t('common.edit') : t('project.form.newProject') }}
+          </span>
+          <span class="drawer-name">{{ isEdit ? form.name || t('project.form.project') : t('project.form.project') }}</span>
+        </div>
+        <el-button text @click="drawerVisible = false"><el-icon><Close /></el-icon></el-button>
       </div>
 
-      <!-- 侧边栏内容 -->
       <div class="drawer-body">
-        <el-form ref="formRef" :model="form" :rules="formRules" label-position="top" class="edit-form">
-        <!-- 基本信息区块 -->
-        <div class="form-section">
-          <div class="form-section-header">
-            <div class="form-section-dot" style="background: #005eeb"></div>
-            基本信息
+        <el-form ref="formRef" :model="form" :rules="formRules" label-position="top">
+          <!-- 基本信息 -->
+          <div class="form-section">
+            <div class="form-section-title">{{ t('project.form.basicInfo') }}</div>
+            <el-form-item :label="t('project.form.nameLabel')" prop="name">
+              <el-input v-model="form.name" :placeholder="t('project.form.namePlaceholder')" @input="dialogPreviewInitials = getInitials(form.name)" />
+            </el-form-item>
+            <el-form-item :label="t('project.form.codeLabel')" prop="code">
+              <el-input v-model="form.code" :placeholder="t('project.form.codePlaceholder')" />
+            </el-form-item>
+            <el-form-item :label="t('project.form.descriptionLabel')">
+              <el-input v-model="form.description" type="textarea" :rows="2" :placeholder="t('project.form.descriptionPlaceholder')" />
+            </el-form-item>
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <el-form-item :label="t('project.form.stageLabel')">
+                  <el-select v-model="form.stage" style="width: 100%">
+                    <el-option v-for="s in stageOptions" :key="s.value" :label="t('project.stage.' + s.value)" :value="s.value" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item :label="t('project.form.statusLabel')">
+                  <el-select v-model="form.status" style="width: 100%">
+                    <el-option :label="t('common.enabled')" value="active" />
+                    <el-option :label="t('common.disabled')" value="inactive" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
           </div>
-          <div class="form-body">
-            <div class="form-grid-2">
-              <div class="form-field">
-                <label class="field-label">项目名称 <span class="required-mark">*</span></label>
-                <el-input v-model="form.name" placeholder="请输入项目名称" size="default" class="field-input" @input="updateDialogPreview" />
-              </div>
-              <div class="form-field">
-                <label class="field-label">项目编号 <span class="required-mark">*</span></label>
-                <el-input v-model="form.code" placeholder="如：PRJ-001" size="default" class="field-input" @input="updateDialogPreviewColor" />
-              </div>
-            </div>
-            <div class="form-field">
-              <label class="field-label">项目描述</label>
-              <el-input v-model="form.description" type="textarea" :rows="2" placeholder="请输入项目描述（可选）" size="default" class="field-input" />
-            </div>
-            <div class="form-grid-2">
-              <div class="form-field">
-                <label class="field-label">项目阶段</label>
-                <el-select v-model="form.stage" placeholder="选择项目阶段" size="default" class="field-input">
-                  <el-option label="待定中" value="planning" />
-                  <el-option label="方案中" value="designing" />
-                  <el-option label="部署中" value="deploying" />
-                  <el-option label="运营中" value="running" />
-                  <el-option label="暂定中" value="paused" />
-                </el-select>
-              </div>
-              <div class="form-field">
-                <label class="field-label">启用状态</label>
-                <el-select v-model="form.status" placeholder="选择状态" size="default" class="field-input">
-                  <el-option label="启用" value="active" />
-                  <el-option label="禁用" value="inactive" />
-                </el-select>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- 团队成员区块 -->
-        <div class="form-section">
-          <div class="form-section-header">
-            <div class="form-section-dot" style="background: #06b6d4"></div>
-            团队成员
-            <span class="section-count" v-if="personnelList.length > 0">{{ personnelList.length }} 人可选</span>
+          <!-- 团队成员 -->
+          <div class="form-section">
+            <div class="form-section-title">{{ t('project.form.teamMembers') }}</div>
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <el-form-item :label="t('project.role.projectPerson')">
+                  <el-select v-model="form.projectPerson" :placeholder="t('project.form.selectPerson')" :loading="personnelLoading" filterable clearable style="width: 100%">
+                    <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item :label="t('project.role.opsPerson')">
+                  <el-select v-model="form.opsPerson" :placeholder="t('project.form.selectPerson')" :loading="personnelLoading" filterable clearable style="width: 100%">
+                    <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item :label="t('project.role.opsStaffPerson')">
+                  <el-select v-model="form.opsStaffPerson" :placeholder="t('project.form.selectPerson')" :loading="personnelLoading" filterable clearable style="width: 100%">
+                    <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item :label="t('project.role.developerPerson')">
+                  <el-select v-model="form.developerPerson" :placeholder="t('project.form.selectPerson')" :loading="personnelLoading" filterable clearable style="width: 100%">
+                    <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item :label="t('project.role.testerPerson')">
+                  <el-select v-model="form.testerPerson" :placeholder="t('project.form.selectPerson')" :loading="personnelLoading" filterable clearable style="width: 100%">
+                    <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item :label="t('project.role.businessPerson')">
+                  <el-select v-model="form.businessPerson" :placeholder="t('project.form.selectPerson')" :loading="personnelLoading" filterable clearable style="width: 100%">
+                    <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
           </div>
-          <div class="form-body">
-            <div class="form-grid-3">
-              <div class="form-field">
-                <label class="field-label">👤 项目人员</label>
-                <el-select v-model="form.projectPerson" placeholder="选择人员" size="default" class="field-input" :loading="personnelLoading" filterable clearable>
-                  <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name">
-                    <div class="personnel-opt"><span class="opt-name">{{ p.name }}</span><span class="opt-phone">{{ p.phone || '' }}</span></div>
-                  </el-option>
-                </el-select>
-              </div>
-              <div class="form-field">
-                <label class="field-label">💻 运维人员</label>
-                <el-select v-model="form.opsPerson" placeholder="选择人员" size="default" class="field-input" :loading="personnelLoading" filterable clearable>
-                  <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name">
-                    <div class="personnel-opt"><span class="opt-name">{{ p.name }}</span><span class="opt-phone">{{ p.phone || '' }}</span></div>
-                  </el-option>
-                </el-select>
-              </div>
-              <div class="form-field">
-                <label class="field-label">🛠 开发人员</label>
-                <el-select v-model="form.developerPerson" placeholder="选择人员" size="default" class="field-input" :loading="personnelLoading" filterable clearable>
-                  <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name">
-                    <div class="personnel-opt"><span class="opt-name">{{ p.name }}</span><span class="opt-phone">{{ p.phone || '' }}</span></div>
-                  </el-option>
-                </el-select>
-              </div>
-              <div class="form-field">
-                <label class="field-label">🧪 测试人员</label>
-                <el-select v-model="form.testerPerson" placeholder="选择人员" size="default" class="field-input" :loading="personnelLoading" filterable clearable>
-                  <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name">
-                    <div class="personnel-opt"><span class="opt-name">{{ p.name }}</span><span class="opt-phone">{{ p.phone || '' }}</span></div>
-                  </el-option>
-                </el-select>
-              </div>
-              <div class="form-field">
-                <label class="field-label">💰 商务人员</label>
-                <el-select v-model="form.businessPerson" placeholder="选择人员" size="default" class="field-input" :loading="personnelLoading" filterable clearable>
-                  <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name">
-                    <div class="personnel-opt"><span class="opt-name">{{ p.name }}</span><span class="opt-phone">{{ p.phone || '' }}</span></div>
-                  </el-option>
-                </el-select>
-              </div>
-              <div class="form-field">
-                <label class="field-label">🛡 合规专员</label>
-                <el-select v-model="form.compliancePerson" placeholder="选择人员" size="default" class="field-input" :loading="personnelLoading" filterable clearable>
-                  <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name">
-                    <div class="personnel-opt"><span class="opt-name">{{ p.name }}</span><span class="opt-phone">{{ p.phone || '' }}</span></div>
-                  </el-option>
-                </el-select>
-              </div>
+
+          <!-- 项目信息 -->
+          <div class="form-section">
+            <div class="form-section-title">{{ t('project.form.projectInfo') }}</div>
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <el-form-item :label="t('project.form.companyAddr')">
+                  <el-input v-model="form.companyAddr" :placeholder="t('project.form.companyAddrPlaceholder')" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item :label="t('project.form.projectPeriod')">
+                  <el-date-picker
+                    v-model="projectPeriodRange"
+                    type="daterange"
+                    range-separator="~"
+                    start-placeholder="开始日期"
+                    end-placeholder="结束日期"
+                    value-format="YYYY-MM-DD"
+                    format="YYYY-MM-DD"
+                    style="width: 100%"
+                    :shortcuts="dateShortcuts"
+                  />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-form-item :label="t('project.form.solutionLabel')">
+              <el-input v-model="form.solution" type="textarea" :rows="2" :placeholder="t('project.form.solutionPlaceholder')" />
+            </el-form-item>
+            <el-form-item :label="t('project.form.solutionPersonLabel')">
+              <el-select v-model="form.solutionPerson" :placeholder="t('project.form.selectPerson')" :loading="personnelLoading" filterable clearable style="width: 100%">
+                <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name" />
+              </el-select>
+            </el-form-item>
+          </div>
+
+          <!-- 驻场点 -->
+          <div class="form-section">
+            <div class="form-section-title">
+              {{ t('project.list.onsiteStations') }}
+              <el-badge v-if="form.onsiteStations.length > 0" :value="form.onsiteStations.length" />
             </div>
-          </div>
-        </div>
-
-        <!-- 项目信息区块 -->
-        <div class="form-section">
-          <div class="form-section-header">
-            <div class="form-section-dot" style="background: #8b5cf6"></div>
-            项目信息
-          </div>
-          <div class="form-body">
-            <div class="form-grid-2">
-              <div class="form-field">
-                <label class="field-label">📍 公司地点</label>
-                <el-input v-model="form.companyAddr" placeholder="如：北京市朝阳区" size="default" class="field-input" />
-              </div>
-              <div class="form-field">
-                <label class="field-label">📅 项目周期</label>
-                <el-input v-model="form.projectPeriod" placeholder="如：2024.01 - 2024.12" size="default" class="field-input" />
-              </div>
-              <div class="form-field" style="grid-column: 1 / -1">
-                <label class="field-label">💡 解决方案</label>
-                <el-input v-model="form.solution" placeholder="简要描述采用的解决方案" size="default" class="field-input" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 状态 + 排序 -->
-        <div class="form-status-row">
-          <div class="form-field">
-            <label class="field-label">状态</label>
-            <el-radio-group v-model="form.status" size="small">
-              <el-radio-button value="active">启用</el-radio-button>
-              <el-radio-button value="inactive">禁用</el-radio-button>
-            </el-radio-group>
-          </div>
-          <div class="form-field">
-            <label class="field-label">排序</label>
-            <el-input-number v-model="form.sort" :min="0" :max="9999" size="small" controls-position="right" style="width: 120px" />
-          </div>
-        </div>
-
-        <!-- 驻场点区块 -->
-        <div class="form-section">
-          <div class="form-section-header">
-            <div class="form-section-dot" style="background: #8b5cf6"></div>
-            驻场点
-            <span class="section-count" v-if="form.onsiteStations.length > 0">{{ form.onsiteStations.length }} 个</span>
-          </div>
-          <div class="form-body">
-            <div class="stations-list">
-              <div v-if="form.onsiteStations.length === 0" class="stations-empty">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>暂无驻场点，填写下方信息可添加</span>
-              </div>
-              <div v-for="(station, idx) in form.onsiteStations" :key="idx" class="station-card">
-                <div class="station-number">{{ idx + 1 }}</div>
-                <div class="station-fields">
-                  <div class="station-field">
-                    <span class="station-field-label">📍 场地</span>
-                    <el-input v-model="station.location" placeholder="场地名称" size="small" class="station-input" />
+            <div v-for="(station, idx) in form.onsiteStations" :key="idx" class="station-row">
+              <span class="station-num">{{ idx + 1 }}</span>
+              <el-select
+                v-model="station.person"
+                :placeholder="t('project.form.selectPerson')"
+                size="small"
+                :loading="personnelLoading"
+                filterable
+                clearable
+                style="width: 160px"
+                @change="(val) => fillStationFromPersonnel(station, val)"
+              >
+                <el-option
+                  v-for="p in personnelList"
+                  :key="p.id"
+                  :label="p.name"
+                  :value="p.name"
+                >
+                  <div class="station-person-opt">
+                    <span>{{ p.name }}</span>
+                    <small v-if="p.company">{{ p.company }}</small>
                   </div>
-                  <div class="station-field">
-                    <span class="station-field-label">👤 人员</span>
-                    <el-select
-                      v-model="station.person"
-                      placeholder="选择人员"
-                      size="small"
-                      class="station-input"
-                      :loading="personnelLoading"
-                      filterable
-                      clearable
-                      @change="(val) => handlePersonnelSelect(station, val)"
-                    >
-                      <el-option
-                        v-for="p in personnelList"
-                        :key="p.id"
-                        :label="p.name"
-                        :value="p.name"
-                      >
-                        <div class="personnel-option">
-                          <span class="personnel-name">{{ p.name }}</span>
-                          <span class="personnel-phone">{{ p.phone || '无电话' }}</span>
-                        </div>
-                      </el-option>
-                    </el-select>
-                  </div>
-                  <div class="station-field">
-                    <span class="station-field-label">📞 联系</span>
-                    <el-input v-model="station.phone" placeholder="手机/电话" size="small" class="station-input" />
-                  </div>
-                </div>
-                <button type="button" class="station-remove-btn" @click="removeStation(idx)" title="删除此驻场点">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              </div>
+                </el-option>
+              </el-select>
+              <el-input v-model="station.location" :placeholder="t('project.form.stationLocationPlaceholder')" size="small" style="width: 140px" />
+              <el-input v-model="station.phone" :placeholder="t('project.form.stationContactPlaceholder')" size="small" style="width: 120px" />
+              <el-button type="danger" size="small" text @click="removeStation(idx)">
+                <el-icon><Delete /></el-icon>
+              </el-button>
             </div>
-            <button type="button" class="add-station-btn" @click="addStation">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              添加驻场点
-            </button>
+            <el-button type="primary" plain size="small" @click="addStation">
+              <el-icon><Plus /></el-icon>
+              {{ t('project.form.addStation') }}
+            </el-button>
           </div>
-        </div>
         </el-form>
       </div>
 
-      <!-- 侧边栏底部 -->
       <div class="drawer-foot">
-        <el-button size="default" @click="drawerVisible = false">取消</el-button>
-        <el-button type="primary" size="default" :loading="submitting" @click="confirmSubmit" class="submit-btn">
-          <svg v-if="!submitting" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          {{ isEdit ? '保存修改' : '创建项目' }}
+        <el-button @click="drawerVisible = false">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          {{ t('common.cancel') }}
+        </el-button>
+        <el-button type="primary" :loading="submitting" @click="confirmSubmit">
+          <svg v-if="!submitting" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          {{ isEdit ? t('common.save') : t('common.create') }}
         </el-button>
       </div>
     </el-drawer>
+
+    <!-- 项目详情弹窗 -->
+    <el-dialog v-model="detailVisible" :title="currentDetail?.name || '项目详情'" width="720px" :destroy-on-close="true" class="project-detail-dialog">
+      <div class="detail-modal" v-if="currentDetail">
+        <!-- 顶部信息 -->
+        <div class="detail-modal-head">
+          <div class="detail-modal-avatar" :style="getProjectBgStyle(currentDetail.code)">
+            {{ getInitials(currentDetail.name) }}
+          </div>
+          <div class="detail-modal-title">
+            <h2 class="modal-project-name">{{ currentDetail.name }}</h2>
+            <div class="modal-project-meta">
+              <el-tag :type="currentDetail.status === 'active' ? 'success' : 'info'" size="small">{{ currentDetail.status === 'active' ? t('common.enabled') : t('common.disabled') }}</el-tag>
+              <el-tag type="warning" size="small">{{ t('project.stage.' + currentDetail.stage) }}</el-tag>
+              <span class="modal-code">{{ currentDetail.code }}</span>
+            </div>
+          </div>
+          <div class="detail-modal-stats">
+            <div class="modal-stat">
+              <span class="modal-stat-num">{{ formatNumber(currentDetail.recordCount || 0) }}</span>
+              <span class="modal-stat-label">{{ t('project.list.records') }}</span>
+            </div>
+            <div class="modal-stat">
+              <span class="modal-stat-num">{{ formatBytes(currentDetail.totalDataSize || 0) }}</span>
+              <span class="modal-stat-label">{{ t('project.list.size') }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 基本信息 -->
+        <div class="detail-modal-section" v-if="currentDetail.description">
+          <div class="modal-section-title">项目描述</div>
+          <div class="modal-section-content">{{ currentDetail.description }}</div>
+        </div>
+
+        <!-- 项目信息 -->
+        <div class="detail-modal-section" v-if="currentDetail.companyAddr || currentDetail.projectPeriod || currentDetail.solution">
+          <div class="modal-section-title">{{ t('project.form.projectInfo') }}</div>
+          <div class="modal-info-grid">
+            <div class="modal-info-item" v-if="currentDetail.companyAddr">
+              <el-icon><Location /></el-icon>
+              <span>{{ t('project.form.companyAddr') }}</span>
+              <strong>{{ currentDetail.companyAddr }}</strong>
+            </div>
+            <div class="modal-info-item" v-if="currentDetail.projectPeriod">
+              <el-icon><Clock /></el-icon>
+              <span>{{ t('project.form.projectPeriod') }}</span>
+              <strong>{{ currentDetail.projectPeriod }}</strong>
+            </div>
+            <div class="modal-info-item modal-info-item--full" v-if="currentDetail.solution">
+              <el-icon><Connection /></el-icon>
+              <span>{{ t('project.form.solutionLabel') }}</span>
+              <strong>{{ currentDetail.solution }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- 团队成员 -->
+        <div class="detail-modal-section" v-if="getTeamMembers(currentDetail).length > 0">
+          <div class="modal-section-title">
+            团队成员
+            <el-badge :value="getTeamMembers(currentDetail).length" />
+          </div>
+          <div class="modal-team-grid">
+            <div class="modal-team-item" v-for="member in getTeamMembers(currentDetail)" :key="member">
+              <div class="modal-team-avatar" :style="{ background: getAvatarColor(member) }">
+                {{ member.charAt(0).toUpperCase() }}
+              </div>
+              <span class="modal-team-name">{{ member }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 驻场点 -->
+        <div class="detail-modal-section" v-if="currentDetail.onsiteStations && currentDetail.onsiteStations.length > 0">
+          <div class="modal-section-title">
+            {{ t('project.list.onsiteStations') }}
+            <el-badge :value="currentDetail.onsiteStations.length" />
+          </div>
+          <div class="modal-stations">
+            <div class="modal-station" v-for="(s, si) in currentDetail.onsiteStations" :key="si">
+              <div class="modal-station-icon"><el-icon><LocationInformation /></el-icon></div>
+              <div class="modal-station-body">
+                <div class="modal-station-location">{{ s.location || '—' }}</div>
+                <div class="modal-station-meta">
+                  <span v-if="s.person"><el-icon><User /></el-icon> {{ s.person }}</span>
+                  <span v-if="s.phone"><el-icon><Phone /></el-icon> {{ s.phone }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="detailVisible = false">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          {{ t('common.close') }}
+        </el-button>
+        <el-button type="primary" @click="openEditFromDetail">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          {{ t('common.edit') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  Grid, Menu, Plus, Search, Document, Cpu, User,
+  Folder, Delete, Close, Location, Clock, Connection, LocationInformation, Tickets, Phone, Edit, Timer, Link
+} from '@element-plus/icons-vue'
 import { ProjectApi, type Project, type CreateProjectReq, type UpdateProjectReq, type OnSiteStation } from '@/api/project'
 import { PersonnelApi, type Personnel } from '@/api/personnel'
 import TableActions from '@/components/TableActions.vue'
+
+const { t } = useI18n()
 
 const loading = ref(false)
 const submitting = ref(false)
 const tableData = ref<Project[]>([])
 const drawerVisible = ref(false)
-const dialogPreviewColor = ref('#005eeb')
-const dialogPreviewInitials = ref('??')
-
-const updateDialogPreview = () => {
-  dialogPreviewInitials.value = getInitials(form.name)
-}
-const updateDialogPreviewColor = () => {
-  dialogPreviewColor.value = getProjectColor(form.code)
-}
-const isEdit = ref(false)
-const formRef = ref()
-const selectedIds = ref<number[]>([])
-
+const dialogPreviewInitials = ref('?')
+const viewMode = ref<'kanban' | 'grid' | 'detail'>('grid')
+const detailVisible = ref(false)
+const currentDetail = ref<Project | null>(null)
 const searchKeyword = ref('')
 const searchStatus = ref('')
 const searchStage = ref('')
 const pagination = reactive({ page: 1, pageSize: 24, total: 0 })
-const activeKpi = ref<string | null>(null)
-const selectedProject = ref<Project | null>(null)
+const isEdit = ref(false)
+const formRef = ref()
+const personnelList = ref<Personnel[]>([])
+const personnelLoading = ref(false)
 
 const stageOptions = [
-  { value: 'planning', label: '待定中' },
-  { value: 'designing', label: '方案中' },
-  { value: 'deploying', label: '部署中' },
-  { value: 'running', label: '运营中' },
-  { value: 'paused', label: '暂定中' },
+  { value: 'planning' },
+  { value: 'designing' },
+  { value: 'deploying' },
+  { value: 'running' },
+  { value: 'paused' },
 ]
 
-// KPI Stats
-const activeCount = computed(() => tableData.value.filter(p => p.status === 'active').length)
-const totalStations = computed(() => tableData.value.reduce((sum, p) => sum + (p.onsiteStations?.length || 0), 0))
-const totalRecords = computed(() => tableData.value.reduce((sum, p) => sum + (p.recordCount || 0), 0))
-const totalDataSize = computed(() => tableData.value.reduce((sum, p) => sum + (p.totalDataSize || 0), 0))
-
-// 自动单位换算
-const formatBytes = (bytes: number): string => {
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  const k = 1024
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${(bytes / Math.pow(k, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`
-}
-
-// ========== 看板视图 ==========
-const viewMode = ref<'kanban' | 'grid' | 'dashboard'>('dashboard')
-
 const kanbanColumns = [
-  { key: 'planning', label: '待定中', color: '#94a3b8' },
-  { key: 'designing', label: '方案中', color: '#6366f1' },
-  { key: 'deploying', label: '部署中', color: '#f59e0b' },
-  { key: 'running', label: '运营中', color: '#22c55e' },
-  { key: 'paused', label: '暂定中', color: '#ef4444' },
+  { key: 'planning', color: '#94a3b8' },
+  { key: 'designing', color: '#6366f1' },
+  { key: 'deploying', color: '#f59e0b' },
+  { key: 'running', color: '#22c55e' },
+  { key: 'paused', color: '#ef4444' },
 ]
 
 const kanbanData = ref<Record<string, Project[]>>({})
 
-const switchView = (mode: 'kanban' | 'grid' | 'dashboard') => {
-  viewMode.value = mode
-  if (mode === 'kanban') loadKanbanData()
-  if (mode === 'grid') loadData()
-  if (mode === 'dashboard') loadData()
+const activeCount = computed(() => tableData.value.filter(p => p.status === 'active').length)
+const totalRecords = computed(() => tableData.value.reduce((sum, p) => sum + (p.recordCount || 0), 0))
+const totalDataSize = computed(() => tableData.value.reduce((sum, p) => sum + (p.totalDataSize || 0), 0))
+
+const form = reactive<CreateProjectReq & { id?: number }>({
+  name: '', code: '', description: '', status: 'active', stage: 'planning', sort: 0,
+  projectPerson: '', opsPerson: '', opsStaffPerson: '', developerPerson: '', testerPerson: '', businessPerson: '', compliancePerson: '',
+  solution: '', solutionPerson: '', companyAddr: '', projectPeriod: '', onsiteStations: [],
+})
+
+// 项目周期：双向绑定日期范围选择器
+const projectPeriodRange = computed({
+  get: () => {
+    if (!form.projectPeriod) return null
+    const parts = form.projectPeriod.split(' ~ ')
+    if (parts.length === 2) return [parts[0], parts[1]]
+    return null
+  },
+  set: (val: [string, string] | null) => {
+    form.projectPeriod = val ? `${val[0]} ~ ${val[1]}` : ''
+  }
+})
+
+// 日期快捷选项
+const dateShortcuts = [
+  { text: '本周', value: () => {
+    const end = new Date()
+    const start = new Date()
+    start.setTime(start.getTime() - start.getDay() * 86400000)
+    return [start, end]
+  }},
+  { text: '本月', value: () => {
+    const end = new Date()
+    const start = new Date(end.getFullYear(), end.getMonth(), 1)
+    return [start, end]
+  }},
+  { text: '本季度', value: () => {
+    const now = new Date()
+    const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
+    return [qStart, now]
+  }},
+  { text: '今年', value: () => {
+    const end = new Date()
+    const start = new Date(end.getFullYear(), 0, 1)
+    return [start, end]
+  }},
+]
+
+const formRules = {
+  name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
+  code: [{ required: true, message: '请输入项目编号', trigger: 'blur' }],
 }
 
-const loadKanbanData = async () => {
-  loading.value = true
-  try {
-    const res = await ProjectApi.getKanbanList()
-    const raw: any = res
-    const list: any[] = Array.isArray(raw) ? raw : (raw?.data ?? [])
-    const data: Record<string, Project[]> = {}
-    for (const col of kanbanColumns) data[col.key] = []
-    for (const p of list) {
-      if (!p || typeof p !== 'object') continue
-      const stage = (p as Project).stage || 'planning'
-      if (!data[stage]) data[stage] = []
-      data[stage].push(p as Project)
-    }
-    kanbanData.value = data
-  } catch (e) {
-    kanbanData.value = {}
-  } finally { loading.value = false }
+const formatNumber = (num: number): string => {
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
+  return num.toString()
 }
 
-const handleKanbanCardClick = (_project: Project) => {}
-
-const formatFileSize = (bytes: number) => {
-  if (!bytes || bytes === 0) return '0 B'
+const formatBytes = (bytes: number): string => {
+  if (!bytes) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(1024))
   return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i]
 }
 
 const formatDate = (dateStr: string) => {
-  if (!dateStr) return '-'
+  if (!dateStr) return '—'
   const d = new Date(dateStr)
-  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  const ss = String(d.getSeconds()).padStart(2, '0')
+  return `${y}-${m}-${day} ${hh}:${mm}:${ss}`
 }
 
-const stageColorMap: Record<string, { bg: string; text: string }> = {
-  planning: { bg: '#f1f5f9', text: '#64748b' },
-  designing: { bg: '#eef2ff', text: '#6366f1' },
-  deploying: { bg: '#fef3c7', text: '#d97706' },
-  running: { bg: '#f0fdf4', text: '#16a34a' },
-  paused: { bg: '#fef2f2', text: '#dc2626' },
+// 项目首字符（单个更美观）
+const getInitials = (name: string) => {
+  if (!name) return '?'
+  const first = name.trim().charAt(0)
+  // 中文取第一个字，英文取第一个字母
+  if (/[\u4e00-\u9fa5]/.test(first)) return first
+  return first.toUpperCase()
 }
 
-const getStageColor = (stage: string) => stageColorMap[stage] || { bg: '#f1f5f9', text: '#64748b' }
-const getStageLabel = (stage: string) => ({ planning: '待定中', designing: '方案中', deploying: '部署中', running: '运营中', paused: '暂定中' })[stage] || stage
+// 项目渐变色（基于项目名生成，每项目独特）
+const projectColorPalette = [
+  '#3b82f6', // blue
+  '#10b981', // emerald
+  '#f59e0b', // amber
+  '#ef4444', // red
+  '#8b5cf6', // violet
+  '#06b6d4', // cyan
+  '#ec4899', // pink
+  '#14b8a6', // teal
+  '#f97316', // orange
+  '#84cc16', // lime
+  '#6366f1', // indigo
+  '#a855f7', // purple
+]
 
-const form = reactive<CreateProjectReq & { id?: number }>({
-  name: '', code: '', description: '', status: 'active', sort: 0,
-  projectPerson: '', opsPerson: '', developerPerson: '', testerPerson: '', businessPerson: '', compliancePerson: '',
-  solution: '', companyAddr: '', projectPeriod: '',
-  onsiteStations: [],
-})
+const getProjectColor = (code: string) => {
+  if (!code) return projectColorPalette[0]
+  let hash = 0
+  for (let i = 0; i < code.length; i++) hash = ((hash << 5) - hash) + code.charCodeAt(i)
+  return projectColorPalette[Math.abs(hash) % projectColorPalette.length]
+}
 
-const formRules = {
-  name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
-  code: [{ required: true, message: '请输入项目编号', trigger: 'blur' }],
+const getProjectBgStyle = (code: string) => {
+  return { background: getProjectColor(code) }
+}
+
+const avatarColors = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#8b5cf6', '#06b6d4', '#f59e0b', '#ec4899']
+const getAvatarColor = (name: string) => {
+  if (!name) return avatarColors[0]
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i)
+  return avatarColors[Math.abs(hash) % avatarColors.length]
+}
+
+const getTeamMembers = (project: Project) => {
+  const members: string[] = []
+  if (project.projectPerson) members.push(project.projectPerson)
+  if (project.opsPerson) members.push(project.opsPerson)
+  if (project.opsStaffPerson) members.push(project.opsStaffPerson)
+  if (project.developerPerson) members.push(project.developerPerson)
+  if (project.testerPerson) members.push(project.testerPerson)
+  if (project.businessPerson) members.push(project.businessPerson)
+  if (project.compliancePerson) members.push(project.compliancePerson)
+  if (project.solutionPerson) members.push(project.solutionPerson)
+  return members
+}
+
+const getTeamCount = (project: Project) => getTeamMembers(project).length
+
+// 返回最多 displayLimit 个成员，及溢出数量
+const getDisplayMembers = (project: Project, displayLimit = 5) => {
+  const members = getTeamMembers(project)
+  return {
+    visible: members.slice(0, displayLimit),
+    overflow: Math.max(0, members.length - displayLimit),
+  }
+}
+
+const getMemberRole = (project: Project, member: string) => {
+  const roleMap: [keyof Project, string][] = [
+    ['projectPerson', '项目负责人'],
+    ['opsPerson', '运维负责人'],
+    ['opsStaffPerson', '运维人员'],
+    ['developerPerson', '开发人员'],
+    ['testerPerson', '测试人员'],
+    ['businessPerson', '业务人员'],
+    ['compliancePerson', '合规人员'],
+    ['solutionPerson', '方案人员'],
+  ]
+  for (const [key, label] of roleMap) {
+    if ((project as any)[key] === member) return label
+  }
+  return ''
 }
 
 const loadData = async () => {
@@ -978,114 +918,65 @@ const loadData = async () => {
       pageSize: pagination.pageSize,
       keyword: searchKeyword.value || undefined,
       status: searchStatus.value || undefined,
+      stage: searchStage.value || undefined,
     })
-    let list: Project[] = res.data?.items || res.data || []
-    // 前端过滤：阶段
-    if (searchStage.value) {
-      list = list.filter(p => p.stage === searchStage.value)
-    }
-    // 前端排序：按记录数
-    if (activeKpi.value === 'records') {
-      list = [...list].sort((a, b) => (b.recordCount || 0) - (a.recordCount || 0))
-    }
-    tableData.value = list
+    tableData.value = res.data?.items || res.data || []
     pagination.total = res.data?.total || 0
   } finally { loading.value = false }
 }
 
-const handleSearch = () => { pagination.page = 1; activeKpi.value = null; loadData() }
-const handleReset = () => { searchKeyword.value = ''; searchStatus.value = ''; searchStage.value = ''; activeKpi.value = null; handleSearch() }
+const loadKanbanData = async () => {
+  loading.value = true
+  try {
+    const res = await ProjectApi.getKanbanList()
+    const list: any[] = Array.isArray(res) ? res : (res?.data ?? [])
+    const data: Record<string, Project[]> = {}
+    for (const col of kanbanColumns) data[col.key] = []
+    for (const p of list) {
+      if (!p || typeof p !== 'object') continue
+      const stage = (p as Project).stage || 'planning'
+      if (!data[stage]) data[stage] = []
+      data[stage].push(p as Project)
+    }
+    kanbanData.value = data
+  } catch { kanbanData.value = {} }
+  finally { loading.value = false }
+}
 
-const filterByKpi = (type: string) => {
-  if (activeKpi.value === type) {
-    activeKpi.value = null
-    searchStage.value = ''
-    searchStatus.value = ''
-  } else {
-    activeKpi.value = type
-    if (type === 'all') { searchStage.value = ''; searchStatus.value = '' }
-    else if (type === 'active') { searchStage.value = ''; searchStatus.value = 'active' }
-    else if (type === 'size') { searchStage.value = ''; searchStatus.value = '' }
-    else if (type === 'records') { searchStage.value = ''; searchStatus.value = '' }
-    else if (type === 'stations') { searchStage.value = ''; searchStatus.value = '' }
+const switchView = (mode: 'kanban' | 'grid' | 'detail') => {
+  viewMode.value = mode
+  if (mode === 'kanban') loadKanbanData()
+  else if (mode === 'grid') loadData()
+  else loadData()
+}
+
+const handleSearch = () => { pagination.page = 1; loadData() }
+const debouncedSearch = (() => {
+  let timer: ReturnType<typeof setTimeout>
+  return () => {
+    clearTimeout(timer)
+    timer = setTimeout(() => { pagination.page = 1; loadData() }, 400)
   }
+})()
+const handleReset = () => {
+  searchKeyword.value = ''
+  searchStatus.value = ''
+  searchStage.value = ''
   pagination.page = 1
   loadData()
 }
-const getInitials = (name: string) => {
-  if (!name) return '?'
-  const parts = name.trim().split(/\s+/)
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-  return name.slice(0, 2).toUpperCase()
+const filterByStage = (stage: string) => {
+  searchStage.value = searchStage.value === stage ? '' : stage
+  loadData()
+}
+const filterByRecords = () => {
+  tableData.value = [...tableData.value].sort((a, b) => (b.recordCount || 0) - (a.recordCount || 0))
+}
+const filterBySize = () => {
+  tableData.value = [...tableData.value].sort((a, b) => (b.totalDataSize || 0) - (a.totalDataSize || 0))
 }
 
-// 预定义颜色盘，每个项目代码对应一个颜色
-const projectColors = [
-  '#005eeb', '#06b6d4', '#8b5cf6', '#ec4899',
-  '#f59e0b', '#10b981', '#3b82f6', '#ef4444',
-  '#6366f1', '#14b8a6', '#f97316', '#84cc16'
-]
-
-const getProjectColor = (code: string) => {
-  if (!code) return projectColors[0]
-  let hash = 0
-  for (let i = 0; i < code.length; i++) {
-    hash = ((hash << 5) - hash) + code.charCodeAt(i)
-    hash |= 0
-  }
-  return projectColors[Math.abs(hash) % projectColors.length]
-}
-
-const handleCardClick = (project: Project) => {
-  if (selectedProject.value?.id === project.id) {
-    selectedProject.value = null
-  } else {
-    selectedProject.value = project
-  }
-}
-const toggleSelect = (id: number) => {
-  const idx = selectedIds.value.indexOf(id)
-  if (idx === -1) selectedIds.value.push(id)
-  else selectedIds.value.splice(idx, 1)
-}
-
-const personnelList = ref<Personnel[]>([])
-const personnelLoading = ref(false)
-
-const loadPersonnelList = async () => {
-  personnelLoading.value = true
-  try {
-    const res = await PersonnelApi.getAll()
-    if (res.code === 200) {
-      personnelList.value = res.data || []
-    }
-  } finally {
-    personnelLoading.value = false
-  }
-}
-
-const handlePersonnelSelect = (station: OnSiteStation, name: string) => {
-  if (!name) return
-  const p = personnelList.value.find(x => x.name === name)
-  if (p && p.phone) {
-    station.phone = p.phone
-  }
-}
-
-const handleCreate = () => {
-  isEdit.value = false
-  Object.assign(form, {
-    id: undefined, name: '', code: '', description: '', status: 'active', stage: 'planning', sort: 0,
-    projectPerson: '', opsPerson: '', developerPerson: '', testerPerson: '', businessPerson: '', compliancePerson: '',
-    solution: '', companyAddr: '', projectPeriod: '', onsiteStations: [],
-  })
-  dialogPreviewColor.value = '#005eeb'
-  dialogPreviewInitials.value = '??'
-  loadPersonnelList()
-  drawerVisible.value = true
-}
-
-const handleEdit = (row: Project) => {
+const handleEdit = async (row: Project) => {
   isEdit.value = true
   Object.assign(form, {
     id: row.id, name: row.name, code: row.code,
@@ -1093,33 +984,86 @@ const handleEdit = (row: Project) => {
     projectPerson: row.projectPerson || '', opsPerson: row.opsPerson || '',
     developerPerson: row.developerPerson || '', testerPerson: row.testerPerson || '',
     businessPerson: row.businessPerson || '', compliancePerson: row.compliancePerson || '',
-    solution: row.solution || '',
+    solution: row.solution || '', solutionPerson: row.solutionPerson || '',
     companyAddr: row.companyAddr || '', projectPeriod: row.projectPeriod || '',
     onsiteStations: row.onsiteStations ? [...row.onsiteStations.map(s => ({ ...s }))] : [],
   })
-  dialogPreviewColor.value = getProjectColor(row.code)
   dialogPreviewInitials.value = getInitials(row.name)
-  loadPersonnelList()
+  await loadPersonnelList()
   drawerVisible.value = true
 }
 
 const handleDelete = async (row: Project) => {
   try {
-    await ElMessageBox.confirm(`确定要删除项目"${row.name}"吗？`, '删除确认', {
-      confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning'
+    await ElMessageBox.confirm(`确定删除项目「${row.name}」吗？`, '删除确认', {
+      confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning'
     })
     await ProjectApi.del(row.id)
-    ElMessage.success('删除成功'); loadKanbanData()
-  } catch (e: any) { if (e !== 'cancel') ElMessage.error(e.message || '删除失败') }
+    ElMessage.success(t('common.deleteSuccess'))
+    loadData()
+    loadKanbanData()
+  } catch (e: any) { if (e !== 'cancel') ElMessage.error(e.message || t('common.deleteError')) }
+}
+
+const handleCreate = async () => {
+  isEdit.value = false
+  Object.assign(form, {
+    id: undefined, name: '', code: '', description: '', status: 'active', stage: 'planning', sort: 0,
+    projectPerson: '', opsPerson: '', opsStaffPerson: '', developerPerson: '', testerPerson: '', businessPerson: '', compliancePerson: '',
+    solution: '', solutionPerson: '', companyAddr: '', projectPeriod: '', onsiteStations: [],
+  })
+  dialogPreviewInitials.value = '?'
+  await loadPersonnelList()
+  drawerVisible.value = true
+}
+
+const loadPersonnelList = async () => {
+  if (personnelList.value.length > 0) return
+  personnelLoading.value = true
+  try {
+    const res = await PersonnelApi.getAll()
+    if (res.code === 200) personnelList.value = res.data || []
+  } finally { personnelLoading.value = false }
+}
+
+const handlePersonnelSelect = (station: OnSiteStation, name: string) => {
+  if (!name) return
+  const p = personnelList.value.find(x => x.name === name)
+  if (p?.phone) station.phone = p.phone
+}
+
+// 从人员列表自动填入驻场点
+const fillStationFromPersonnel = (station: OnSiteStation, name: string) => {
+  if (!name) {
+    station.location = ''
+    station.phone = ''
+    return
+  }
+  const p = personnelList.value.find(x => x.name === name)
+  if (p) {
+    // 自动填入驻场地点
+    if (!station.location && p.location) station.location = p.location
+    // 自动填入手机
+    if (!station.phone && p.phone) station.phone = p.phone
+  }
 }
 
 const addStation = () => {
   if (!form.onsiteStations) form.onsiteStations = []
   form.onsiteStations.push({ location: '', person: '', phone: '' })
 }
+const removeStation = (idx: number) => form.onsiteStations.splice(idx, 1)
 
-const removeStation = (idx: number) => {
-  form.onsiteStations.splice(idx, 1)
+const showDetail = (project: Project) => {
+  currentDetail.value = project
+  detailVisible.value = true
+}
+
+const openEditFromDetail = (project?: Project) => {
+  const target = project || currentDetail.value
+  if (!target) return
+  detailVisible.value = false
+  handleEdit(target)
 }
 
 const confirmSubmit = async () => {
@@ -1129,25 +1073,21 @@ const confirmSubmit = async () => {
   try {
     if (isEdit.value) {
       await ProjectApi.update(form as UpdateProjectReq)
-      ElMessage.success('更新成功')
+      ElMessage.success(t('common.updateSuccess'))
     } else {
       await ProjectApi.create(form as CreateProjectReq)
-      ElMessage.success('创建成功')
+      ElMessage.success(t('common.createSuccess'))
     }
     drawerVisible.value = false
+    loadData()
     loadKanbanData()
-  } catch (e: any) { ElMessage.error(e.message || '操作失败') }
+  } catch (e: any) { ElMessage.error(e.message || t('common.operationError')) }
   finally { submitting.value = false }
 }
 
-const handleAction = (key: string, row: Project) => {
-  if (key === 'edit') handleEdit(row)
-  else if (key === 'delete') handleDelete(row)
-}
-
-watch(() => pagination.page, () => { if (viewMode.value === 'grid') loadData() })
-watch(() => pagination.pageSize, () => { pagination.page = 1; if (viewMode.value === 'grid') loadData() })
-onMounted(() => { loadData(); loadKanbanData() })
+watch(() => pagination.page, () => loadData())
+watch(() => pagination.pageSize, () => { pagination.page = 1; loadData() })
+onMounted(() => { loadData() })
 </script>
 
 <script lang="ts">
@@ -1155,2166 +1095,1239 @@ export default { name: 'ProjectList' }
 </script>
 
 <style scoped lang="scss">
-/* ==================== 页面布局 ==================== */
+$primary: #409eff;
+$success: #67c23a;
+$warning: #e6a23c;
+$danger: #f56c6c;
+
 .project-page {
-  padding: var(--space-4);
+  padding: 24px;
   min-height: 100vh;
-  background: var(--color-page-bg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  overflow: visible;
+  background: #f5f7fa;
 }
 
-/* ==================== 页面标题栏 ==================== */
+/* 页面标题 */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4) var(--space-5);
-  box-shadow: var(--shadow-xs);
-  border: 1px solid var(--color-border-light);
+  margin-bottom: 20px;
 }
 
 .header-left {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
+  flex-direction: column;
+  gap: 4px;
 }
 
 .page-title {
-  font-family: 'Manrope', sans-serif;
-  font-size: 17px;
-  font-weight: 800;
-  color: var(--color-text-primary);
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
   margin: 0;
-  letter-spacing: -0.3px;
 }
 
 .page-subtitle {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  font-weight: 500;
+  font-size: 13px;
+  color: #909399;
 }
 
 .header-actions {
   display: flex;
-  gap: var(--space-2);
+  gap: 10px;
+  align-items: center;
 }
 
-/* ==================== 筛选栏 ==================== */
+/* 视图切换 */
+.view-tabs {
+  display: flex;
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.view-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #909399;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-right: 1px solid #ebeef5;
+
+  &:last-child { border-right: none; }
+  &:hover { background: #f5f7fa; color: #606266; }
+  &.active {
+    background: #409eff;
+    color: #fff;
+    .el-icon { color: #fff; }
+  }
+}
+.kpi-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.kpi-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  border: 1px solid #ebeef5;
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.2s;
+
+  &:hover {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    transform: translateY(-1px);
+  }
+}
+
+.kpi-num {
+  font-size: 24px;
+  font-weight: 700;
+  color: #303133;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.kpi-label {
+  font-size: 13px;
+  color: #909399;
+}
+
+/* 筛选栏 */
 .filter-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3) var(--space-4);
-  box-shadow: var(--shadow-xs);
-  border: 1px solid var(--color-border-light);
-  backdrop-filter: blur(8px);
+  gap: 10px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px 16px;
+  border: 1px solid #ebeef5;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
-.filter-left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.filter-right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.search-input { width: 220px; }
-
-.result-count {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  font-weight: 500;
-  strong { color: var(--color-text-primary); font-weight: 700; }
-}
-
-/* ==================== 项目详情横幅 ==================== */
-.project-detail-banner {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--space-3);
-  overflow: hidden;
-  box-shadow: var(--shadow-xs);
-  animation: card-rise 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.banner-inner {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 18px 24px;
-  flex-wrap: wrap;
-}
-
-.banner-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-shrink: 0;
-}
-
-.banner-avatar {
-  width: 52px;
-  height: 52px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-family: 'Manrope', sans-serif;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  flex-shrink: 0;
-}
-
-.banner-core { flex: 0 0 auto; }
-.banner-name {
-  font-family: 'Manrope', sans-serif;
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-  margin-bottom: 4px;
-  letter-spacing: -0.3px;
-}
-.banner-code {
-  code {
-    font-family: 'SF Mono', monospace;
-    font-size: 11px;
-    color: var(--color-primary);
-    background: var(--color-primary-light-9);
-    padding: 2px 7px;
-    border-radius: var(--radius-sm);
-    border: 1px solid rgba(0,94,235,0.15);
-  }
-}
-
-.banner-stage-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.banner-status-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  font-weight: 600;
-  &.badge--on { background: rgba(34,197,94,0.1); color: var(--color-success); }
-  &.badge--off { background: rgba(239,68,68,0.08); color: var(--color-danger); }
-}
-
-.banner-metrics {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex: 1;
-  padding: 0 20px;
-  border-left: 1px solid var(--color-border-light);
-  border-right: 1px solid var(--color-border-light);
-}
-
-.banner-metric {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  min-width: 60px;
-}
-
-.metric-num {
-  font-family: 'Manrope', sans-serif;
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-  line-height: 1;
-  letter-spacing: -0.5px;
-}
-
-.metric-lbl {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.metric-sep {
-  width: 1px;
-  height: 36px;
-  background: var(--color-border-light);
-  flex-shrink: 0;
-}
-
-.banner-team {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  flex: 0 0 160px;
-  padding-left: 20px;
-  border-left: 1px solid var(--color-border-light);
-}
-
-.team-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  &.empty { color: var(--color-text-muted); font-size: 11px; font-style: italic; }
-}
-.team-role { font-size: 12px; }
-.team-name { font-weight: 500; color: var(--color-text-primary); }
-
-.banner-actions {
-  display: flex;
-  gap: 6px;
+.filter-tip {
   margin-left: auto;
-  flex-shrink: 0;
-  .el-button { border-radius: var(--radius-sm); }
-}
-
-/* ==================== 仪表盘视图 ==================== */
-.dashboard-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  animation: card-rise 0.4s ease both;
-}
-
-.db-row {
-  display: grid;
-  gap: 16px;
-
-  &.db-row--hero {
-    grid-template-columns: 340px 1fr;
-  }
-}
-
-.db-row:not(.db-row--hero) {
-  grid-template-columns: 1fr 380px;
-}
-
-/* 英雄数字区 */
-.db-hero-kpis {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-.db-kpi-divider {
-  width: 80%;
-  height: 1px;
-  background: var(--color-border-light);
-}
-
-.db-kpi-large {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  cursor: pointer;
-  transition: transform 0.2s ease;
-
-  &:hover { transform: scale(1.02); }
-}
-
-.kpi-ring {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.kpi-ring-text {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.kpi-ring-num {
-  font-family: 'Manrope', monospace;
-  font-size: 24px;
-  font-weight: 900;
-  color: var(--color-text-primary);
-  line-height: 1;
-}
-
-.kpi-ring-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  margin-top: 2px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.kpi-arc {
-  transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.kpi-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.kpi-main-label {
-  font-family: 'Manrope', monospace;
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.kpi-sub-label {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-.db-kpi-stat-row {
-  display: flex;
-  gap: 16px;
-  width: 100%;
-  justify-content: center;
-}
-
-.db-kpi-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  cursor: pointer;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  transition: background 0.15s ease;
-
-  &:hover { background: var(--color-surface-2); }
-}
-
-.stat-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.stat-num {
-  font-family: 'Manrope', monospace;
-  font-size: 20px;
-  font-weight: 900;
-  color: var(--color-text-primary);
-  line-height: 1;
-
-  &--sm {
-    font-size: 15px;
-    font-weight: 800;
-    letter-spacing: -0.3px;
-  }
-}
-
-.stat-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-/* 阶段分布面板 */
-.db-stage-dist {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.db-panel-header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.db-panel-title {
-  font-family: 'Manrope', sans-serif;
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.db-panel-sub {
-  font-size: 11px;
-  color: var(--color-text-muted);
-}
-
-.stage-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.stage-bar-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.stage-bar-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 80px;
-  flex-shrink: 0;
-}
-
-.stage-bar-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.stage-bar-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-.stage-bar-track {
-  flex: 1;
-  height: 8px;
-  background: var(--color-surface-2);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-
-.stage-bar-fill {
-  height: 100%;
-  border-radius: var(--radius-full);
-  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 4%;
-}
-
-.stage-bar-count {
-  font-family: 'Manrope', monospace;
   font-size: 13px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-  width: 20px;
-  text-align: right;
-  flex-shrink: 0;
+  color: #909399;
 }
 
-/* 通用面板 */
-.db-panel {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
+/* 网格 */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.project-card {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #ebeef5;
   padding: 20px;
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.2s;
+  animation: fadeIn 0.3s ease both;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+    border-color: $primary;
+  }
 }
 
-/* 最近项目 */
-.recent-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 4px;
-}
-
-.recent-item {
+.card-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background 0.15s ease;
-
-  &:hover { background: var(--color-surface-2); }
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
-.recent-avatar {
-  width: 32px;
-  height: 32px;
+.card-avatar {
+  width: 42px;
+  height: 42px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Manrope', monospace;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 800;
-  color: white;
+  color: #fff;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-family: 'Manrope', sans-serif;
+  letter-spacing: -0.5px;
 }
 
-.recent-info {
+.card-info {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
 }
 
-.recent-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-primary);
+.card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.recent-code {
-  font-size: 11px;
-  color: var(--color-text-muted);
+.card-code {
+  font-size: 12px;
+  color: #c0c4cc;
+  margin-top: 2px;
 }
 
-.recent-stage {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: var(--radius-full);
-  white-space: nowrap;
-}
-
-.recent-date {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
-.recent-empty {
-  text-align: center;
-  padding: 24px;
-  color: var(--color-text-muted);
+.card-desc {
   font-size: 13px;
+  color: #909399;
+  margin-bottom: 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* 角色分布 */
-.role-dist-list {
+.card-metrics {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 4px;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 12px;
 }
 
-.role-dist-item {
+.metric-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.role-icon {
+  gap: 5px;
   font-size: 14px;
-  width: 20px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.role-label {
-  font-size: 12px;
   font-weight: 600;
-  color: var(--color-text-secondary);
-  width: 70px;
-  flex-shrink: 0;
-}
+  color: #606266;
 
-.role-bar-track {
-  flex: 1;
-  height: 6px;
-  background: var(--color-surface-2);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
+  .el-icon { color: #c0c4cc; }
 
-.role-bar-fill {
-  height: 100%;
-  background: var(--color-primary);
-  border-radius: var(--radius-full);
-  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.role-pct {
-  font-family: 'Manrope', monospace;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-  width: 32px;
-  text-align: right;
-  flex-shrink: 0;
-}
-
-/* 仪表盘空状态 */
-.dashboard-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 60px;
-  color: var(--color-text-muted);
-  font-size: 14px;
-  animation: card-rise 0.4s ease both;
-
-  svg { opacity: 0.4; }
-}
-
-
-.kanban-container {
-  overflow-x: auto;
-  overflow-y: visible;
-  padding-bottom: var(--space-3);
-  animation: card-rise 0.4s ease both;
-}
-
-.kanban-board {
-  display: flex;
-  gap: 12px;
-  min-width: max-content;
-  height: calc(100vh - 240px);
-}
-
-.kanban-column {
-  width: 280px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--color-surface-2);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-light);
-  overflow: hidden;
-}
-
-.kanban-col-header {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 11px 14px;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border-light);
-  flex-shrink: 0;
-}
-
-.col-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.col-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  flex: 1;
-}
-
-.col-count {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-text-muted);
-  background: var(--color-surface-3);
-  padding: 2px 7px;
-  border-radius: var(--radius-full);
-  font-family: 'Manrope', sans-serif;
-}
-
-.kanban-col-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  &::-webkit-scrollbar { width: 3px; }
-  &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 2px; }
-}
-
-.kanban-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  padding: 13px;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-
-  &:hover {
-    border-color: var(--color-primary);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-    transform: translateY(-1px);
+  small {
+    font-size: 11px;
+    color: #c0c4cc;
+    font-weight: 400;
   }
 }
 
-.kanban-card-top {
+.card-footer {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin-bottom: 9px;
+  justify-content: space-between;
 }
 
-.kanban-card-avatar {
+.card-avatar-list {
+  display: flex;
+  gap: 4px;
+}
+
+.avatar-mini {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.card-time {
+  font-size: 12px;
+  color: #c0c4cc;
+}
+
+/* 看板 */
+.kanban-board {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+}
+
+.kanban-col {
+  width: 280px;
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #ebeef5;
+}
+
+.kanban-col-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.kanban-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.kanban-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.kanban-col-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100vh - 400px);
+  overflow-y: auto;
+}
+
+.kanban-card {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 14px;
+  border: 1px solid #ebeef5;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    border-color: $primary;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+}
+
+.kanban-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.kanban-avatar {
   width: 34px;
   height: 34px;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
+  color: #fff;
   flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
   font-family: 'Manrope', sans-serif;
 }
 
-.kanban-card-title-area {
+.kanban-info {
   flex: 1;
   min-width: 0;
 }
 
-.kanban-card-name {
+.kanban-name {
   font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-primary);
+  font-weight: 600;
+  color: #303133;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.3;
 }
 
-.kanban-card-code {
+.kanban-code {
   font-size: 11px;
-  color: var(--color-text-muted);
-  font-family: 'Manrope', monospace;
-  margin-top: 1px;
+  color: #c0c4cc;
 }
 
-.kanban-status-pill {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: var(--radius-full);
-  flex-shrink: 0;
-  letter-spacing: 0.2px;
-}
-.pill--on { background: rgba(34,197,94,0.1); color: #22c55e; }
-.pill--off { background: rgba(239,68,68,0.1); color: #ef4444; }
-
-.kanban-card-desc {
-  font-size: 11.5px;
-  color: var(--color-text-muted);
-  line-height: 1.4;
-  margin-bottom: 9px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.kanban-metrics {
+.kanban-tags {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 9px;
-  background: var(--color-surface-2);
-  border-radius: var(--radius-sm);
-  margin-bottom: 9px;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
 }
 
-.metric-item {
+.kanban-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 8px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.kanban-member {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: var(--color-text-muted);
-
-  svg { flex-shrink: 0; }
 }
 
-.metric-val {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-  font-family: 'Manrope', sans-serif;
-}
-
-.metric-label {
-  font-size: 10px;
-  color: var(--color-text-muted);
-}
-
-.metric-sep {
-  width: 1px;
-  height: 14px;
-  background: var(--color-border);
+.kanban-member-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
   flex-shrink: 0;
 }
 
-.kanban-card-footer {
+.kanban-member-name {
+  font-size: 11px;
+  color: #606266;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kanban-member-more {
+  font-size: 11px;
+  color: #c0c4cc;
+  padding: 2px 6px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.kanban-stations {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding: 8px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.kanban-station {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 5px;
+  font-size: 12px;
+  color: #606266;
+
+  .el-icon { color: #409eff; font-size: 12px; flex-shrink: 0; }
+  span:first-of-type { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.station-phone {
+  font-size: 11px;
+  color: #c0c4cc;
+  flex-shrink: 0;
+}
+
+.kanban-station-more {
+  font-size: 11px;
+  color: #c0c4cc;
+  padding-left: 20px;
+}
+
+.station-person-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+
+  small { font-size: 11px; color: #c0c4cc; }
+}
+
+.kanban-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
 }
 
 .kanban-actions {
   display: flex;
-  gap: 3px;
+  gap: 4px;
+  margin-left: auto;
 }
 
-.kanban-action-btn {
-  width: 26px;
-  height: 26px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
+.kanban-metric {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
 
-  &:hover { background: var(--color-surface-3); color: var(--color-primary); }
-  &--danger:hover { background: rgba(239,68,68,0.1); color: #ef4444; }
+  .el-icon { font-size: 12px; }
 }
 
-.kanban-card-date {
-  font-size: 10px;
-  color: var(--color-text-muted);
-  font-family: 'Manrope', monospace;
-}
-
-.kanban-empty-col {
-  padding: 20px 0;
+.kanban-empty {
   text-align: center;
-  font-size: 12px;
-  color: var(--color-text-muted);
+  padding: 24px;
+  color: #c0c4cc;
+  font-size: 13px;
 }
 
-/* ==================== 视图切换 ==================== */
-.view-toggle {
-  display: flex;
-  gap: 2px;
-  padding: 3px;
-  background: var(--color-surface-3);
-  border-radius: var(--radius-md);
-}
-
-.view-btn {
-  width: 30px;
-  height: 26px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-
-  &:hover { color: var(--color-text-primary); }
-  &.active { background: var(--color-surface); color: var(--color-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-}
-
-/* ==================== KPI 统计栏 ==================== */
-.kpi-stats-bar {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-3);
-  animation: card-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.kpi-card {
-  background: var(--color-surface);
-  border-radius: 14px;
-  border: 1px solid var(--color-border-light);
-  padding: 18px 20px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
-
-  &:hover {
-    border-color: transparent;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    transform: translateY(-2px);
-  }
-
-  &--active {
-    border-color: transparent;
-    box-shadow: 0 0 0 2px var(--color-primary), 0 4px 20px rgba(0, 94, 235, 0.15);
-    transform: translateY(-2px);
-  }
-}
-
-.kpi-card-inner {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.kpi-card-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  &--blue { background: rgba(0, 94, 235, 0.1); color: #005eeb; }
-  &--green { background: rgba(22, 163, 74, 0.1); color: #16a34a; }
-  &--purple { background: rgba(168, 85, 247, 0.1); color: #9333ea; }
-  &--amber { background: rgba(245, 158, 11, 0.1); color: #d97706; }
-}
-
-.kpi-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.kpi-card-value {
-  font-family: 'Manrope', 'DM Sans', sans-serif;
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-  line-height: 1.1;
-  letter-spacing: -0.5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.kpi-card-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
-/* ==================== 项目卡片网格 ==================== */
-.project-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
-  gap: var(--space-3);
-}
-
-/* ==================== 项目卡片 ==================== */
-.project-card {
-  position: relative;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-light);
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-  display: flex;
-  flex-direction: column;
-  animation: card-rise 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-
-  &:hover {
-    border-color: transparent;
-    box-shadow: 0 8px 32px rgba(0, 94, 235, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
-    transform: translateY(-3px) scale(1.01);
-  }
-
-  &.card-selected {
-    border-color: transparent;
-    box-shadow: 0 0 0 2px var(--color-primary), 0 8px 32px rgba(0, 94, 235, 0.15);
-    background: var(--color-primary-light-9);
-  }
-}
-
-@keyframes card-rise {
-  from {
-    opacity: 0;
-    transform: translateY(16px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* 左侧彩色 accent 条 */
-.card-accent-bar {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  border-radius: 4px 0 0 4px;
-  transition: width 0.25s ease;
-}
-
-.project-card:hover .card-accent-bar {
-  width: 5px;
-}
-
-/* 卡片主体（右侧偏移，留给 accent bar） */
-.card-inner {
-  padding: var(--space-3) var(--space-3) var(--space-3) calc(var(--space-3) + 6px);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  flex: 1;
-}
-
-/* 卡片头部 */
-.card-header {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  position: relative;
-}
-
-.card-checkbox {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 20px;
-  height: 20px;
-  border-radius: var(--radius-sm);
-  border: 1.5px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  background: var(--color-surface);
-  cursor: pointer;
-  flex-shrink: 0;
-
-  &.checked {
-    background: var(--color-primary);
-    border-color: var(--color-primary);
-    color: white;
-    transform: scale(1.1);
-  }
-
-  &:hover:not(.checked) {
-    border-color: var(--color-primary);
-    transform: scale(1.05);
-  }
-}
-
-/* 项目头像 */
-.card-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Manrope', sans-serif;
-  font-weight: 800;
-  font-size: 18px;
-  color: white;
-  flex-shrink: 0;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, transparent 60%);
-  }
-}
-
-/* 项目文字区 */
-.card-title-area {
-  flex: 1;
-  min-width: 0;
-}
-
-.card-code {
-  display: inline-block;
-  font-family: 'SF Mono', monospace;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--color-primary);
-  background: var(--color-primary-light-9);
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  letter-spacing: 0.5px;
-  margin-bottom: 5px;
-}
-
-.card-name {
-  font-size: 17px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-  line-height: 1.35;
-  margin-bottom: 4px;
-  letter-spacing: -0.2px;
-}
-
-.card-desc {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  line-height: 1.5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-/* 项目代码 + 状态 + 记录数标签行 */
-.card-meta-tags {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 3px;
-}
-
-.card-code-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 7px;
-  background: var(--color-primary-light-9);
-  border: 1px solid rgba(0, 94, 235, 0.12);
-  border-radius: var(--radius-sm);
-  font-family: 'SF Mono', monospace;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--color-primary);
-  letter-spacing: 0.3px;
-  svg { color: var(--color-primary); opacity: 0.7; }
-}
-
-.card-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  font-size: 10.5px;
-  font-weight: 700;
-
-  &.pill--active {
-    background: var(--color-success-bg);
-    color: var(--color-success);
-    .pill-dot {
-      background: var(--color-success);
-      box-shadow: 0 0 4px var(--color-success);
-      animation: pulse-dot 2s ease-in-out infinite;
-    }
-  }
-
-  &.pill--inactive {
-    background: var(--gray-100);
-    color: var(--color-text-muted);
-    .pill-dot { background: var(--gray-400); }
-  }
-}
-
-.pill-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.85); }
-}
-
-.record-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 7px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-full);
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  svg { color: var(--color-text-muted); }
-}
-
-.stage-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 7px;
-  border-radius: var(--radius-full);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-}
-
-/* 状态 + 记录数标签 - removed, replaced by .card-meta-tags above */
-
-/* 信息网格（2列） */
-.card-info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-1) var(--space-3);
-  padding: var(--space-3);
-  background: var(--color-surface-2);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-light);
-}
-
-.info-cell {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  min-width: 0;
-}
-
-.info-cell--full {
-  grid-column: 1 / -1;
-  padding-top: var(--space-2);
-  border-top: 1px dashed var(--color-border-light);
-  margin-top: var(--space-1);
-}
-
-.info-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  &.icon-person    { background: rgba(59, 130, 246, 0.12); color: var(--chart-blue); }
-  &.icon-ops       { background: rgba(22, 163, 74, 0.12);  color: var(--chart-green); }
-  &.icon-dev      { background: rgba(139, 92, 246, 0.12); color: var(--chart-purple); }
-  &.icon-test     { background: rgba(245, 158, 11, 0.12);  color: var(--chart-amber); }
-  &.icon-biz      { background: rgba(236, 72, 153, 0.12);  color: #ec4899; }
-  &.icon-compliance { background: rgba(0, 94, 235, 0.12); color: var(--chart-blue); }
-  &.icon-location  { background: rgba(249, 115, 22, 0.12); color: var(--chart-amber); }
-}
-
-.info-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.info-label {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-text-muted);
-}
-
-.info-value {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* 公司地点（全宽） */
-.card-location {
-  padding: 0 var(--space-3);
-}
-
-.location-label {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--color-text-muted);
-  margin-bottom: 4px;
-
-  svg { color: var(--chart-amber); }
-}
-
-.location-text {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-/* 解决方案 */
-.card-solution {
-  padding: 0 var(--space-3);
-}
-
-.solution-label {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--color-text-muted);
-  margin-bottom: 5px;
-
-  svg { color: var(--color-info); }
-}
-
-.solution-text {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  line-height: 1.5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-/* 驻场点标签云 */
-.card-stations {
-  padding: 0 var(--space-3) var(--space-3);
-}
-
-.stations-label {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--color-text-muted);
-  margin-bottom: 6px;
-}
-
-.stations-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.station-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 9px;
-  background: var(--color-primary-light-9);
-  border: 1px solid rgba(0, 94, 235, 0.15);
-  border-radius: var(--radius-full);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-primary);
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: rgba(0, 94, 235, 0.15);
-    transform: scale(1.03);
-  }
-}
-
-/* 卡片底部操作条 */
-.card-footer {
-  padding: var(--space-2) var(--space-3);
-  border-top: 1px solid var(--color-border-light);
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: var(--space-1);
-  background: var(--color-surface-2);
-  margin-top: auto;
-  border-radius: 0 0 calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px);
-}
-
-.card-actions {
-  display: flex;
-  gap: var(--space-1);
-}
-
-/* ==================== 空状态 ==================== */
+/* 空状态 */
 .empty-state {
+  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 80px 20px;
-  gap: var(--space-4);
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-light);
-  animation: card-rise 0.5s ease both;
 }
 
 .empty-icon {
-  color: var(--gray-300);
-  opacity: 0.5;
-  animation: float 3s ease-in-out infinite;
+  font-size: 48px;
+  color: #dcdfe6;
+  margin-bottom: 16px;
 }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+.empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #606266;
+  margin: 0 0 8px 0;
 }
 
-.empty-text {
-  font-size: 15px;
-  color: var(--color-text-muted);
+.empty-hint {
+  font-size: 13px;
+  color: #c0c4cc;
   margin: 0;
-  font-weight: 500;
 }
 
-/* ==================== 分页 ==================== */
+/* 骨架屏 */
+.skeleton-card {
+  height: 200px;
+  background: linear-gradient(90deg, #f5f5f5 25%, #e8e8e8 50%, #f5f5f5 75%);
+  background-size: 200% 100%;
+  border-radius: 10px;
+  animation: shimmer 1.2s infinite;
+}
+
+/* 分页 */
 .pagination-wrapper {
   display: flex;
-  justify-content: flex-end;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3) var(--space-4);
-  box-shadow: var(--shadow-xs);
-  border: 1px solid var(--color-border-light);
-}
-
-/* ==================== 响应式 ==================== */
-@media (max-width: 640px) {
-  :deep(.project-drawer) { width: 100% !important; }
-  .form-grid-2 { grid-template-columns: 1fr; }
-  .form-grid-3 { grid-template-columns: 1fr 1fr; }
-  .form-status-row { flex-direction: column; align-items: flex-start; gap: 8px; }
-  .station-fields { grid-template-columns: 1fr; }
-}
-
-.divider-text {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  margin-bottom: var(--space-3);
-}
-
-.form-hint {
-  margin-left: var(--space-2);
-  font-size: 11px;
-  color: var(--color-text-muted);
-}
-
-.stations-form {
-  padding: 0 4px;
-}
-
-.station-form-item {
-  padding: var(--space-2) 0;
-  border-bottom: 1px dashed var(--color-border-light);
-  &:last-child { border-bottom: none; }
-}
-
-.stations-empty {
-  display: flex;
-  align-items: center;
   justify-content: center;
-  gap: var(--space-2);
-  padding: var(--space-4);
-  background: var(--color-surface-2);
-  border-radius: var(--radius-md);
-  color: var(--color-text-muted);
-  font-size: 13px;
+  margin-top: 24px;
 }
 
-/* ==================== 侧边栏 ==================== */
+/* 抽屉 */
 :deep(.project-drawer) {
-  .el-drawer__header {
-    padding: 10px 16px;
-    margin-bottom: 0;
-    border-bottom: 1px solid var(--color-border-light);
-    background: var(--color-surface);
-    align-items: center;
-  }
-
-  .el-drawer__body {
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+  .el-drawer__body { padding: 0; }
 }
 
-/* 内联标题区 */
-.drawer-title-inner {
+.drawer-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #ebeef5;
 }
 
-.drawer-mode-tag {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-
-  &.tag--edit {
-    background: rgba(0, 94, 235, 0.1);
-    color: var(--color-primary);
-  }
-  &.tag--new {
-    background: rgba(22, 163, 74, 0.1);
-    color: var(--color-success);
-  }
-}
-
-.drawer-title-text {
-  font-family: 'Manrope', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  letter-spacing: -0.2px;
-}
-
-/* 侧边栏内容 */
-.drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-  background: var(--color-surface-2);
-
-  &::-webkit-scrollbar { width: 3px; }
-  &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 2px; }
-}
-
-/* 表单通用区块 */
-.form-section {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  margin-bottom: 8px;
-}
-
-.form-section-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border-light);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-}
-
-.form-section-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.section-count {
-  margin-left: auto;
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--color-primary-light-9);
-  color: var(--color-primary);
-  padding: 1px 6px;
-  border-radius: var(--radius-full);
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-.form-body {
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.form-grid-3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.field-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-.required-mark {
-  color: var(--color-danger);
-}
-
-/* 状态+排序行 */
-.form-status-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 8px 12px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  margin-bottom: 8px;
-}
-
-/* 驻场点卡片 */
-.stations-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.stations-empty {
+.drawer-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 12px;
-  background: var(--color-surface);
-  border: 1.5px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-muted);
-  font-size: 12px;
-}
-
-.station-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: var(--color-primary);
-    box-shadow: 0 2px 8px rgba(0, 94, 235, 0.08);
-  }
-}
-
-.station-number {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--color-primary-light-9);
-  color: var(--color-primary);
-  font-size: 10px;
+  font-size: 16px;
   font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: #fff;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-family: 'Manrope', sans-serif;
+  letter-spacing: -0.5px;
 }
 
-.station-fields {
+.drawer-title {
   flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 6px;
-}
-
-.station-field {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.station-field-label {
-  font-size: 9px;
+.drawer-mode {
+  font-size: 11px;
   font-weight: 700;
-  color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
+
+  &.mode--edit { color: $primary; }
+  &.mode--new { color: $success; }
 }
 
-.station-remove-btn {
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-
-  &:hover {
-    background: var(--color-danger-bg);
-    color: var(--color-danger);
-  }
-}
-
-.add-station-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 100%;
-  padding: 8px;
-  border: 1.5px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: 12px;
+.drawer-name {
+  font-size: 16px;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-    background: var(--color-primary-light-9);
-  }
+  color: #303133;
 }
 
-/* 人员选项 */
-.personnel-opt {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.opt-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.opt-phone {
-  font-size: 11px;
-  color: var(--color-text-muted);
-}
-
-.personnel-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.personnel-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.personnel-phone {
-  font-size: 11px;
-  color: var(--color-text-muted);
-}
-
-/* 侧边栏底部 */
-.drawer-foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
-  background: var(--color-surface);
-  border-top: 1px solid var(--color-border-light);
-  flex-shrink: 0;
-}
-
-/* ==================== 表单区块 ==================== */
-.edit-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  animation: drawer-form-in 0.4s ease both 0.05s;
-}
-
-@keyframes drawer-form-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+.drawer-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  height: calc(100vh - 140px);
 }
 
 .form-section {
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
+  margin-bottom: 28px;
+}
+
+.form-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.station-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.station-num {
+  width: 22px;
+  height: 22px;
+  background: $primary;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.drawer-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #ebeef5;
+  background: #fafafa;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* 瀑布视图 - Bento Cards */
+.bento-view { width: 100%; }
+
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.bento-card {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e8ecf0;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  animation: fadeSlideIn 0.4s ease both;
+  position: relative;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.09);
+    border-color: #d0d7de;
+
+    .bento-actions { opacity: 1; }
+    .bento-avatar { transform: scale(1.05); }
+  }
+}
+
+/* 卡片顶部：白底 + 左侧大彩色头像 */
+.bento-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 18px 14px 12px;
+  background: #fff;
+  position: relative;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.bento-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  font-family: 'Manrope', sans-serif;
+  letter-spacing: -0.5px;
+  flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.18);
+  transition: transform 0.2s;
+}
+
+.bento-top-badges {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  padding-left: 14px;
+  flex: 1;
+}
+
+.bento-actions {
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  opacity: 0;
+  transition: opacity 0.2s;
+
+  .el-button {
+    font-size: 12px;
+    color: #6b7280;
+    padding: 4px 8px;
+
+    &:hover { color: #3b82f6; background: #f0f4ff; }
+  }
+}
+
+/* 卡片主体 */
+.bento-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 项目名称 */
+.bento-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.3;
+  margin-bottom: 3px;
+  letter-spacing: -0.3px;
+}
+
+.bento-code {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #9ca3af;
+
+  .el-icon { color: #d1d5db; }
+}
+
+/* 核心指标 */
+.bento-metrics {
+  display: flex;
+  align-items: center;
+  background: #f9fafb;
+  border-radius: 10px;
+  padding: 10px 0;
+  border: 1px solid #f0f2f5;
+}
+
+.bento-metric {
+  flex: 1;
+  text-align: center;
+}
+
+.bento-metric-num {
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.1;
+  font-family: 'Manrope', sans-serif;
+}
+
+.bento-metric-label {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.bento-metric-sep {
+  width: 1px;
+  height: 28px;
+  background: #e5e7eb;
+}
+
+/* 描述 */
+.bento-desc {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.form-section-header {
+/* 项目信息行 */
+.bento-info-row {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border-light);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.form-section-dot {
-  width: 8px;
-  height: 8px;
+.bento-info-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #6b7280;
+  background: #f3f4f6;
+  border-radius: 6px;
+  padding: 4px 8px;
+
+  .el-icon { color: #9ca3af; }
+}
+
+/* 解决方案 */
+.bento-solution {
+  border-left: 3px solid #3b82f6;
+  padding-left: 12px;
+}
+
+.bento-solution-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 4px;
+
+  .el-icon { color: #3b82f6; }
+}
+
+.solution-person {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.bento-solution-text {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 团队成员 */
+.bento-team { }
+
+.bento-team-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 8px;
+
+  .el-icon { color: #6b7280; }
+}
+
+.bento-team-count {
+  background: #e5e7eb;
+  color: #6b7280;
+  border-radius: 10px;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.bento-team-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bento-member-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 3px 10px 3px 4px;
+  cursor: default;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: #f0f4ff;
+    border-color: #c7d2fe;
+  }
+}
+
+.bento-member-avatar {
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
   flex-shrink: 0;
 }
 
-.section-count {
-  margin-left: auto;
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--color-primary-light-9);
-  color: var(--color-primary);
-  padding: 1px 8px;
-  border-radius: var(--radius-full);
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-.form-body {
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.form-grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-
-  &.form-field--inline {
-    flex-direction: row;
-    align-items: center;
-    gap: var(--space-3);
-  }
-}
-
-.field-label {
+.bento-member-name {
   font-size: 12px;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  letter-spacing: 0.2px;
-}
-
-.required-mark {
-  color: var(--color-danger);
-  margin-left: 2px;
-}
-
-.field-prefix-icon {
-  font-size: 13px;
-  opacity: 0.6;
-}
-
-/* 状态切换按钮 */
-.status-toggle {
-  display: flex;
-  gap: 4px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 3px;
-}
-
-.toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: transparent;
-  color: var(--color-text-secondary);
-
-  &.active {
-    background: var(--color-primary);
-    color: white;
-    box-shadow: 0 2px 8px rgba(0, 94, 235, 0.3);
-  }
-
-  &:not(.active):hover {
-    background: var(--color-surface-2);
-    color: var(--color-text-primary);
-  }
-}
-
-.toggle-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--gray-300);
-
-  &.active {
-    background: #22c55e;
-    box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
-    animation: pulse-dot 2s ease-in-out infinite;
-  }
-}
-
-/* 排序输入 */
-.sort-input-wrap {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.sort-hint {
-  font-size: 11px;
-  color: var(--color-text-muted);
+  color: #374151;
+  font-weight: 500;
   white-space: nowrap;
 }
 
-/* 内联行 */
-.form-row-inline {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--space-4);
-  align-items: center;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3) var(--space-4);
-}
-
-/* 驻场点卡片 */
-.stations-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.stations-empty {
+.bento-member-overflow {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: var(--space-4);
-  background: var(--color-surface);
-  border: 1.5px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-muted);
-  font-size: 13px;
-}
-
-.station-card {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  transition: all 0.2s ease;
-  animation: station-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-
-  &:hover {
-    border-color: var(--color-primary);
-    box-shadow: 0 2px 8px rgba(0, 94, 235, 0.08);
-  }
-}
-
-@keyframes station-in {
-  from { opacity: 0; transform: scale(0.97) translateY(-4px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.station-number {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--color-primary-light-9);
-  color: var(--color-primary);
+  padding: 3px 10px;
+  background: #f3f4f6;
+  border: 1px dashed #d1d5db;
+  border-radius: 20px;
   font-size: 11px;
-  font-weight: 800;
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+/* 驻场点 */
+.bento-stations { }
+
+.bento-stations-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 8px;
+
+  .el-icon { color: #6b7280; }
+}
+
+.bento-station-count {
+  background: #e5e7eb;
+  color: #6b7280;
+  border-radius: 10px;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.bento-station-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.bento-station-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+
+  .el-icon { color: #6b7280; font-size: 12px; }
+}
+
+.station-location {
+  color: #374151;
+  font-weight: 500;
+  flex: 1;
+}
+
+.station-person {
+  color: #3b82f6;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.station-phone {
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+/* 底部 */
+.bento-footer {
+  padding-top: 4px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.bento-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #d1d5db;
+
+  .el-icon { font-size: 12px; }
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 详情弹窗 */
+:deep(.project-detail-dialog) {
+  .el-dialog__body { padding: 0; }
+}
+
+.detail-modal {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.detail-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-modal-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
   flex-shrink: 0;
-  font-family: 'Manrope', monospace;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  font-family: 'Manrope', sans-serif;
+  letter-spacing: -1px;
 }
 
-.station-fields {
+.detail-modal-title {
   flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: var(--space-2);
 }
 
-.station-field {
+.modal-project-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #303133;
+  margin: 0 0 8px 0;
+}
+
+.modal-project-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-code {
+  font-size: 12px;
+  color: #c0c4cc;
+  font-family: monospace;
+}
+
+.detail-modal-stats {
+  display: flex;
+  gap: 20px;
+}
+
+.modal-stat {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 4px;
 }
 
-.station-field-label {
-  font-size: 10px;
+.modal-stat-num {
+  font-size: 20px;
   font-weight: 700;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  color: #303133;
+  line-height: 1;
 }
 
-.station-input {
-  .el-input__wrapper {
-    border-radius: var(--radius-sm);
-  }
+.modal-stat-label {
+  font-size: 12px;
+  color: #909399;
 }
 
-.personnel-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: 2px 0;
+.detail-modal-section {
+  padding: 20px 24px;
+  border-bottom: 1px solid #f0f0f0;
+
+  &:last-child { border-bottom: none; }
 }
 
-.personnel-name {
-  font-size: 13px;
+.modal-section-title {
+  font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.personnel-phone {
-  font-size: 11px;
-  color: var(--color-text-muted);
-}
-
-/* 人员下拉选项 */
-.personnel-opt {
+  color: #303133;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: 1px 0;
+  gap: 8px;
 }
 
-.opt-name {
+.modal-section-content {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  color: #606266;
+  line-height: 1.6;
 }
 
-.opt-phone {
-  font-size: 11px;
-  color: var(--color-text-muted);
+.modal-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
-.station-remove-btn {
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
+.modal-info-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-
-  &:hover {
-    background: var(--color-danger-bg);
-    color: var(--color-danger);
-    transform: scale(1.1);
-  }
-}
-
-.add-station-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 6px;
-  width: 100%;
-  padding: var(--space-3);
-  border: 1.5px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-text-secondary);
+  font-size: 13px;
+  color: #909399;
+
+  .el-icon { color: #c0c4cc; }
+  span { flex-shrink: 0; }
+  strong { color: #303133; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  &--full { grid-column: 1 / -1; }
+}
+
+.modal-team-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.modal-team-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 60px;
+}
+
+.modal-team-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.modal-team-name {
+  font-size: 12px;
+  color: #606266;
+  text-align: center;
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-stations {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-station {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+}
+
+.modal-station-icon {
+  width: 32px;
+  height: 32px;
+  background: #e6f4ff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #409eff;
+  flex-shrink: 0;
+}
+
+.modal-station-body { flex: 1; }
+
+.modal-station-location {
   font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: var(--space-2);
+  color: #303133;
+  margin-bottom: 4px;
+}
 
-  &:hover {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-    background: var(--color-primary-light-9);
-    transform: translateY(-1px);
-  }
+.modal-station-meta {
+  display: flex;
+  gap: 12px;
 
-  &:active {
-    transform: translateY(0);
+  span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #909399;
+
+    .el-icon { font-size: 12px; }
   }
 }
 
-/* 响应式 */
-@media (max-width: 1366px) {
-  .project-page { padding: var(--space-3); }
-  .project-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-2); }
+@media (max-width: 1024px) {
+  .kpi-cards { grid-template-columns: repeat(2, 1fr); }
+  .modal-info-grid { grid-template-columns: 1fr; }
+  .modal-info-item--full { grid-column: 1; }
 }
 
-@media (max-width: 640px) {
-  .form-grid-2 { grid-template-columns: 1fr; }
-  .form-row-inline { grid-template-columns: 1fr; }
-  .station-fields { grid-template-columns: 1fr; }
-  :deep(.project-dialog .el-dialog) { width: 95% !important; }
+@media (max-width: 768px) {
+  .kpi-cards { grid-template-columns: 1fr 1fr; }
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .filter-tip { margin-left: 0; }
 }
 </style>

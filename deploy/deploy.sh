@@ -41,15 +41,15 @@ check_deps() {
         fi
     done
     # 检查 docker compose
-    if ! docker compose version &> /dev/null && ! docker-compose --version &> /dev/null; then
-        missing="$missing docker-compose"
+    if ! docker compose version &> /dev/null && ! docker compose --version &> /dev/null; then
+        missing="$missing docker compose"
     fi
     if [ -n "$missing" ]; then
         log_error "缺少依赖:$missing"
         log_info "安装方法:"
-        log_info "  Ubuntu/Debian: apt update && apt install -y docker.io docker-compose python3"
-        log_info "  CentOS/RHEL:   yum install -y docker docker-compose python3"
-        log_info "  macOS:         brew install docker docker-compose python3"
+        log_info "  Ubuntu/Debian: apt update && apt install -y docker.io docker compose python3"
+        log_info "  CentOS/RHEL:   yum install -y docker docker compose python3"
+        log_info "  macOS:         brew install docker docker compose python3"
         exit 1
     fi
     local docker_ver=$(docker --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1)
@@ -74,7 +74,7 @@ docker_compose() {
     if docker compose version &> /dev/null; then
         docker compose "$@"
     else
-        docker-compose "$@"
+        docker compose "$@"
     fi
 }
 
@@ -113,29 +113,43 @@ docker_up() {
     log_step "启动 Docker 服务（MySQL 版）..."
     cd "$SCRIPT_DIR/docker"
 
-    # 生成 .env
-    if [ ! -f ".env" ] && [ -f ".env.example" ]; then
-        cp .env.example .env
-        log_warn "已创建 .env 文件，请先编辑修改密码："
-        log_warn "  vim $SCRIPT_DIR/docker/.env"
-        exit 1
-    fi
-
-    docker_compose up -d --remove-orphans
+    docker_compose -f docker-compose.mysql.yml up -d --remove-orphans
     sleep 5
 
     log_info ""
     log_ok "=========================================="
     log_ok "  $PRODUCT_CN ($PRODUCT_NAME) 部署成功！"
     log_ok "=========================================="
-    log_info "  Web UI:    http://localhost:8080"
-    log_info "  API:       http://localhost:8080/api"
-    log_info "  Swagger:   http://localhost:8080/swagger"
-    log_info "  健康检查:  http://localhost:8080/health"
+    log_info "  Web UI:    http://localhost:80"
+    log_info "  API:       http://localhost:80/api"
+    log_info "  Swagger:   http://localhost:80/swagger"
+    log_info "  健康检查:  http://localhost:80/health"
     log_info ""
     log_info "默认账号: admin / admin123"
     log_info ""
-    docker_compose ps
+    docker_compose -f docker-compose.mysql.yml ps
+}
+
+# ========== Docker 启动（PostgreSQL 版）==========
+docker_up_postgres() {
+    log_step "启动 Docker 服务（PostgreSQL 版）..."
+    cd "$SCRIPT_DIR/docker"
+
+    log_info "使用 PostgreSQL 生产版"
+    docker_compose -f docker-compose.postgres.yml up -d --remove-orphans
+    sleep 5
+
+    log_ok "=========================================="
+    log_ok "  $PRODUCT_CN ($PRODUCT_NAME) PostgreSQL 版部署成功！"
+    log_ok "=========================================="
+    log_info "  Web UI:    http://localhost:80"
+    log_info "  API:       http://localhost:80/api"
+    log_info "  Swagger:   http://localhost:80/swagger"
+    log_info "  健康检查:  http://localhost:80/health"
+    log_info ""
+    log_info "默认账号: admin / admin123"
+    log_info ""
+    docker_compose -f docker-compose.postgres.yml ps
 }
 
 # ========== Docker 启动（SQLite 版）==========
@@ -163,7 +177,9 @@ docker_up_sqlite() {
 docker_down() {
     log_step "停止 Docker 服务..."
     cd "$SCRIPT_DIR/docker"
-    docker_compose down 2>/dev/null || true
+    docker_compose -f docker-compose.mysql.yml down 2>/dev/null || true
+    docker_compose -f docker-compose.sqlite.yml down 2>/dev/null || true
+    docker_compose -f docker-compose.postgres.yml down 2>/dev/null || true
     log_ok "服务已停止"
 }
 
@@ -233,7 +249,7 @@ status() {
 
     echo ""
     echo -e "${BLUE}健康检查:${NC}"
-    local health=$(curl -s --connect-timeout 3 http://localhost:8080/health 2>/dev/null)
+    local health=$(curl -s --connect-timeout 3 http://localhost:80/health 2>/dev/null)
     if [ -n "$health" ]; then
         echo "$health" | python3 -m json.tool 2>/dev/null || echo "$health"
         log_ok "服务正常运行"
@@ -246,8 +262,9 @@ status() {
 clean() {
     log_warn "清理所有容器和数据（不可恢复）..."
     cd "$SCRIPT_DIR/docker"
-    docker_compose down -v --remove-orphans 2>/dev/null || true
+    docker_compose -f docker-compose.mysql.yml down -v --remove-orphans 2>/dev/null || true
     docker_compose -f docker-compose.sqlite.yml down -v --remove-orphans 2>/dev/null || true
+    docker_compose -f docker-compose.postgres.yml down -v --remove-orphans 2>/dev/null || true
     log_ok "清理完成"
 }
 
@@ -260,9 +277,11 @@ usage() {
     echo -e "${GREEN}Docker 部署:${NC}"
     echo "  $0 deploy          构建 + 部署（MySQL 版，推荐生产）"
     echo "  $0 deploy:sqlite   构建 + 部署（SQLite 轻量版）"
+    echo "  $0 deploy:postgres  构建 + 部署（PostgreSQL 生产版）"
     echo "  $0 build          仅构建镜像"
-    echo "  $0 start          仅启动（使用已有镜像）"
+    echo "  $0 start          仅启动（使用已有镜像，MySQL）"
     echo "  $0 start:sqlite   仅启动 SQLite 版"
+    echo "  $0 start:postgres 仅启动 PostgreSQL 版"
     echo "  $0 stop           停止所有容器"
     echo "  $0 restart        重启"
     echo ""
@@ -286,6 +305,7 @@ usage() {
     echo "  $0 config          # 先生成配置"
     echo "  $0 deploy          # MySQL 版完整部署"
     echo "  $0 deploy:sqlite   # SQLite 版（无需 MySQL）"
+    echo "  $0 deploy:postgres  # PostgreSQL 版（高并发）"
 }
 
 case "${1:-help}" in
@@ -293,8 +313,10 @@ case "${1:-help}" in
     build)           check_deps && build_docker ;;
     deploy)          check_deps && build_docker && docker_up ;;
     deploy:sqlite)   check_deps && build_docker && docker_up_sqlite ;;
+    deploy:postgres)  check_deps && build_docker && docker_up_postgres ;;
     start)           docker_up ;;
     start:sqlite)    docker_up_sqlite ;;
+    start:postgres)  docker_up_postgres ;;
     stop)            docker_down ;;
     restart)         docker_restart ;;
     logs)            logs ;;

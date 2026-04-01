@@ -98,7 +98,11 @@ const dismiss = () => {
   emit('dismiss')
 }
 
-defineExpose({ drawerVisible })
+const openDrawer = () => {
+  drawerVisible.value = true
+}
+
+defineExpose({ drawerVisible, openDrawer })
 </script>
 
 <style scoped>

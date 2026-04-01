@@ -22,7 +22,11 @@ func NewAuditService() *AuditService {
 
 // LogOperation 记录操作日志
 func (s *AuditService) LogOperation(userID uint, username, menuName, action, resourceType string, resourceID uint, resourceName, ipAddress, userAgent string, detail interface{}) error {
-	detailJSON, _ := json.Marshal(detail)
+	var detailStr string
+	if detail != nil {
+		detailJSON, _ := json.Marshal(detail)
+		detailStr = string(detailJSON)
+	}
 	log := &model.OperationLog{
 		UserID:       userID,
 		Username:     username,
@@ -33,7 +37,7 @@ func (s *AuditService) LogOperation(userID uint, username, menuName, action, res
 		ResourceName: resourceName,
 		IPAddress:    ipAddress,
 		UserAgent:    userAgent,
-		Detail:       string(detailJSON),
+		Detail:       detailStr,
 	}
 	return s.opLogRepo.Create(log)
 }

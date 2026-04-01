@@ -15,12 +15,12 @@ export interface Milestone {
 const STORAGE_KEY = 'datareg_milestones'
 
 const MILESTONE_DEFS = [
-  { key: 'export_1',  count: 1,  name: '初出茅庐',   nameEn: 'Data Pioneer',   emoji: '🌱', description: '完成了首次数据导出', color: '#22c55e' },
-  { key: 'export_5',  count: 5,  name: '小有成就',   nameEn: 'Data Collector', emoji: '📦', description: '累计导出5次数据', color: '#3b82f6' },
-  { key: 'export_10', count: 10, name: '数据搬运工', nameEn: 'Data Porter',    emoji: '🏋️', description: '累计导出10次数据', color: '#f59e0b' },
-  { key: 'export_20', count: 20, name: '数据达人',   nameEn: 'Data Pro',       emoji: '💫', description: '累计导出20次数据', color: '#8b5cf6' },
-  { key: 'export_50', count: 50, name: '数据大师',   nameEn: 'Data Master',    emoji: '🏆', description: '累计导出50次数据', color: '#ef4444' },
-  { key: 'export_100',count: 100,name: '数据领主',   nameEn: 'Data Overlord',  emoji: '👑', description: '累计导出100次数据', color: '#ec4899' },
+  { key: 'export_1',   count: 1,   name: '初出茅庐',   nameEn: 'Data Pioneer',   emoji: '🌱', description: '完成了首次数据导出', color: '#22c55e' },
+  { key: 'export_5',   count: 5,   name: '小有成就',   nameEn: 'Data Collector', emoji: '📦', description: '累计导出5次数据', color: '#3b82f6' },
+  { key: 'export_10',  count: 10,  name: '数据搬运工', nameEn: 'Data Porter',    emoji: '🏋️', description: '累计导出10次数据', color: '#f59e0b' },
+  { key: 'export_20',  count: 20,  name: '数据达人',   nameEn: 'Data Pro',       emoji: '💫', description: '累计导出20次数据', color: '#8b5cf6' },
+  { key: 'export_50',  count: 50,  name: '数据大师',   nameEn: 'Data Master',    emoji: '🏆', description: '累计导出50次数据', color: '#ef4444' },
+  { key: 'export_100', count: 100, name: '数据领主',   nameEn: 'Data Overlord',  emoji: '👑', description: '累计导出100次数据', color: '#ec4899' },
 ]
 
 // ========== State ==========
@@ -50,14 +50,26 @@ const saveState = () => {
 }
 
 // ========== Track Export ==========
-const trackExport = () => {
+// 只在导出成功时计数，传入 success=true 表示成功
+let lastTrackTime = 0
+const trackExport = (success: boolean = true) => {
+  if (!success) return  // 失败时不计数
+
+  // 防止短时间内重复调用（1秒内只计一次）
+  const now = Date.now()
+  if (now - lastTrackTime < 1000) return
+  lastTrackTime = now
+
   exportCount.value++
 
-  // Check for newly unlocked milestones
-  for (const def of MILESTONE_DEFS) {
-    if (exportCount.value === def.count && !unlockedMilestones.value.includes(def.key)) {
+  // 只检查当前达到的最高里程碑通知（避免一次导出弹出多个）
+  // 从高到低排序，找到第一个已达成的未解锁里程碑
+  const sorted = [...MILESTONE_DEFS].sort((a, b) => b.count - a.count)
+  for (const def of sorted) {
+    if (exportCount.value >= def.count && !unlockedMilestones.value.includes(def.key)) {
       unlockedMilestones.value.push(def.key)
       showBadgeNotification(def)
+      break // 只弹一个
     }
   }
 

@@ -52,6 +52,12 @@ export const asyncRoutes: RouteRecordRaw[] = [
         meta: { title: '项目管理' }
       },
       {
+        path: 'projects/network',
+        name: 'ProjectNetwork',
+        component: () => import('@/views/project/network.vue'),
+        meta: { title: '关系网络' }
+      },
+      {
         path: 'personnel',
         name: 'PersonnelList',
         component: () => import('@/views/personnel/list.vue'),

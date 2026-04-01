@@ -14,6 +14,7 @@ export interface ProjectReq {
   pageSize?: number
   keyword?: string
   status?: string
+  stage?: string
 }
 
 // 项目响应
@@ -35,7 +36,9 @@ export interface Project {
   testerPerson: string   // 测试人员
   businessPerson: string // 商务人员
   compliancePerson: string // 合规专员
-  solution: string       // 解决方案
+  opsStaffPerson: string  // 运营人员
+  solution: string       // 解决方案描述
+  solutionPerson: string // 解决方案人员
   companyAddr: string    // 公司地点
   projectPeriod: string   // 项目周期
   onsiteStations: OnSiteStation[]  // 驻场点列表
@@ -62,7 +65,9 @@ export interface CreateProjectReq {
   testerPerson?: string   // 测试人员
   businessPerson?: string // 商务人员
   compliancePerson?: string // 合规专员
-  solution?: string       // 解决方案
+  opsStaffPerson?: string  // 运营人员
+  solution?: string       // 解决方案描述
+  solutionPerson?: string // 解决方案人员
   companyAddr?: string     // 公司地点
   projectPeriod?: string   // 项目周期
   onsiteStations?: OnSiteStation[]  // 驻场点列表
@@ -83,7 +88,9 @@ export interface UpdateProjectReq {
   testerPerson?: string   // 测试人员
   businessPerson?: string // 商务人员
   compliancePerson?: string // 合规专员
-  solution?: string       // 解决方案
+  opsStaffPerson?: string  // 运营人员
+  solution?: string       // 解决方案描述
+  solutionPerson?: string // 解决方案人员
   companyAddr?: string    // 公司地点
   projectPeriod?: string  // 项目周期
   onsiteStations?: OnSiteStation[]  // 驻场点列表

@@ -72,8 +72,8 @@ class RequestHttp {
     return this.service.get(url, { params, ...config })
   }
 
-  post<T>(url: string, params?: object, timeout?: number): Promise<ResultData<T>> {
-    return this.service.post(url, params, { timeout })
+  post<T>(url: string, data?: object, config: AxiosRequestConfig = {}): Promise<ResultData<T>> {
+    return this.service.post(url, data, config)
   }
 
   put<T>(url: string, params?: object, config = {}): Promise<ResultData<T>> {

@@ -42,6 +42,7 @@ export interface CreateUploadRecordReq {
   status: 'pending' | 'processing' | 'completed' | 'failed'
   remark?: string
   data?: Record<string, any>
+  createdAt?: string  // 可选，格式：2006-01-02 或 2006-01-02T15:04:05Z
 }
 
 // 更新上传记录请求
@@ -57,7 +58,11 @@ export interface UploadRecordStatistics {
   todaySize: number
   todaySizeStr: string
   weekCount: number
+  weekSize: number
+  weekSizeStr: string
   monthCount: number
+  monthSize: number
+  monthSizeStr: string
   totalCount: number
   totalSize: number
   totalSizeStr: string
@@ -172,6 +177,9 @@ export namespace UploadRecordApi {
   }
 
   // 导出上传记录为 Excel（使用原生 fetch 避免拦截器干扰）
+const getApiBase = () => (import.meta.env.VITE_API_URL as string || '/api').replace(/\/$/, '')
+const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token') || ''}` })
+
   export const exportExcel = (params?: UploadRecordReq) => {
     const query = new URLSearchParams()
     if (params) {
@@ -182,9 +190,10 @@ export namespace UploadRecordApi {
       })
     }
     const qs = query.toString()
-    const url = (import.meta.env.VITE_API_URL as string || '/api') + '/upload-records/export' + (qs ? '?' + qs : '')
+    const url = getApiBase() + '/upload-records/export' + (qs ? '?' + qs : '')
     return fetch(url, {
-      credentials: 'include'
+      credentials: 'include',
+      headers: { ...getAuthHeader() }
     }).then(res => {
       if (!res.ok) {
         throw new Error('导出失败')
@@ -200,14 +209,14 @@ export namespace UploadRecordApi {
 
   // 下载导入模板 Excel
   export const downloadTemplate = () => {
-    const url = (import.meta.env.VITE_API_URL as string || '/api') + '/upload-records/template'
+    const url = getApiBase() + '/upload-records/template'
     return fetch(url, {
-      credentials: 'include'
+      credentials: 'include',
+      headers: { ...getAuthHeader() }
     }).then(res => {
       if (!res.ok) throw new Error('获取模板信息失败')
       return res.json()
     }).then(data => {
-      // 使用前端生成模板（根据字段定义生成xlsx）
       generateTemplateExcel(data.data || data as ImportTemplateResp)
     })
   }
@@ -216,79 +225,134 @@ export namespace UploadRecordApi {
   export const importRecords = (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    const url = (import.meta.env.VITE_API_URL as string || '/api') + '/upload-records/import'
+    const url = getApiBase() + '/upload-records/import'
     return fetch(url, {
       method: 'POST',
       credentials: 'include',
+      headers: { ...getAuthHeader() },
       body: formData
     }).then(res => {
       if (!res.ok) throw new Error('导入请求失败')
       return res.json()
     }) as Promise<{ code: number; message: string; data: ImportResultResp }>
   }
+
+  // 预览上传文件行数
+  export const previewImport = (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const url = getApiBase() + '/upload-records/preview'
+    return fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { ...getAuthHeader() },
+      body: formData
+    }).then(res => {
+      if (!res.ok) throw new Error('预览请求失败')
+      return res.json()
+    }) as Promise<{ code: number; message: string; data: { totalRows: number; dataRows: number; sheetName: string } }>
+  }
+}
+
+// Excel列名转换（支持 > 26 列，如 0→A, 25→Z, 26→AA, 27→AB）
+function colName(n: number): string {
+  let s = ''
+  n++
+  while (n > 0) {
+    n--
+    s = String.fromCharCode(65 + (n % 26)) + s
+    n = Math.floor(n / 26)
+  }
+  return s
 }
 
 // 前端生成模板Excel（使用 SheetJS）
 function generateTemplateExcel(template: ImportTemplateResp) {
-  // 动态加载 xlsx CDN
   const script = document.createElement('script')
   script.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js'
   script.onload = () => {
     const XLSX = (window as any).XLSX
-    const worksheetData: any[] = []
 
-    // 第1行：标题行
-    worksheetData.push([template.title || '上传记录批量导入模板'])
+    // ---------- 构建工作表数据（纯数据，不用样式对象混入 aoa） ----------
+    // 第1行：标题
+    const titleRow: any[] = [{ v: template.title || '上传记录批量导入模板', t: 's', w: '标题' }]
 
-    // 第2行：字段说明行
-    worksheetData.push(['字段说明：* 为必填项'])
+    // 第2行：必填说明
+    const reqFields = template.fields.filter(f => f.required).map(f => f.field).join('、')
+    const hintRow: any[] = [{ v: `* 必填字段：${reqFields || '无'}`, t: 's' }]
 
     // 第3行：表头
-    const headers = template.fields.map(f => {
-      const label = f.required ? `* ${f.field}` : f.field
-      return {
-        v: label,
-        t: 's',
-        l: {
-          fill: { fgColor: { rgb: '005bbf' } },
-          font: { bold: true, color: { rgb: 'FFFFFF' } }
-        }
-      }
-    })
-    worksheetData.push(headers as any)
+    const headerRow: any[] = template.fields.map(f => ({
+      v: f.required ? `${f.field} *` : f.field,
+      t: 's'
+    }))
 
-    // 第4行起：示例数据
-    template.fields.forEach(f => {
-      worksheetData.push([f.example || ''])
-    })
+    // 第4行：示例数据（一行完整的 demo）
+    const demoRow: any[] = template.fields.map(f => ({
+      v: f.example || '',
+      t: 's'
+    }))
 
-    const ws = XLSX.utils.aoa_to_sheet(worksheetData)
+    // 合并所有行
+    const allRows = [titleRow, hintRow, headerRow, demoRow]
+    const ws = XLSX.utils.aoa_to_sheet(allRows)
 
-    // 设置表头行高和样式
+    // ---------- 设置行列样式 ----------
+    // 第1行：标题（合并到最后一列）
+    const lastCol = colName(template.fields.length - 1)
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: template.fields.length - 1 } }]
     ws['!rows'] = [
-      { hpt: 30 }, // 标题行
-      { hpt: 20 }, // 说明行
-      { hpt: 28 }, // 表头行
+      { hpt: 36 },  // 标题行
+      { hpt: 22 },  // 说明行
+      { hpt: 30 },  // 表头行
+      { hpt: 28 },  // 示例数据行
     ]
 
     // 设置列宽
-    const colWidths = template.fields.map(f => ({
-      wch: Math.max(f.field.length, f.example?.length || 0, 15) + 4
+    ws['!cols'] = template.fields.map(f => ({
+      wch: Math.max(f.field.length, (f.example?.length || 0) + 2, 12)
     }))
-    ws['!cols'] = colWidths
+
+    // 手动给第3行（表头）和第4行（示例）加样式
+    for (let c = 0; c < template.fields.length; c++) {
+      const addr3 = XLSX.utils.encode_cell({ r: 2, c })
+      const addr4 = XLSX.utils.encode_cell({ r: 3, c })
+      // 表头样式：深蓝底白字
+      ;(ws[addr3] as any).s = {
+        fill: { fgColor: { rgb: '1F4E79' }, patternType: 'solid' },
+        font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: '2E75B6' } },
+          bottom: { style: 'thin', color: { rgb: '2E75B6' } },
+          left: { style: 'thin', color: { rgb: 'BDD7EE' } },
+          right: { style: 'thin', color: { rgb: 'BDD7EE' } }
+        }
+      }
+      // 示例行样式：浅蓝底
+      ;(ws[addr4] as any).s = {
+        fill: { fgColor: { rgb: 'DEEAF1' }, patternType: 'solid' },
+        font: { color: { rgb: '2E75B6' }, sz: 11 },
+        alignment: { horizontal: 'left', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: 'BDD7EE' } },
+          bottom: { style: 'thin', color: { rgb: 'BDD7EE' } },
+          left: { style: 'thin', color: { rgb: 'BDD7EE' } },
+          right: { style: 'thin', color: { rgb: 'BDD7EE' } }
+        }
+      }
+    }
 
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, template.sheetName || '上传记录导入')
 
-    // 下载
     const filename = `上传记录导入模板_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.xlsx`
     XLSX.writeFile(wb, filename)
     document.body.removeChild(script)
   }
   script.onerror = () => {
-    // CDN加载失败，提示用户
-    alert('在线模板生成失败，请联系管理员')
     document.body.removeChild(script)
+    throw new Error('在线模板生成失败，请联系管理员')
   }
   document.body.appendChild(script)
 }

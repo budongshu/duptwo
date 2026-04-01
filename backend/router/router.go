@@ -118,6 +118,7 @@ func InitRouter() *gin.Engine {
 		authGroup.GET("/upload-records/statistics", middleware.RequirePermission("upload:read"), RouterGroupApp.UploadRecordApi.GetStatistics)
 		authGroup.GET("/upload-records/recent", middleware.RequirePermission("upload:read"), RouterGroupApp.UploadRecordApi.GetRecent)
 		authGroup.GET("/upload-records/template", middleware.RequirePermission("upload:read"), RouterGroupApp.UploadRecordApi.GetTemplate)
+		authGroup.POST("/upload-records/preview", middleware.RequirePermission("upload:read"), RouterGroupApp.UploadRecordApi.Preview)
 		authGroup.GET("/upload-records/uploaders", middleware.RequirePermission("upload:read"), RouterGroupApp.UploadRecordApi.GetUploaderList)
 		authGroup.GET("/upload-records/:id", middleware.RequirePermission("upload:read"), RouterGroupApp.UploadRecordApi.GetByID)
 		authGroup.PUT("/upload-records", middleware.RequirePermission("upload:update"), RouterGroupApp.UploadRecordApi.Update)

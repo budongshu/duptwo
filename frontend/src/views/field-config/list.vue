@@ -3,38 +3,53 @@
     <!-- 页面标题 -->
     <header class="page-header">
       <div>
-        <h1 class="page-title">字段配置</h1>
-        <p class="page-subtitle">管理上传记录的动态字段</p>
+        <h1 class="page-title">{{ t('fieldConfig.list.title') }}</h1>
+        <p class="page-subtitle">{{ t('fieldConfig.list.subtitle') }}</p>
       </div>
       <el-button type="primary" @click="handleCreate">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px">
           <line x1="12" y1="5" x2="12" y2="19"/>
           <line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
-        新增字段
+        {{ t('fieldConfig.list.addField') }}
       </el-button>
     </header>
 
     <!-- 搜索栏 -->
-    <div class="filter-card">
+    <div class="filter-bar">
       <el-input
         v-model="searchKeyword"
-        placeholder="搜索字段名称/编码"
+        :placeholder="t('fieldConfig.list.searchPlaceholder')"
         clearable
         @keyup.enter="handleSearch"
-      />
-      <el-button type="primary" @click="handleSearch">查询</el-button>
-      <el-button @click="handleReset">重置</el-button>
+        style="width: 240px"
+      >
+        <template #prefix>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </template>
+      </el-input>
+      <el-button type="primary" @click="handleSearch">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        {{ t('common.search') }}
+      </el-button>
+      <el-button @click="handleReset">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>
+        {{ t('common.reset') }}
+      </el-button>
+      <el-button v-if="selectedRows.length > 0" type="danger" @click="handleBatchDelete">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        {{ t('common.batchDelete') }} ({{ selectedRows.length }})
+      </el-button>
     </div>
 
     <!-- 表格 -->
-    <div class="table-card">
+    <div class="content-card">
       <!-- 表格工具栏 -->
       <div class="table-toolbar">
         <div class="toolbar-left">
-          <span class="record-count">共 <strong>{{ pagination.total }}</strong> 条</span>
+          <span class="record-count">{{ t('common.total') }} <strong>{{ pagination.total }}</strong> {{ t('common.records') }}</span>
           <span v-if="selectedRows.length > 0" class="selection-count">
-            已选 <strong>{{ selectedRows.length }}</strong> 项
+            {{ t('common.selected') }} <strong>{{ selectedRows.length }}</strong> {{ t('common.items') }}
           </span>
         </div>
         <div class="toolbar-right">
@@ -47,7 +62,7 @@
               <polyline points="3 6 5 6 21 6"/>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
             </svg>
-            批量删除
+            {{ t('fieldConfig.list.batchDelete') }}
           </el-button>
         </div>
       </div>
@@ -60,23 +75,23 @@
         stripe
       >
         <el-table-column type="selection" width="45" fixed="left" />
-        <el-table-column prop="name" label="字段名称" min-width="140">
+        <el-table-column prop="name" :label="t('fieldConfig.list.fieldName')" min-width="140">
           <template #default="{ row }">
             <span class="field-name">{{ row.name }}</span>
             <span v-if="row.required" class="required-mark">*</span>
           </template>
         </el-table-column>
-        <el-table-column prop="code" label="字段编码" min-width="150">
+        <el-table-column prop="code" :label="t('fieldConfig.list.fieldCode')" min-width="150">
           <template #default="{ row }">
             <code class="field-code">{{ row.code }}</code>
           </template>
         </el-table-column>
-        <el-table-column prop="type" label="类型" min-width="100" align="center">
+        <el-table-column prop="type" :label="t('fieldConfig.list.type')" min-width="100" align="center">
           <template #default="{ row }">
             <span class="type-badge">{{ getTypeText(row.type) }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="options" label="选项" min-width="200">
+        <el-table-column prop="options" :label="t('fieldConfig.list.options')" min-width="200">
           <template #default="{ row }">
             <span v-if="row.options && row.options.length" class="options-text">
               {{ row.options.join(', ') }}
@@ -84,20 +99,20 @@
             <span v-else class="options-empty">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="placeholder" label="占位提示" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="sort" label="排序" min-width="80" align="center" />
-        <el-table-column prop="enabled" label="状态" min-width="90" align="center">
+        <el-table-column prop="placeholder" :label="t('fieldConfig.list.placeholder')" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="sort" :label="t('fieldConfig.list.sort')" min-width="80" align="center" />
+        <el-table-column prop="enabled" :label="t('fieldConfig.list.status')" min-width="90" align="center">
           <template #default="{ row }">
             <span class="status-badge" :class="row.enabled ? 'status-badge--success' : 'status-badge--disabled'">
-              {{ row.enabled ? '启用' : '禁用' }}
+              {{ row.enabled ? t('fieldConfig.list.enabled') : t('fieldConfig.list.disabled') }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="80" fixed="right" align="center">
+        <el-table-column :label="t('common.actions')" width="80" fixed="right" align="center">
           <template #default="{ row }">
             <TableActions :actions="[
-              { key: 'edit', label: '编辑', type: 'primary' },
-              { key: 'delete', label: '删除', type: 'danger' }
+              { key: 'edit', label: t('common.edit'), type: 'primary' },
+              { key: 'delete', label: t('common.delete'), type: 'danger' }
             ]" @action="(key) => handleAction(key, row)" />
           </template>
         </el-table-column>
@@ -120,8 +135,8 @@
     <el-drawer v-model="drawerVisible" size="520px" direction="rtl">
       <template #header>
         <div class="drawer-head">
-          <span class="drawer-mode-tag">{{ isEdit ? '编辑' : '新增' }}</span>
-          <span class="drawer-title-text">{{ isEdit ? '编辑字段' : '新增字段' }}</span>
+          <span class="drawer-mode-tag">{{ isEdit ? t('common.edit') : t('fieldConfig.list.add') }}</span>
+          <span class="drawer-title-text">{{ isEdit ? t('fieldConfig.list.editTitle') : t('fieldConfig.list.addTitle') }}</span>
         </div>
       </template>
       <div class="drawer-content">
@@ -129,35 +144,35 @@
         <div class="form-section">
           <div class="section-header">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7m0-18H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7m0-18v18"/></svg>
-            <span>字段设置</span>
+            <span>{{ t('fieldConfig.list.fieldSettings') }}</span>
           </div>
           <el-form :model="form" label-position="top" :rules="formRules" ref="formRef">
-            <el-form-item label="字段名称" prop="name" class="is-required">
-              <el-input v-model="form.name" placeholder="如：目标路径" maxlength="64">
+            <el-form-item :label="t('fieldConfig.list.fieldName')" prop="name" class="is-required">
+              <el-input v-model="form.name" :placeholder="t('fieldConfig.list.fieldNamePlaceholder')" maxlength="64" size="small">
                 <template #prefix>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7m0-18H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7m0-18v18"/></svg>
                 </template>
               </el-input>
             </el-form-item>
-            <el-form-item label="字段编码" prop="code" class="is-required">
-              <el-input v-model="form.code" placeholder="如：targetPath，只能是英文和数字" maxlength="64" :disabled="isEdit">
+            <el-form-item :label="t('fieldConfig.list.fieldCode')" prop="code" class="is-required">
+              <el-input v-model="form.code" :placeholder="t('fieldConfig.list.fieldCodePlaceholder')" maxlength="64" :disabled="isEdit" size="small">
                 <template #prefix>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
                 </template>
               </el-input>
             </el-form-item>
-            <el-form-item label="字段类型" prop="type" class="is-required">
-              <el-select v-model="form.type" style="width: 100%">
-                <el-option label="文本" value="text" />
-                <el-option label="数字" value="number" />
-                <el-option label="下拉选择" value="select" />
-                <el-option label="多选" value="multiselect" />
-                <el-option label="日期" value="date" />
-                <el-option label="日期时间" value="datetime" />
-                <el-option label="文本域" value="textarea" />
+            <el-form-item :label="t('fieldConfig.list.fieldType')" prop="type" class="is-required">
+              <el-select v-model="form.type" style="width: 100%" size="small">
+                <el-option :label="t('fieldConfig.list.typeText')" value="text" />
+                <el-option :label="t('fieldConfig.list.typeNumber')" value="number" />
+                <el-option :label="t('fieldConfig.list.typeSelect')" value="select" />
+                <el-option :label="t('fieldConfig.list.typeMultiselect')" value="multiselect" />
+                <el-option :label="t('fieldConfig.list.typeDate')" value="date" />
+                <el-option :label="t('fieldConfig.list.typeDatetime')" value="datetime" />
+                <el-option :label="t('fieldConfig.list.typeTextarea')" value="textarea" />
               </el-select>
             </el-form-item>
-            <el-form-item label="必填">
+            <el-form-item :label="t('fieldConfig.list.required')">
               <el-switch v-model="form.required" />
             </el-form-item>
           </el-form>
@@ -167,15 +182,16 @@
         <div class="form-section" v-if="form.type === 'select' || form.type === 'multiselect'">
           <div class="section-header">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            <span>选项配置</span>
+            <span>{{ t('fieldConfig.list.optionsConfig') }}</span>
           </div>
           <el-form label-position="top">
-            <el-form-item label="选项列表">
+            <el-form-item :label="t('fieldConfig.list.optionsList')">
               <el-input
                 v-model="optionsInput"
                 type="textarea"
                 :rows="3"
-                placeholder="多个选项用英文逗号分隔，如：选项1,选项2,选项3"
+                size="small"
+                :placeholder="t('fieldConfig.list.optionsPlaceholder')"
               />
             </el-form-item>
           </el-form>
@@ -185,29 +201,29 @@
         <div class="form-section">
           <div class="section-header">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-            <span>界面配置</span>
+            <span>{{ t('fieldConfig.list.uiConfig') }}</span>
           </div>
           <el-form label-position="top">
-            <el-form-item label="默认值">
-              <el-input v-model="form.defaultValue" placeholder="默认填充的值" maxlength="512">
+            <el-form-item :label="t('fieldConfig.list.defaultValue')">
+              <el-input v-model="form.defaultValue" :placeholder="t('fieldConfig.list.defaultValuePlaceholder')" maxlength="512" size="small">
                 <template #prefix>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                 </template>
               </el-input>
             </el-form-item>
-            <el-form-item label="占位提示">
-              <el-input v-model="form.placeholder" placeholder="如：请输入目标路径" maxlength="256">
+            <el-form-item :label="t('fieldConfig.list.placeholder')">
+              <el-input v-model="form.placeholder" :placeholder="t('fieldConfig.list.placeholderHint')" maxlength="256" size="small">
                 <template #prefix>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                 </template>
               </el-input>
             </el-form-item>
-            <el-form-item label="排序">
-              <el-input-number v-model="form.sort" :min="0" :max="999" style="width: 100%" />
+            <el-form-item :label="t('fieldConfig.list.sort')">
+              <el-input-number v-model="form.sort" :min="0" :max="999" style="width: 100%" size="small" />
             </el-form-item>
-            <el-form-item label="启用状态">
+            <el-form-item :label="t('fieldConfig.list.enabledStatus')">
               <el-switch v-model="form.enabled" />
-              <span class="switch-hint">{{ form.enabled ? '启用后该字段将在表单中显示' : '禁用后该字段将在表单中隐藏' }}</span>
+              <span class="switch-hint">{{ form.enabled ? t('fieldConfig.list.enabledHint') : t('fieldConfig.list.disabledHint') }}</span>
             </el-form-item>
           </el-form>
         </div>
@@ -215,8 +231,8 @@
 
       <template #footer>
         <div class="drawer-footer">
-          <el-button @click="drawerVisible = false">取消</el-button>
-          <el-button type="primary" :loading="submitting" @click="confirmSubmit">保存</el-button>
+          <el-button @click="drawerVisible = false">{{ t('common.cancel') }}</el-button>
+          <el-button type="primary" :loading="submitting" @click="confirmSubmit">{{ t('common.save') }}</el-button>
         </div>
       </template>
     </el-drawer>
@@ -224,10 +240,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { FieldConfigApi, type FieldConfig, type CreateFieldConfigReq } from '@/api/field-config'
 import TableActions from '@/components/TableActions.vue'
+
+const { t } = useI18n()
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -253,14 +272,14 @@ const form = reactive<CreateFieldConfigReq & { id?: number }>({
 
 const optionsInput = ref('')
 
-const formRules: FormRules = {
-  name: [{ required: true, message: '请输入字段名称', trigger: 'blur' }],
+const formRules = computed<FormRules>(() => ({
+  name: [{ required: true, message: t('fieldConfig.list.formRules.nameRequired'), trigger: 'blur' }],
   code: [
-    { required: true, message: '请输入字段编码', trigger: 'blur' },
-    { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: '编码必须以字母开头，只能包含字母、数字和下划线', trigger: 'blur' }
+    { required: true, message: t('fieldConfig.list.formRules.codeRequired'), trigger: 'blur' },
+    { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: t('fieldConfig.list.formRules.codePattern'), trigger: 'blur' }
   ],
-  type: [{ required: true, message: '请选择字段类型', trigger: 'change' }]
-}
+  type: [{ required: true, message: t('fieldConfig.list.fieldType'), trigger: 'change' }]
+}))
 
 const pagination = reactive({
   page: 1,
@@ -270,13 +289,13 @@ const pagination = reactive({
 
 const getTypeText = (type: string) => {
   const map: Record<string, string> = {
-    text: '文本',
-    number: '数字',
-    select: '下拉',
-    multiselect: '多选',
-    date: '日期',
-    datetime: '日期时间',
-    textarea: '文本域'
+    text: t('fieldConfig.list.typeText'),
+    number: t('fieldConfig.list.typeNumber'),
+    select: t('fieldConfig.list.typeSelect'),
+    multiselect: t('fieldConfig.list.typeMultiselect'),
+    date: t('fieldConfig.list.typeDate'),
+    datetime: t('fieldConfig.list.typeDatetime'),
+    textarea: t('fieldConfig.list.typeTextarea')
   }
   return map[type] || type
 }
@@ -293,7 +312,7 @@ const loadData = async () => {
     pagination.total = res.data.total || 0
   } catch (error) {
     console.error('Failed to load data:', error)
-    ElMessage.error('加载数据失败')
+    ElMessage.error(t('fieldConfig.list.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -363,15 +382,15 @@ const confirmSubmit = async () => {
 
     if (isEdit.value) {
       await FieldConfigApi.update(form as any)
-      ElMessage.success('更新成功')
+      ElMessage.success(t(isEdit.value ? 'fieldConfig.list.updateSuccess' : 'fieldConfig.list.createSuccess'))
     } else {
       await FieldConfigApi.create(form)
-      ElMessage.success('创建成功')
+      ElMessage.success(t('fieldConfig.list.createSuccess'))
     }
     drawerVisible.value = false
     loadData()
   } catch (error: any) {
-    ElMessage.error(error?.message || '操作失败')
+    ElMessage.error(error?.message || t('fieldConfig.list.opFailed'))
   } finally {
     submitting.value = false
   }
@@ -379,18 +398,18 @@ const confirmSubmit = async () => {
 
 const handleDelete = async (row: FieldConfig) => {
   try {
-    await ElMessageBox.confirm(`确定要删除字段"${row.name}"吗？`, '删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('fieldConfig.list.deleteConfirm', { name: row.name }), t('fieldConfig.list.deleteTitle'), {
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning'
     })
 
     await FieldConfigApi.del(row.id)
-    ElMessage.success('删除成功')
+    ElMessage.success(t('fieldConfig.list.deleteSuccess'))
     loadData()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error('删除失败')
+      ElMessage.error(t('fieldConfig.list.deleteFailed'))
     }
   }
 }
@@ -403,19 +422,19 @@ const handleAction = (key: string, row: FieldConfig) => {
 const handleBatchDelete = async () => {
   if (selectedRows.value.length === 0) return
   try {
-    await ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 个字段吗？`, '批量删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('fieldConfig.list.batchDeleteConfirm', { count: selectedRows.value.length }), t('fieldConfig.list.batchDeleteTitle'), {
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning'
     })
     const ids = selectedRows.value.map(row => row.id)
     await FieldConfigApi.batchDelete(ids)
-    ElMessage.success(`成功删除 ${selectedRows.value.length} 个字段`)
+    ElMessage.success(t('fieldConfig.list.batchDeleteSuccess', { count: selectedRows.value.length }))
     selectedRows.value = []
     loadData()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error('批量删除失败')
+      ElMessage.error(t('fieldConfig.list.batchDeleteFailed'))
     }
   }
 }
@@ -436,51 +455,50 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
   flex-wrap: wrap;
   gap: 16px;
-  padding: 20px 24px;
+  padding: var(--space-4) var(--space-5);
   background: var(--color-surface);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xs);
   border: 1px solid var(--color-border-light);
 }
 
 .page-title {
   font-family: 'Manrope', sans-serif;
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 800;
   color: var(--color-text-primary);
-  margin-bottom: 2px;
+  margin: 0;
+  letter-spacing: -0.3px;
 }
 
 .page-subtitle {
-  font-size: 13px;
-  color: var(--color-text-secondary);
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
-.filter-card {
+.filter-bar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
   align-items: center;
+  gap: var(--space-3);
   background: var(--color-surface);
-  border-radius: 12px;
-  padding: 16px 20px;
-  margin-bottom: 14px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
   box-shadow: var(--shadow-xs);
   border: 1px solid var(--color-border-light);
-
-  > * { flex: 0 0 auto; }
-  .el-input { width: 200px; }
+  flex-wrap: wrap;
 }
 
-.table-card {
+.content-card {
   background: var(--color-surface);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xs);
   border: 1px solid var(--color-border-light);
-  overflow: hidden;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .table-toolbar {
@@ -639,7 +657,7 @@ onMounted(() => {
 }
 
 .drawer-content {
-  padding: 20px 24px;
+  padding: 16px 20px;
   height: calc(100vh - 140px);
   overflow-y: auto;
 }
@@ -658,7 +676,7 @@ onMounted(() => {
   border-bottom: 1px solid var(--color-border-light);
   color: var(--color-text-primary);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 13px;
   svg { color: var(--color-text-secondary); }
 }
 
@@ -667,7 +685,7 @@ onMounted(() => {
   .el-form-item__label {
     font-weight: 500;
     color: var(--color-text-primary);
-    font-size: 14px;
+    font-size: 12px;
     &::before { color: var(--color-danger); }
   }
 }

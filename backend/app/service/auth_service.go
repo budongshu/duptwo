@@ -499,6 +499,11 @@ func (s *AuthService) Register(req dto.RegisterReq) (*dto.LoginResp, error) {
 		return nil, errors.New("该用户名不可用")
 	}
 
+	// 校验密码策略
+	if valid, reason := ValidatePassword(req.Password); !valid {
+		return nil, errors.New(reason)
+	}
+
 	// 哈希密码
 	hashedPassword, err := HashPassword(req.Password)
 	if err != nil {
@@ -572,6 +577,11 @@ func (s *AuthService) ChangePassword(userID uint, req dto.ChangePasswordReq) err
 	// 验证旧密码
 	if !CheckPassword(user.Password, req.OldPassword) {
 		return errors.New("原密码错误")
+	}
+
+	// 校验密码策略
+	if valid, reason := ValidatePassword(req.NewPassword); !valid {
+		return errors.New(reason)
 	}
 
 	// 哈希新密码

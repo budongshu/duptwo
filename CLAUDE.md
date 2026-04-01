@@ -128,3 +128,20 @@ cd deploy && ./deploy.sh deploy:sqlite # Docker + SQLite
 - [ ] Enable HTTPS via Nginx
 - [ ] Set `log.level: info`
 - [ ] Configure database backup
+
+## UI Design Guidelines
+
+### Design Constraints (CRITICAL)
+- **NEVER use gradients** — flat solid colors only. The user has explicitly rejected gradients multiple times. Use solid background colors or white.
+- Avoid overly decorative elements; keep designs clean and professional.
+
+### Color System
+- Primary accent: `#409eff` (Element Plus blue)
+- Use predefined project color palette (solid, no gradient) based on project code hash
+- Team member avatars: use solid pastel colors from a fixed palette
+
+### Card/View Design
+- Prefer **Bento-style** layouts that show all information at a glance (no click-to-expand required)
+- For lists with expandable detail views, replace with full-information cards
+- Team members: display as avatar chips + name in a wrapping row. Handle overflow with "+N more" badge
+- Always support responsive grid layouts with `auto-fill, minmax()` approach

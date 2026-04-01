@@ -2,8 +2,8 @@
   <div class="profile-page">
     <header class="page-header">
       <div class="header-left">
-        <h1 class="page-title">个人设置</h1>
-        <span class="page-subtitle">管理个人信息与安全设置</span>
+        <h1 class="page-title">{{ t('profile.title') }}</h1>
+        <span class="page-subtitle">{{ t('profile.subtitle') }}</span>
       </div>
     </header>
 
@@ -22,34 +22,34 @@
           </div>
           <span class="mfa-badge" :class="form.mfaEnabled ? 'mfa-badge--on' : 'mfa-badge--off'">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            {{ form.mfaEnabled ? 'MFA 已启用' : 'MFA 未启用' }}
+            {{ form.mfaEnabled ? t('profile.mfaEnabled') : t('profile.mfaDisabled') }}
           </span>
         </div>
 
         <div class="card-body">
           <el-form ref="formRef" :model="form" :rules="formRules" label-position="top">
             <div class="form-row-2">
-              <el-form-item label="用户名" prop="username">
+              <el-form-item :label="t('profile.username')" prop="username">
                 <el-input v-model="form.username" disabled>
                   <template #prefix><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></template>
                 </el-input>
-                <div class="field-tag field-tag--local" v-if="form.source === 'LOCAL'">本地账号</div>
-                <div class="field-tag field-tag--ad" v-else>AD 域账号</div>
+                <div class="field-tag field-tag--local" v-if="form.source === 'LOCAL'">{{ t('profile.localAccount') }}</div>
+                <div class="field-tag field-tag--ad" v-else>{{ t('profile.adAccount') }}</div>
               </el-form-item>
-              <el-form-item label="昵称" prop="nickname">
-                <el-input v-model="form.nickname" placeholder="显示名称">
+              <el-form-item :label="t('profile.nickname')" prop="nickname">
+                <el-input v-model="form.nickname" :placeholder="t('profile.nicknamePlaceholder')">
                   <template #prefix><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></template>
                 </el-input>
               </el-form-item>
             </div>
             <div class="form-row-2">
-              <el-form-item label="邮箱" prop="email">
-                <el-input v-model="form.email" :disabled="form.source === 'AD'" placeholder="邮箱地址">
+              <el-form-item :label="t('profile.email')" prop="email">
+                <el-input v-model="form.email" :disabled="form.source === 'AD'" :placeholder="t('profile.emailPlaceholder')">
                   <template #prefix><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></template>
                 </el-input>
               </el-form-item>
-              <el-form-item label="手机号">
-                <el-input v-model="form.phone" placeholder="手机号码">
+              <el-form-item :label="t('profile.phone')">
+                <el-input v-model="form.phone" :placeholder="t('profile.phonePlaceholder')">
                   <template #prefix><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></template>
                 </el-input>
               </el-form-item>
@@ -58,7 +58,7 @@
         </div>
 
         <div class="card-foot">
-          <el-button type="primary" :loading="submitting" @click="handleSave">保存修改</el-button>
+          <el-button type="primary" :loading="submitting" @click="handleSave">{{ t('profile.saveChanges') }}</el-button>
         </div>
       </div>
 
@@ -69,40 +69,40 @@
         <div class="profile-card">
           <div class="card-header-simple">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            账号安全
+            {{ t('profile.accountSecurity') }}
           </div>
           <div class="card-body">
             <!-- 修改密码 -->
             <div class="info-row" v-if="form.source !== 'AD'">
               <div class="info-row-left">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span>修改密码</span>
+                <span>{{ t('profile.changePassword') }}</span>
               </div>
-              <el-button size="small" @click="showChangePwd = true">修改</el-button>
+              <el-button size="small" @click="showChangePwd = true">{{ t('profile.modify') }}</el-button>
             </div>
             <div class="info-row info-row--disabled" v-else>
               <div class="info-row-left">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span>修改密码</span>
+                <span>{{ t('profile.changePassword') }}</span>
               </div>
-              <span class="info-row-tip">AD域管理</span>
+              <span class="info-row-tip">{{ t('profile.adManaged') }}</span>
             </div>
 
             <!-- MFA 启用 -->
             <div class="info-row" v-if="form.source !== 'AD'">
               <div class="info-row-left">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <span>MFA 认证</span>
+                <span>{{ t('profile.mfaAuth') }}</span>
               </div>
-              <el-button v-if="!form.mfaEnabled" type="primary" size="small" plain @click="handleEnableMFA">启用 MFA</el-button>
-              <el-button v-else type="warning" size="small" plain @click="handleDisableMFA">重置 MFA</el-button>
+              <el-button v-if="!form.mfaEnabled" type="primary" size="small" plain @click="handleEnableMFA">{{ t('profile.enableMfa') }}</el-button>
+              <el-button v-else type="warning" size="small" plain @click="handleDisableMFA">{{ t('profile.resetMfa') }}</el-button>
             </div>
 
             <!-- 角色信息 -->
             <div class="info-row info-row--readonly">
               <div class="info-row-left">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <span>所属角色</span>
+                <span>{{ t('profile.role') }}</span>
               </div>
               <span class="info-row-value">{{ currentUser?.roleName || '-' }}</span>
             </div>
@@ -111,7 +111,7 @@
             <div class="info-row info-row--readonly">
               <div class="info-row-left">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                <span>最后登录</span>
+                <span>{{ t('profile.lastLogin') }}</span>
               </div>
               <span class="info-row-value">{{ currentUser?.lastLoginAt ? formatDate(currentUser.lastLoginAt) : '-' }}</span>
             </div>
@@ -122,29 +122,29 @@
         <div class="profile-card">
           <div class="card-header-simple">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            账号信息
+            {{ t('profile.accountInfo') }}
           </div>
           <div class="card-body">
             <div class="info-row info-row--readonly">
               <div class="info-row-left">
-                <span>账号来源</span>
+                <span>{{ t('profile.accountSource') }}</span>
               </div>
               <span class="info-row-value source-tag" :class="form.source === 'AD' ? 'source-tag--ad' : 'source-tag--local'">
-                {{ form.source === 'AD' ? 'AD 域' : '本地' }}
+                {{ form.source === 'AD' ? t('profile.adDomain') : t('profile.local') }}
               </span>
             </div>
             <div class="info-row info-row--readonly">
               <div class="info-row-left">
-                <span>账号状态</span>
+                <span>{{ t('profile.accountStatus') }}</span>
               </div>
               <span class="info-row-value">
                 <span class="status-dot" :class="form.status === 'active' ? 'status-dot--on' : 'status-dot--off'"></span>
-                {{ form.status === 'active' ? '正常' : '禁用' }}
+                {{ form.status === 'active' ? t('profile.active') : t('profile.disabled') }}
               </span>
             </div>
             <div class="info-row info-row--readonly">
               <div class="info-row-left">
-                <span>注册时间</span>
+                <span>{{ t('profile.registerTime') }}</span>
               </div>
               <span class="info-row-value">{{ currentUser?.createdAt ? formatDate(currentUser.createdAt) : '-' }}</span>
             </div>
@@ -154,30 +154,72 @@
     </div>
 
     <!-- 修改密码弹窗 -->
-    <el-dialog v-model="showChangePwd" width="420px" destroy-on-close>
+    <el-dialog v-model="showChangePwd" width="460px" destroy-on-close class="pwd-dialog">
       <template #header>
         <div class="dialog-head">
-          <span class="dialog-mode-tag dialog-mode-tag--warn">密码</span>
-          <span class="dialog-title-text">修改密码</span>
+          <span class="dialog-mode-tag dialog-mode-tag--warn">{{ t('profile.password') }}</span>
+          <span class="dialog-title-text">{{ t('profile.changePassword') }}</span>
         </div>
       </template>
-      <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-position="top">
-        <el-form-item label="当前密码" prop="oldPassword">
-          <el-input v-model="pwdForm.oldPassword" type="password" placeholder="请输入当前密码" show-password />
-        </el-form-item>
-        <el-form-item label="新密码" prop="newPassword">
-          <el-input v-model="pwdForm.newPassword" type="password" placeholder="至少6位字符" show-password />
-          <div class="password-strength" v-if="pwdForm.newPassword">
-            <div class="strength-bar"><div class="strength-fill" :class="strengthClass" :style="{ width: strengthWidth }"></div></div>
+      <div class="pwd-dialog-body">
+        <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-position="top">
+          <el-form-item :label="t('profile.currentPassword')" prop="oldPassword">
+            <el-input v-model="pwdForm.oldPassword" type="password" :placeholder="t('profile.currentPasswordPlaceholder')" show-password size="large" />
+          </el-form-item>
+          <el-form-item :label="t('profile.newPassword')" prop="newPassword">
+            <el-input v-model="pwdForm.newPassword" type="password" :placeholder="t('profile.newPasswordPlaceholder', { min: policy.passwordMinLength })" show-password size="large" />
+          </el-form-item>
+
+          <!-- 密码要求清单 -->
+          <div class="pwd-requirements" v-if="pwdForm.newPassword">
+            <div class="req-title">{{ t('profile.passwordRequirements') }}</div>
+            <div class="req-list">
+              <div class="req-item" :class="{ satisfied: pwdChecks.length }">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>至少 {{ policy.passwordMinLength }} 个字符</span>
+              </div>
+              <div class="req-item" :class="{ satisfied: pwdChecks.upper }" v-if="policy.passwordRequireUppercase">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>包含大写字母 (A-Z)</span>
+              </div>
+              <div class="req-item" :class="{ satisfied: pwdChecks.lower }" v-if="policy.passwordRequireLowercase">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>包含小写字母 (a-z)</span>
+              </div>
+              <div class="req-item" :class="{ satisfied: pwdChecks.number }" v-if="policy.passwordRequireDigit">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>包含数字 (0-9)</span>
+              </div>
+              <div class="req-item" :class="{ satisfied: pwdChecks.special }" v-if="policy.passwordRequireSpecial">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>包含特殊字符 (!@#$%...)</span>
+              </div>
+            </div>
+            <!-- 密码强度指示 -->
+            <div class="strength-section">
+              <div class="strength-label">
+                <span>密码强度</span>
+                <span class="strength-text" :class="strengthClass">{{ strengthLabel }}</span>
+              </div>
+              <div class="strength-bar-wrap">
+                <div class="strength-bar-segments">
+                  <div class="segment" :class="{ active: strengthScore >= 1, [strengthClass]: strengthScore >= 1 }"></div>
+                  <div class="segment" :class="{ active: strengthScore >= 2, [strengthClass]: strengthScore >= 2 }"></div>
+                  <div class="segment" :class="{ active: strengthScore >= 3, [strengthClass]: strengthScore >= 3 }"></div>
+                  <div class="segment" :class="{ active: strengthScore >= 4, [strengthClass]: strengthScore >= 4 }"></div>
+                </div>
+              </div>
+            </div>
           </div>
-        </el-form-item>
-        <el-form-item label="确认新密码" prop="confirmPassword">
-          <el-input v-model="pwdForm.confirmPassword" type="password" placeholder="再次输入新密码" show-password />
-        </el-form-item>
-      </el-form>
+
+          <el-form-item :label="t('profile.confirmNewPassword')" prop="confirmPassword">
+            <el-input v-model="pwdForm.confirmPassword" type="password" :placeholder="t('profile.confirmPasswordPlaceholder')" show-password size="large" />
+          </el-form-item>
+        </el-form>
+      </div>
       <template #footer>
-        <el-button size="small" @click="showChangePwd = false">取消</el-button>
-        <el-button type="primary" size="small" :loading="pwdLoading" @click="handleChangePassword">确认修改</el-button>
+        <el-button size="default" @click="showChangePwd = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" size="default" :loading="pwdLoading" @click="handleChangePassword">{{ t('profile.confirmChange') }}</el-button>
       </template>
     </el-dialog>
 
@@ -186,24 +228,24 @@
       <template #header>
         <div class="dialog-head">
           <span class="dialog-mode-tag dialog-mode-tag--mfa">MFA</span>
-          <span class="dialog-title-text">启用 MFA 认证</span>
+          <span class="dialog-title-text">{{ t('profile.enableMfaTitle') }}</span>
         </div>
       </template>
       <div class="mfa-content">
-        <p class="mfa-tip">使用身份验证器（如 Google Authenticator）扫描下方二维码，然后输入显示的 6 位验证码完成绑定。</p>
+        <p class="mfa-tip">{{ t('profile.mfaTip') }}</p>
         <div class="qr-box" v-if="mfaSecret">
           <img v-if="qrCodeUrl" :src="qrCodeUrl" alt="MFA QR" class="qr-img" />
-          <div class="mfa-secret">密钥：{{ mfaSecret }}</div>
+          <div class="mfa-secret">{{ t('profile.mfaSecret') }}: {{ mfaSecret }}</div>
         </div>
         <el-form ref="mfaFormRef" :model="mfaForm" :rules="mfaRules" label-position="top">
-          <el-form-item label="验证码" prop="code">
-            <el-input v-model="mfaForm.code" placeholder="请输入6位验证码" maxlength="6" size="large" />
+          <el-form-item :label="t('profile.mfaCode')" prop="code">
+            <el-input v-model="mfaForm.code" :placeholder="t('profile.mfaCodePlaceholder')" maxlength="6" size="large" />
           </el-form-item>
         </el-form>
       </div>
       <template #footer>
-        <el-button size="small" @click="showMFADialog = false">取消</el-button>
-        <el-button type="primary" size="small" :loading="mfaLoading" @click="handleConfirmMFA">确认绑定</el-button>
+        <el-button size="small" @click="showMFADialog = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" size="small" :loading="mfaLoading" @click="handleConfirmMFA">{{ t('profile.confirmBind') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -211,10 +253,15 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { UserApi, type User } from '@/api/user'
 import { AuthApi } from '@/api/auth'
+import { usePasswordPolicy } from '@/composables/usePasswordPolicy'
+
+const { t } = useI18n()
+const { loadPolicy, checkPassword, passwordStrength: calcStrength, policy } = usePasswordPolicy()
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -268,30 +315,50 @@ const formRules: FormRules = {
 }
 
 const validateConfirm = (rule: any, value: string, callback: any) => {
-  if (value !== pwdForm.newPassword) callback(new Error('两次输入的密码不一致'))
+  if (value !== pwdForm.newPassword) callback(new Error(t('profile.passwordMismatch')))
   else callback()
 }
 
-const pwdRules: FormRules = {
-  oldPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
-  newPassword: [{ required: true, message: '请输入新密码', trigger: 'blur' }, { min: 6, message: '密码至少6位', trigger: 'blur' }],
-  confirmPassword: [{ required: true, message: '请确认新密码', trigger: 'blur' }, { validator: validateConfirm, trigger: 'blur' }]
-}
+// 密码验证规则（使用全局密码策略）
+const pwdRules = computed<FormRules>(() => ({
+  oldPassword: [{ required: true, message: t('profile.currentPasswordRequired'), trigger: 'blur' }],
+  newPassword: [
+    { required: true, message: t('profile.newPasswordRequired'), trigger: 'blur' },
+    { min: policy.value.passwordMinLength, message: t('profile.passwordMinLength', { min: policy.value.passwordMinLength }), trigger: 'blur' }
+  ],
+  confirmPassword: [{ required: true, message: t('profile.confirmPasswordRequired'), trigger: 'blur' }, { validator: validateConfirm, trigger: 'blur' }]
+}))
 
 const mfaRules = {
-  code: [{ required: true, message: '请输入验证码', trigger: 'blur' }, { len: 6, message: '验证码为6位数字', trigger: 'blur' }]
+  code: [{ required: true, message: t('profile.mfaCodeRequired'), trigger: 'blur' }, { len: 6, message: t('profile.mfaCodeLen'), trigger: 'blur' }]
 }
 
 const strengthClass = computed(() => {
-  const score = (pwdForm.newPassword.length >= 6 ? 1 : 0) + (/[A-Z]/.test(pwdForm.newPassword) ? 1 : 0) + (/[a-z]/.test(pwdForm.newPassword) ? 1 : 0) + (/[0-9]/.test(pwdForm.newPassword) ? 1 : 0) + (/[!@#$%^&*]/.test(pwdForm.newPassword) ? 1 : 0)
+  const score = calcStrength(pwdForm.newPassword)
   if (score <= 2) return 'weak'
   if (score <= 3) return 'medium'
   return 'strong'
 })
 
 const strengthWidth = computed(() => {
-  const score = (pwdForm.newPassword.length >= 6 ? 1 : 0) + (/[A-Z]/.test(pwdForm.newPassword) ? 1 : 0) + (/[a-z]/.test(pwdForm.newPassword) ? 1 : 0) + (/[0-9]/.test(pwdForm.newPassword) ? 1 : 0) + (/[!@#$%^&*]/.test(pwdForm.newPassword) ? 1 : 0)
+  const score = calcStrength(pwdForm.newPassword)
   return (score / 5 * 100) + '%'
+})
+
+// 密码检查（用于显示各条件满足情况）
+const pwdChecks = computed(() => checkPassword(pwdForm.newPassword))
+
+// 密码强度分数
+const strengthScore = computed(() => calcStrength(pwdForm.newPassword))
+
+// 密码强度标签
+const strengthLabel = computed(() => {
+  const score = strengthScore.value
+  if (score <= 1) return '弱'
+  if (score <= 2) return '较弱'
+  if (score <= 3) return '中等'
+  if (score <= 4) return '强'
+  return '非常强'
 })
 
 const formatDate = (dateStr: string | undefined) => {
@@ -302,7 +369,8 @@ const formatDate = (dateStr: string | undefined) => {
   const d = String(date.getDate()).padStart(2, '0')
   const hh = String(date.getHours()).padStart(2, '0')
   const mm = String(date.getMinutes()).padStart(2, '0')
-  return `${y}-${m}-${d} ${hh}:${mm}`
+  const ss = String(date.getSeconds()).padStart(2, '0')
+  return `${y}-${m}-${d} ${hh}:${mm}:${ss}`
 }
 
 const loadProfile = async () => {
@@ -338,7 +406,7 @@ const handleSave = async () => {
       phone: form.phone
     })
     if (res.code === 200) {
-      ElMessage.success('保存成功')
+      ElMessage.success(t('profile.saveSuccess'))
       // 更新本地存储的用户信息
       const stored = localStorage.getItem('user')
       if (stored) {
@@ -348,7 +416,7 @@ const handleSave = async () => {
       }
       loadProfile()
     } else {
-      ElMessage.error(res.message || '保存失败')
+      ElMessage.error(res.message || t('profile.saveFailed'))
     }
   } finally { submitting.value = false }
 }
@@ -363,13 +431,13 @@ const handleChangePassword = async () => {
       newPassword: pwdForm.newPassword
     })
     if (res.code === 200) {
-      ElMessage.success('密码修改成功')
+      ElMessage.success(t('profile.passwordChangeSuccess'))
       showChangePwd.value = false
       pwdForm.oldPassword = ''
       pwdForm.newPassword = ''
       pwdForm.confirmPassword = ''
     } else {
-      ElMessage.error(res.message || '修改失败')
+      ElMessage.error(res.message || t('profile.passwordChangeFailed'))
     }
   } finally { pwdLoading.value = false }
 }
@@ -382,7 +450,7 @@ const handleEnableMFA = async () => {
       qrCodeUrl.value = res.data.qrCode
       showMFADialog.value = true
     }
-  } catch { ElMessage.error('获取MFA信息失败') }
+  } catch { ElMessage.error(t('profile.mfaInfoFailed')) }
 }
 
 const handleConfirmMFA = async () => {
@@ -392,25 +460,25 @@ const handleConfirmMFA = async () => {
   try {
     const res = await UserApi.adminEnableMFA({ userId: form.id!, code: mfaForm.code })
     if (res.code === 200) {
-      ElMessage.success('MFA 启用成功')
+      ElMessage.success(t('profile.mfaEnableSuccess'))
       showMFADialog.value = false
       loadProfile()
     } else {
-      ElMessage.error(res.message || '启用失败')
+      ElMessage.error(res.message || t('profile.mfaEnableFailed'))
     }
-  } catch (e: any) { ElMessage.error(e.message || '启用失败') }
+  } catch (e: any) { ElMessage.error(e.message || t('profile.mfaEnableFailed')) }
   finally { mfaLoading.value = false }
 }
 
 const handleDisableMFA = async () => {
   try {
     await UserApi.resetMFA({ userId: form.id! })
-    ElMessage.success('MFA 已重置')
+    ElMessage.success(t('profile.mfaResetSuccess'))
     loadProfile()
-  } catch (e: any) { ElMessage.error(e.message || '重置失败') }
+  } catch (e: any) { ElMessage.error(e.message || t('profile.mfaResetFailed')) }
 }
 
-onMounted(() => { loadProfile() })
+onMounted(() => { loadProfile(); loadPolicy() })
 </script>
 
 <style scoped lang="scss">
@@ -655,6 +723,98 @@ onMounted(() => { loadProfile() })
     &.medium { background: var(--color-warning); }
     &.strong { background: var(--color-success); }
   }
+}
+
+/* 密码要求清单 */
+.pwd-requirements {
+  margin-top: 8px;
+  padding: 14px 16px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+}
+
+.req-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.req-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.req-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  transition: color 0.2s;
+
+  svg {
+    stroke: var(--color-text-muted);
+    flex-shrink: 0;
+    opacity: 0.4;
+    transition: all 0.2s;
+  }
+
+  &.satisfied {
+    color: var(--color-success);
+    svg {
+      stroke: var(--color-success);
+      opacity: 1;
+    }
+  }
+}
+
+.strength-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.strength-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.strength-text {
+  font-weight: 700;
+  &.weak { color: var(--color-danger); }
+  &.medium { color: var(--color-warning); }
+  &.strong { color: var(--color-success); }
+}
+
+.strength-bar-segments {
+  display: flex;
+  gap: 4px;
+}
+
+.segment {
+  flex: 1;
+  height: 4px;
+  background: var(--color-border-light);
+  border-radius: 2px;
+  transition: background 0.3s;
+
+  &.weak.active { background: var(--color-danger); }
+  &.medium.active { background: var(--color-warning); }
+  &.strong.active { background: var(--color-success); }
+}
+
+/* 密码弹窗 */
+.pwd-dialog-body {
+  padding: 16px 20px;
 }
 
 /* MFA 弹窗 */

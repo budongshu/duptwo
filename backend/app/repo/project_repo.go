@@ -73,6 +73,16 @@ func (r *ProjectRepo) ExistsByName(name string) (bool, error) {
 	return count > 0, err
 }
 
+// GetByName 根据名称获取项目
+func (r *ProjectRepo) GetByName(name string) (*model.Project, error) {
+	var project model.Project
+	err := global.DB.Where("name = ? AND is_deleted = ?", name, false).First(&project).Error
+	if err != nil {
+		return nil, err
+	}
+	return &project, nil
+}
+
 // List 分页列表
 func (r *ProjectRepo) List(req dto.ProjectListReq) ([]model.Project, int64, error) {
 	var projects []model.Project

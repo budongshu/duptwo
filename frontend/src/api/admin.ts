@@ -119,7 +119,7 @@ export namespace AdminApi {
 
   // 解锁用户
   export const unlockUser = (username: string) => {
-    return request.post<null>('/admin/security/unlock-user', null, { params: { username } })
+    return request.post<null>('/admin/security/unlock-user', undefined, { params: { username } })
   }
 
   // 获取被锁定的IP
@@ -129,6 +129,6 @@ export namespace AdminApi {
 
   // 解锁IP
   export const unlockIP = (ip: string) => {
-    return request.post<null>('/admin/security/unlock-ip', null, { params: { ip } })
+    return request.post<null>('/admin/security/unlock-ip', undefined, { params: { ip } })
   }
 }

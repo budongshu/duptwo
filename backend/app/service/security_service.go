@@ -26,33 +26,7 @@ func NewSecurityService() *SecurityService {
 
 // GetSettings 获取安全设置
 func (s *SecurityService) GetSettings() (*model.SecuritySettings, error) {
-	settings, err := s.settingsRepo.Get()
-	if err != nil {
-		return nil, err
-	}
-	if settings != nil {
-		return settings, nil
-	}
-	// 如果记录不存在，返回默认设置
-	return &model.SecuritySettings{
-		CaptchaEnabled:           true,
-		CaptchaMinLen:            3,
-		InactiveAutoDisable:       false,
-		InactiveDaysThreshold:    90,
-		UserLoginMaxAttempts:     5,
-		UserLoginLockMinutes:    30,
-		IPLoginMaxAttempts:       20,
-		IPLoginLockMinutes:      60,
-		IPWhitelist:             "",
-		IPBlacklist:             "",
-		PasswordExpiryDays:      0,
-		PasswordMinLength:       6,
-		PasswordRequireUppercase: false,
-		PasswordRequireLowercase: false,
-		PasswordRequireDigit:    false,
-		PasswordRequireSpecial:  false,
-		SessionTimeoutHours:     24,
-	}, nil
+	return s.getSettingsWithDefault(), nil
 }
 
 // UpdateSettings 更新安全设置
@@ -61,9 +35,27 @@ func (s *SecurityService) UpdateSettings(req dto.SecuritySettingsUpdateReq) erro
 	if err != nil {
 		return err
 	}
+	isNew := false
 	if settings == nil {
 		// 记录不存在，创建新的
+		isNew = true
 		settings = &model.SecuritySettings{}
+		// 设置默认值
+		settings.CaptchaEnabled = true
+		settings.CaptchaMinLen = 3
+		settings.InactiveAutoDisable = false
+		settings.InactiveDaysThreshold = 90
+		settings.UserLoginMaxAttempts = 5
+		settings.UserLoginLockMinutes = 30
+		settings.IPLoginMaxAttempts = 20
+		settings.IPLoginLockMinutes = 60
+		settings.PasswordExpiryDays = 0
+		settings.PasswordMinLength = 8
+		settings.PasswordRequireUppercase = false
+		settings.PasswordRequireLowercase = false
+		settings.PasswordRequireDigit = false
+		settings.PasswordRequireSpecial = false
+		settings.SessionTimeoutHours = 24
 	}
 
 	settings.CaptchaEnabled = req.CaptchaEnabled
@@ -84,6 +76,9 @@ func (s *SecurityService) UpdateSettings(req dto.SecuritySettingsUpdateReq) erro
 	settings.PasswordRequireSpecial = req.PasswordRequireSpecial
 	settings.SessionTimeoutHours = req.SessionTimeoutHours
 
+	if isNew {
+		return s.settingsRepo.Create(settings)
+	}
 	return s.settingsRepo.Update(settings)
 }
 
@@ -305,9 +300,9 @@ func (s *SecurityService) ShouldRequireCaptcha(username string) (required bool, 
 
 // ValidatePasswordPolicy 验证密码策略
 func (s *SecurityService) ValidatePasswordPolicy(password string) (valid bool, reason string) {
-	settings, err := s.settingsRepo.Get()
-	if err != nil || settings == nil {
-		return true, "" // 出错时或无记录时跳过
+	settings := s.getSettingsWithDefault()
+	if settings == nil {
+		return true, "" // 出错时跳过
 	}
 
 	if len(password) < settings.PasswordMinLength {
@@ -326,6 +321,39 @@ func (s *SecurityService) ValidatePasswordPolicy(password string) (valid bool, r
 		return false, "密码必须包含特殊字符"
 	}
 	return true, ""
+}
+
+// getSettingsWithDefault 获取设置，不存在时返回默认配置
+func (s *SecurityService) getSettingsWithDefault() *model.SecuritySettings {
+	settings, err := s.settingsRepo.Get()
+	if err == nil && settings != nil {
+		return settings
+	}
+	// 返回默认安全设置
+	return &model.SecuritySettings{
+		CaptchaEnabled:           true,
+		CaptchaMinLen:            3,
+		InactiveAutoDisable:       false,
+		InactiveDaysThreshold:    90,
+		UserLoginMaxAttempts:     5,
+		UserLoginLockMinutes:    30,
+		IPLoginMaxAttempts:       20,
+		IPLoginLockMinutes:      60,
+		IPWhitelist:             "",
+		IPBlacklist:             "",
+		PasswordExpiryDays:      0,
+		PasswordMinLength:       8,
+		PasswordRequireUppercase: false,
+		PasswordRequireLowercase: false,
+		PasswordRequireDigit:    false,
+		PasswordRequireSpecial:  false,
+		SessionTimeoutHours:     24,
+	}
+}
+
+// ValidatePassword 包级函数，校验密码复杂度（供其他 service 调用）
+func ValidatePassword(password string) (bool, string) {
+	return NewSecurityService().ValidatePasswordPolicy(password)
 }
 
 // CheckInactiveUsers 检查不活跃用户并自动禁用

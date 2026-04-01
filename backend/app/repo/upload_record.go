@@ -89,6 +89,12 @@ func (r *UploadRecordRepo) buildFilteredDB(filters ...StatisticsFilter) *gorm.DB
 		if f.Uploader != "" {
 			db = db.Where("uploader = ?", f.Uploader)
 		}
+		if f.StartDate != "" {
+			db = db.Where("date(created_at) >= date(?)", f.StartDate)
+		}
+		if f.EndDate != "" {
+			db = db.Where("date(created_at) <= date(?)", f.EndDate)
+		}
 	}
 
 	return db
@@ -128,11 +134,11 @@ func (r *UploadRecordRepo) List(req dto.UploadRecordListReq) ([]model.UploadReco
 	}
 
 	if req.StartDate != "" {
-		db = db.Where("created_at >= ?", req.StartDate)
+		db = db.Where("date(created_at) >= date(?)", req.StartDate)
 	}
 
 	if req.EndDate != "" {
-		db = db.Where("created_at <= ?", req.EndDate+" 23:59:59")
+		db = db.Where("date(created_at) <= date(?)", req.EndDate)
 	}
 
 	if req.Keyword != "" {
@@ -155,24 +161,76 @@ func (r *UploadRecordRepo) List(req dto.UploadRecordListReq) ([]model.UploadReco
 
 // CountByDate 统计指定日期的记录数
 func (r *UploadRecordRepo) CountByDate(date string, filters ...StatisticsFilter) (int64, error) {
+	db := global.DB.Model(&model.UploadRecord{}).Where("is_deleted = ?", false)
+
+	if len(filters) > 0 {
+		f := filters[0]
+		if f.ProjectName != "" {
+			db = db.Where("project_name = ?", f.ProjectName)
+		}
+		if f.DataType != "" {
+			db = db.Where("data_type = ?", f.DataType)
+		}
+		if f.Status != "" {
+			db = db.Where("status = ?", f.Status)
+		}
+		if f.Uploader != "" {
+			db = db.Where("uploader = ?", f.Uploader)
+		}
+	}
+
 	var count int64
-	db := r.buildFilteredDB(filters...)
-	err := db.Where("DATE(created_at) = ?", date).Count(&count).Error
+	err := db.Where("date(created_at) = date(?)", date).
+		Select("COUNT(*)").Scan(&count).Error
 	return count, err
 }
-
-// CountTotal 统计总记录数
 func (r *UploadRecordRepo) CountTotal(filters ...StatisticsFilter) (int64, error) {
+	db := global.DB.Model(&model.UploadRecord{}).Where("is_deleted = ?", false)
+
+	if len(filters) > 0 {
+		f := filters[0]
+		if f.ProjectName != "" {
+			db = db.Where("project_name = ?", f.ProjectName)
+		}
+		if f.DataType != "" {
+			db = db.Where("data_type = ?", f.DataType)
+		}
+		if f.Status != "" {
+			db = db.Where("status = ?", f.Status)
+		}
+		if f.Uploader != "" {
+			db = db.Where("uploader = ?", f.Uploader)
+		}
+	}
+
 	var count int64
-	err := r.buildFilteredDB(filters...).Count(&count).Error
+	err := db.Select("COUNT(*)").Scan(&count).Error
 	return count, err
 }
 
 // CountByDateRange 统计日期范围内的记录数
 func (r *UploadRecordRepo) CountByDateRange(startDate, endDate string, filters ...StatisticsFilter) (int64, error) {
+	db := global.DB.Model(&model.UploadRecord{}).Where("is_deleted = ?", false)
+
+	if len(filters) > 0 {
+		f := filters[0]
+		if f.ProjectName != "" {
+			db = db.Where("project_name = ?", f.ProjectName)
+		}
+		if f.DataType != "" {
+			db = db.Where("data_type = ?", f.DataType)
+		}
+		if f.Status != "" {
+			db = db.Where("status = ?", f.Status)
+		}
+		if f.Uploader != "" {
+			db = db.Where("uploader = ?", f.Uploader)
+		}
+	}
+
 	var count int64
-	db := r.buildFilteredDB(filters...)
-	err := db.Where("DATE(created_at) >= ? AND DATE(created_at) <= ?", startDate, endDate).Count(&count).Error
+	err := db.Where("date(created_at) >= date(?) AND date(created_at) <= date(?)", startDate, endDate).
+		Select("COUNT(*)").Scan(&count).Error
 	return count, err
 }
 
@@ -180,7 +238,7 @@ func (r *UploadRecordRepo) CountByDateRange(startDate, endDate string, filters .
 func (r *UploadRecordRepo) SumFileSizeByDate(date string, filters ...StatisticsFilter) (int64, error) {
 	var total int64
 	db := r.buildFilteredDB(filters...)
-	err := db.Where("DATE(created_at) = ?", date).
+	err := db.Where("date(created_at) = date(?)", date).
 		Select("COALESCE(SUM(file_size), 0)").
 		Scan(&total).Error
 	return total, err
@@ -190,7 +248,7 @@ func (r *UploadRecordRepo) SumFileSizeByDate(date string, filters ...StatisticsF
 func (r *UploadRecordRepo) SumFileSizeByDateRange(startDate, endDate string, filters ...StatisticsFilter) (int64, error) {
 	var total int64
 	db := r.buildFilteredDB(filters...)
-	err := db.Where("DATE(created_at) >= ? AND DATE(created_at) <= ?", startDate, endDate).
+	err := db.Where("date(created_at) >= date(?) AND date(created_at) <= date(?)", startDate, endDate).
 		Select("COALESCE(SUM(file_size), 0)").
 		Scan(&total).Error
 	return total, err
@@ -206,22 +264,21 @@ func (r *UploadRecordRepo) CountByStatus(filters ...StatisticsFilter) ([]dto.Sta
 	return results, err
 }
 
-// CountByDataType 统计各数据类型的记录数
+// CountByDataType 统计各数据标签的记录数和数据量
 func (r *UploadRecordRepo) CountByDataType(filters ...StatisticsFilter) ([]dto.DataTypeCount, error) {
 	var results []dto.DataTypeCount
 	err := r.buildFilteredDB(filters...).
-		Select("data_type, COUNT(*) as count").
+		Select("data_type, COUNT(*) as count, COALESCE(SUM(file_size), 0) as total_size").
 		Group("data_type").
 		Scan(&results).Error
 	return results, err
 }
 
-// CountByProject 统计各项目的记录数和数据量
+// CountByProject 统计各项目的记录数和数据量（应用日期范围等全部筛选条件）
 func (r *UploadRecordRepo) CountByProject(filters ...StatisticsFilter) ([]dto.ProjectCount, error) {
 	var results []dto.ProjectCount
 	db := r.buildFilteredDB(filters...)
 
-	// 处理 project_name 为空的情况（空白项目也算一个分组）
 	query := `
 		SELECT COALESCE(NULLIF(TRIM(project_name), ''), '(空项目)') as project_name,
 		       COUNT(*) as count,
@@ -241,6 +298,22 @@ func (r *UploadRecordRepo) CountByProject(filters ...StatisticsFilter) ([]dto.Pr
 			query += " AND data_type = ?"
 			args = append(args, f.DataType)
 		}
+		if f.Status != "" {
+			query += " AND status = ?"
+			args = append(args, f.Status)
+		}
+		if f.Uploader != "" {
+			query += " AND uploader = ?"
+			args = append(args, f.Uploader)
+		}
+		if f.StartDate != "" {
+			query += " AND date(created_at) >= date(?)"
+			args = append(args, f.StartDate)
+		}
+		if f.EndDate != "" {
+			query += " AND date(created_at) <= date(?)"
+			args = append(args, f.EndDate)
+		}
 	}
 
 	query += " GROUP BY COALESCE(NULLIF(TRIM(project_name), ''), '(空项目)') ORDER BY count DESC"
@@ -258,45 +331,49 @@ func (r *UploadRecordRepo) CountByProject(filters ...StatisticsFilter) ([]dto.Pr
 		}
 		results = append(results, item)
 	}
-
-	return results, err
+	return results, nil
 }
+
 
 // GetTrend 获取每日趋势
 func (r *UploadRecordRepo) GetTrend(startDate, endDate string, filters ...StatisticsFilter) ([]dto.DailyTrend, error) {
-	var trends []dto.DailyTrend
-
-	query := `
-		SELECT DATE(created_at) as date,
-		       COUNT(*) as count,
-		       COALESCE(SUM(file_size), 0) as total_size
-		FROM upload_records
-		WHERE is_deleted = 0
-		  AND created_at >= ?
-		  AND created_at <= ?
-	`
-	args := []interface{}{startDate, endDate + " 23:59:59"}
-
+	// 去掉 is_deleted=0 过滤，累计曲线反映所有上传行为
+	// 用子查询实现累计：外层取日期列表，内层累计该日期之前（含）所有记录
+	filterSQL := ""
+	filterArgs := []interface{}{}
 	if len(filters) > 0 {
 		f := filters[0]
 		if f.ProjectName != "" {
-			query += " AND project_name = ?"
-			args = append(args, f.ProjectName)
+			filterSQL += " AND project_name = ?"
+			filterArgs = append(filterArgs, f.ProjectName)
 		}
 		if f.DataType != "" {
-			query += " AND data_type = ?"
-			args = append(args, f.DataType)
+			filterSQL += " AND data_type = ?"
+			filterArgs = append(filterArgs, f.DataType)
 		}
 	}
 
-	query += " GROUP BY DATE(created_at) ORDER BY date ASC"
+	// 子查询 filterSQL 参数与日期参数交叉追加（3个子查询各需一份）
+	allArgs := []interface{}{startDate, endDate + " 23:59:59"} // date subquery args
+	allArgs = append(allArgs, filterArgs...)                  // date subquery filter
+	allArgs = append(allArgs, filterArgs...)                  // count subquery filter
+	allArgs = append(allArgs, filterArgs...)                  // size subquery filter
 
-	rows, err := global.DB.Raw(query, args...).Rows()
+	query := `
+		SELECT d.date,
+		       (SELECT COUNT(*) FROM upload_records WHERE date(created_at) <= d.date` + filterSQL + `) as count,
+		       (SELECT COALESCE(SUM(file_size), 0) FROM upload_records WHERE date(created_at) <= d.date` + filterSQL + `) as total_size
+		FROM (SELECT DISTINCT date(created_at) as date FROM upload_records WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)` + filterSQL + `) d
+		ORDER BY d.date ASC
+	`
+
+	rows, err := global.DB.Raw(query, allArgs...).Rows()
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	var trends []dto.DailyTrend
 	for rows.Next() {
 		var item dto.DailyTrend
 		if err := rows.Scan(&item.Date, &item.Count, &item.TotalSize); err != nil {
@@ -304,9 +381,9 @@ func (r *UploadRecordRepo) GetTrend(startDate, endDate string, filters ...Statis
 		}
 		trends = append(trends, item)
 	}
-
 	return trends, nil
 }
+
 
 // GetTodayCount 获取今日记录数
 func (r *UploadRecordRepo) GetTodayCount(filters ...StatisticsFilter) (int64, error) {
@@ -347,10 +424,10 @@ func (r *UploadRecordRepo) ListAllForExport(req dto.UploadRecordListReq) ([]mode
 		db = db.Where("project_name = ?", req.ProjectName)
 	}
 	if req.StartDate != "" {
-		db = db.Where("created_at >= ?", req.StartDate)
+		db = db.Where("date(created_at) >= date(?)", req.StartDate)
 	}
 	if req.EndDate != "" {
-		db = db.Where("created_at <= ?", req.EndDate+" 23:59:59")
+		db = db.Where("date(created_at) <= date(?)", req.EndDate)
 	}
 	if req.Keyword != "" {
 		db = db.Where("dest_path LIKE ? OR remark LIKE ?", "%"+req.Keyword+"%", "%"+req.Keyword+"%")

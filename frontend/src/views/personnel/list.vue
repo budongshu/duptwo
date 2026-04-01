@@ -3,48 +3,88 @@
     <!-- 页面标题 -->
     <header class="page-header">
       <div class="header-left">
-        <h1 class="page-title">人员管理</h1>
-        <span class="page-subtitle">项目人员库</span>
+        <h1 class="page-title">{{ t('personnel.list.title') }}</h1>
+        <span class="page-subtitle">{{ t('personnel.list.subtitle') }}</span>
       </div>
       <div class="header-actions">
-        <el-button type="success" size="small" @click="handleExport" :loading="exporting">
+        <el-button type="success" @click="handleExport" :loading="exporting">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          导出
+          {{ t('common.export') }}
         </el-button>
-        <el-button type="primary" size="small" @click="handleCreate">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          新增
+        <el-button type="primary" @click="handleCreate">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          {{ t('common.create') }}
         </el-button>
       </div>
     </header>
+
+    <!-- 人员统计 -->
+    <div class="person-stats" v-if="!loading && pagination.total > 0">
+      <div class="person-stat" @click="filterByPosition('')">
+        <span class="person-stat-num">{{ pagination.total }}</span>
+        <span class="person-stat-label">全部人员</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="person-stat" v-for="s in positionStats" :key="s.position" @click="filterByPosition(s.position)">
+        <span class="person-stat-num">{{ s.count }}</span>
+        <span class="person-stat-label">{{ s.position }}</span>
+      </div>
+    </div>
 
     <!-- 筛选栏 -->
     <div class="filter-bar">
       <div class="filter-bar__search">
         <el-input
           v-model="searchKeyword"
-          placeholder="搜索姓名/手机/公司/职位/驻场地点"
+          :placeholder="t('personnel.list.searchPlaceholder')"
           clearable
-          size="small"
           @keyup.enter="handleSearch"
           style="width: 260px"
-        />
+        >
+          <template #prefix>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </template>
+        </el-input>
       </div>
       <div class="filter-bar__selects">
-        <el-select v-model="searchStatus" placeholder="状态" clearable size="small" style="width: 110px">
-          <el-option label="启用" value="active" />
-          <el-option label="禁用" value="inactive" />
+        <el-select v-model="searchStatus" :placeholder="t('common.status')" clearable style="width: 110px">
+          <el-option :label="t('common.enabled')" value="active" />
+          <el-option :label="t('common.disabled')" value="inactive" />
         </el-select>
-        <el-select v-model="searchOnProject" placeholder="在项状态" clearable size="small" style="width: 110px">
-          <el-option label="在项" value="在项" />
-          <el-option label="离项" value="离项" />
+        <el-select v-model="searchOnProject" :placeholder="t('personnel.list.onProjectStatus')" clearable style="width: 110px">
+          <el-option :label="t('personnel.list.onProject')" value="在项" />
+          <el-option :label="t('personnel.list.offProject')" value="离项" />
+        </el-select>
+        <el-select v-model="searchPosition" :placeholder="t('personnel.list.form.position')" clearable style="width: 130px" @change="handleSearch">
+          <el-option label="测试工程师" value="测试工程师" />
+          <el-option label="网络工程师" value="网络工程师" />
+          <el-option label="安全工程师" value="安全工程师" />
+          <el-option label="开发工程师" value="开发工程师" />
+          <el-option label="运维工程师" value="运维工程师" />
+          <el-option label="运营人员" value="运营人员" />
+          <el-option label="合规专家" value="合规专家" />
+          <el-option label="解决方案" value="解决方案" />
+          <el-option label="商务人员" value="商务人员" />
+          <el-option label="成本人员" value="成本人员" />
+          <el-option label="驻场人员" value="驻场人员" />
+          <el-option label="驻场人员-ODC" value="驻场人员-ODC" />
+          <el-option label="项目管理" value="项目管理" />
+          <el-option label="合规负责人" value="合规负责人" />
+          <el-option label="产品人员" value="产品人员" />
+          <el-option label="其他人员" value="其他人员" />
         </el-select>
       </div>
       <div class="filter-bar__actions">
-        <el-button type="primary" size="small" @click="handleSearch">查询</el-button>
-        <el-button size="small" @click="handleReset">重置</el-button>
-        <el-button v-if="selectedRows.length > 0" type="danger" size="small" plain @click="handleBatchDelete">
-          批量删除 ({{ selectedRows.length }})
+        <el-button type="primary" @click="handleSearch">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          {{ t('common.search') }}
+        </el-button>
+        <el-button @click="handleReset">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>
+          {{ t('common.reset') }}
+        </el-button>
+        <el-button v-if="selectedRows.length > 0" type="danger" plain @click="handleBatchDelete">
+          {{ t('common.batchDelete') }} ({{ selectedRows.length }})
         </el-button>
       </div>
     </div>
@@ -61,42 +101,42 @@
         style="width: 100%"
       >
         <el-table-column type="selection" width="38" fixed="left" />
-        <el-table-column prop="name" label="姓名" min-width="80" show-overflow-tooltip />
-        <el-table-column prop="phone" label="手机号" min-width="110" />
-        <el-table-column prop="company" label="所属公司" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="position" label="职位" min-width="90" show-overflow-tooltip />
-        <el-table-column prop="workExperience" label="工作经验" min-width="80" align="center" />
-        <el-table-column prop="entryDate" label="入项时间" min-width="100" align="center" />
-        <el-table-column prop="projectStartDate" label="立项时间" min-width="100" align="center" />
-        <el-table-column prop="onProjectStatus" label="在项状态" min-width="80" align="center">
+        <el-table-column prop="name" :label="t('personnel.list.form.nameLabel')" min-width="80" show-overflow-tooltip />
+        <el-table-column prop="phone" :label="t('personnel.list.form.phone')" min-width="110" />
+        <el-table-column prop="company" :label="t('personnel.list.form.company')" min-width="140" show-overflow-tooltip />
+        <el-table-column prop="position" :label="t('personnel.list.form.position')" min-width="90" show-overflow-tooltip />
+        <el-table-column prop="workExperience" :label="t('personnel.list.form.workExperience')" min-width="80" align="center" />
+        <el-table-column prop="entryDate" :label="t('personnel.list.form.entryDate')" min-width="100" align="center" />
+        <el-table-column prop="projectStartDate" :label="t('personnel.list.form.projectStartDate')" min-width="100" align="center" />
+        <el-table-column prop="onProjectStatus" :label="t('personnel.list.onProjectStatus')" min-width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="row.onProjectStatus === '在项' ? 'success' : 'warning'" size="small" effect="light">
-              {{ row.onProjectStatus || '离项' }}
+              {{ row.onProjectStatus || t('personnel.list.offProject') }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="salary" label="薪资" min-width="80" align="center" />
-        <el-table-column prop="location" label="驻场地点" min-width="110" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" min-width="68" align="center">
+        <el-table-column prop="salary" :label="t('personnel.list.form.salary')" min-width="80" align="center" />
+        <el-table-column prop="location" :label="t('personnel.list.form.location')" min-width="110" show-overflow-tooltip />
+        <el-table-column prop="status" :label="t('common.status')" min-width="68" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small" effect="light">
-              {{ row.status === 'active' ? '启用' : '禁用' }}
+              {{ row.status === 'active' ? t('common.enabled') : t('common.disabled') }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="sort" label="排序" min-width="60" align="center" />
-        <el-table-column label="操作" width="80" fixed="right" align="center">
+        <el-table-column prop="sort" :label="t('common.sort')" min-width="60" align="center" />
+        <el-table-column :label="t('common.actions')" width="80" fixed="right" align="center">
           <template #default="{ row }">
             <TableActions :actions="[
-              { key: 'edit', label: '编辑', type: 'primary' },
-              { key: 'delete', label: '删除', type: 'danger' }
+              { key: 'edit', label: t('common.edit'), type: 'primary' },
+              { key: 'delete', label: t('common.delete'), type: 'danger' }
             ]" @action="(key) => handleAction(key, row)" />
           </template>
         </el-table-column>
       </el-table>
 
       <div class="pagination-bar">
-        <span class="record-info">共 <strong>{{ pagination.total }}</strong> 条</span>
+        <span class="record-info">{{ t('common.totalRecords', { total: pagination.total }) }}</span>
         <el-pagination
           v-model:current-page="pagination.page"
           v-model:page-size="pagination.pageSize"
@@ -120,8 +160,8 @@
     >
       <template #header>
         <div class="drawer-title-inner">
-          <span class="drawer-mode-tag" :class="isEdit ? 'tag--edit' : 'tag--new'">{{ isEdit ? '编辑' : '新增' }}</span>
-          <span class="drawer-title-text">{{ isEdit ? form.name || '人员' : '新增人员' }}</span>
+          <span class="drawer-mode-tag" :class="isEdit ? 'tag--edit' : 'tag--new'">{{ isEdit ? t('common.edit') : t('common.create') }}</span>
+          <span class="drawer-title-text">{{ isEdit ? form.name || t('personnel.list.form.person') : t('personnel.list.form.newPerson') }}</span>
         </div>
       </template>
 
@@ -133,15 +173,14 @@
           <div class="user-select-section">
             <div class="user-select-header">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              <span>关联系统用户</span>
+              <span>{{ t('personnel.list.form.linkSystemUser') }}</span>
             </div>
             <el-select
               v-model="selectedUserId"
-              placeholder="从系统用户中选择（可选）"
+              :placeholder="t('personnel.list.form.selectUserPlaceholder')"
               clearable
               filterable
               :loading="userSelectLoading"
-              size="small"
               style="width: 100%"
             >
               <el-option
@@ -156,62 +195,79 @@
                 </div>
               </el-option>
             </el-select>
-            <div class="user-select-tip">选择已有用户可自动填充姓名和邮箱，也可直接手动输入</div>
+            <div class="user-select-tip">{{ t('personnel.list.form.userSelectTip') }}</div>
           </div>
 
           <div class="form-divider"></div>
 
           <div class="form-grid">
-            <el-form-item label="姓名" prop="name">
-              <el-input v-model="form.name" placeholder="请输入姓名" size="small" />
+            <el-form-item :label="t('personnel.list.form.nameLabel')" prop="name">
+              <el-input v-model="form.name" :placeholder="t('personnel.list.form.namePlaceholder')" />
             </el-form-item>
-            <el-form-item label="手机号" prop="phone">
-              <el-input v-model="form.phone" placeholder="请输入手机号" size="small" />
+            <el-form-item :label="t('personnel.list.form.phone')" prop="phone">
+              <el-input v-model="form.phone" :placeholder="t('personnel.list.form.phonePlaceholder')" />
             </el-form-item>
-            <el-form-item label="邮箱" prop="email">
-              <el-input v-model="form.email" placeholder="请输入邮箱" size="small" />
+            <el-form-item :label="t('personnel.list.form.email')" prop="email">
+              <el-input v-model="form.email" :placeholder="t('personnel.list.form.emailPlaceholder')" />
             </el-form-item>
-            <el-form-item label="所属公司" prop="company">
-              <el-input v-model="form.company" placeholder="请输入所属公司" size="small" />
+            <el-form-item :label="t('personnel.list.form.company')" prop="company">
+              <el-input v-model="form.company" :placeholder="t('personnel.list.form.companyPlaceholder')" />
             </el-form-item>
-            <el-form-item label="职位" prop="position">
-              <el-input v-model="form.position" placeholder="请输入职位" size="small" />
-            </el-form-item>
-            <el-form-item label="工作经验" prop="workExperience">
-              <el-input v-model="form.workExperience" placeholder="如：3年" size="small" />
-            </el-form-item>
-            <el-form-item label="入项时间" prop="entryDate">
-              <el-date-picker v-model="form.entryDate" type="date" placeholder="选择日期" value-format="YYYY-MM-DD" style="width: 100%" size="small" />
-            </el-form-item>
-            <el-form-item label="立项时间" prop="projectStartDate">
-              <el-date-picker v-model="form.projectStartDate" type="date" placeholder="选择日期" value-format="YYYY-MM-DD" style="width: 100%" size="small" />
-            </el-form-item>
-            <el-form-item label="在项状态" prop="onProjectStatus">
-              <el-select v-model="form.onProjectStatus" placeholder="请选择在项状态" size="small" style="width: 100%">
-                <el-option label="在项" value="在项" />
-                <el-option label="离项" value="离项" />
+            <el-form-item :label="t('personnel.list.form.position')" prop="position">
+              <el-select v-model="form.position" :placeholder="t('personnel.list.form.positionPlaceholder')" style="width: 100%" clearable>
+                <el-option label="测试工程师" value="测试工程师" />
+                <el-option label="网络工程师" value="网络工程师" />
+                <el-option label="安全工程师" value="安全工程师" />
+                <el-option label="开发工程师" value="开发工程师" />
+                <el-option label="运维工程师" value="运维工程师" />
+                <el-option label="运营人员" value="运营人员" />
+                <el-option label="合规专家" value="合规专家" />
+                <el-option label="解决方案" value="解决方案" />
+                <el-option label="商务人员" value="商务人员" />
+                <el-option label="成本人员" value="成本人员" />
+                <el-option label="驻场人员" value="驻场人员" />
+                <el-option label="驻场人员-ODC" value="驻场人员-ODC" />
+                <el-option label="项目管理" value="项目管理" />
+                <el-option label="合规负责人" value="合规负责人" />
+                <el-option label="产品人员" value="产品人员" />
+                <el-option label="其他人员" value="其他人员" />
               </el-select>
             </el-form-item>
-            <el-form-item label="薪资" prop="salary">
-              <el-input v-model="form.salary" placeholder="如：15-20K" size="small" />
+            <el-form-item :label="t('personnel.list.form.workExperience')" prop="workExperience">
+              <el-input v-model="form.workExperience" :placeholder="t('personnel.list.form.workExperiencePlaceholder')" />
+            </el-form-item>
+            <el-form-item :label="t('personnel.list.form.entryDate')" prop="entryDate">
+              <el-date-picker v-model="form.entryDate" type="date" :placeholder="t('personnel.list.form.selectDate')" value-format="YYYY-MM-DD" style="width: 100%" />
+            </el-form-item>
+            <el-form-item :label="t('personnel.list.form.projectStartDate')" prop="projectStartDate">
+              <el-date-picker v-model="form.projectStartDate" type="date" :placeholder="t('personnel.list.form.selectDate')" value-format="YYYY-MM-DD" style="width: 100%" />
+            </el-form-item>
+            <el-form-item :label="t('personnel.list.onProjectStatus')" prop="onProjectStatus">
+              <el-select v-model="form.onProjectStatus" :placeholder="t('personnel.list.form.selectOnProjectStatus')" style="width: 100%">
+                <el-option :label="t('personnel.list.onProject')" value="在项" />
+                <el-option :label="t('personnel.list.offProject')" value="离项" />
+              </el-select>
+            </el-form-item>
+            <el-form-item :label="t('personnel.list.form.salary')" prop="salary">
+              <el-input v-model="form.salary" :placeholder="t('personnel.list.form.salaryPlaceholder')" />
             </el-form-item>
           </div>
-          <el-form-item label="驻场地点" prop="location">
-            <el-input v-model="form.location" placeholder="请输入人员驻场地点" size="small" />
+          <el-form-item :label="t('personnel.list.form.location')" prop="location">
+            <el-input v-model="form.location" :placeholder="t('personnel.list.form.locationPlaceholder')" />
           </el-form-item>
-          <el-form-item label="备注" prop="remark">
-            <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注（可选）" size="small" />
+          <el-form-item :label="t('personnel.list.form.remark')" prop="remark">
+            <el-input v-model="form.remark" type="textarea" :rows="2" :placeholder="t('personnel.list.form.remarkPlaceholder')" />
           </el-form-item>
           <div class="form-row-2">
-            <el-form-item label="状态" prop="status">
-              <el-radio-group v-model="form.status" size="small">
-                <el-radio value="active">启用</el-radio>
-                <el-radio value="inactive">禁用</el-radio>
+            <el-form-item :label="t('common.status')" prop="status">
+              <el-radio-group v-model="form.status">
+                <el-radio label="active">{{ t('common.enabled') }}</el-radio>
+                <el-radio label="inactive">{{ t('common.disabled') }}</el-radio>
               </el-radio-group>
             </el-form-item>
-            <el-form-item label="排序" prop="sort">
-              <el-input-number v-model="form.sort" :min="0" :max="9999" size="small" />
-              <span class="form-hint">数字越小越靠前</span>
+            <el-form-item :label="t('common.sort')" prop="sort">
+              <el-input-number v-model="form.sort" :min="0" :max="9999" />
+              <span class="form-hint">{{ t('personnel.list.form.sortHint') }}</span>
             </el-form-item>
           </div>
         </el-form>
@@ -219,10 +275,13 @@
 
       <!-- 侧边栏底部 -->
       <div class="drawer-foot">
-        <el-button size="small" @click="drawerVisible = false">取消</el-button>
-        <el-button type="primary" size="small" :loading="submitting" @click="confirmSubmit">
+        <el-button @click="drawerVisible = false">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          {{ t('common.cancel') }}
+        </el-button>
+        <el-button type="primary" :loading="submitting" @click="confirmSubmit">
           <svg v-if="!submitting" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          {{ isEdit ? '保存' : '创建' }}
+          {{ isEdit ? t('common.save') : t('common.create') }}
         </el-button>
       </div>
     </el-drawer>
@@ -230,13 +289,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch, inject } from 'vue'
+import { ref, reactive, computed, onMounted, watch, inject } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { PersonnelApi, type Personnel, type CreatePersonnelReq, type UpdatePersonnelReq } from '@/api/personnel'
 import { UserApi, type User } from '@/api/user'
 import TableActions from '@/components/TableActions.vue'
 
-const trackExport = inject<(action?: string) => void>('trackExport')
+const { t } = useI18n()
+
+const trackExport = inject<(success?: boolean) => void>('trackExport')
 
 const loading = ref(false)
 const exporting = ref(false)
@@ -256,7 +318,22 @@ const userSelectLoading = ref(false)
 const searchKeyword = ref('')
 const searchStatus = ref('')
 const searchOnProject = ref('')
+const searchPosition = ref('')
 const pagination = reactive({ page: 1, pageSize: 20, total: 0 })
+
+// 职位统计
+const positionStats = computed(() => {
+  const positions = ['测试工程师', '网络工程师', '安全工程师', '开发工程师', '运维工程师', '运营人员', '合规专家', '解决方案', '商务人员', '成本人员', '驻场人员', '驻场人员-ODC', '项目管理', '合规负责人', '产品人员', '其他人员']
+  return positions
+    .map(p => ({ position: p, count: tableData.value.filter(r => r.position === p).length }))
+    .filter(s => s.count > 0)
+})
+
+const filterByPosition = (position: string) => {
+  searchPosition.value = searchPosition.value === position ? '' : position
+  pagination.page = 1
+  loadData()
+}
 
 const form = reactive<CreatePersonnelReq & { id?: number }>({
   name: '', phone: '', email: '', company: '', position: '',
@@ -266,7 +343,7 @@ const form = reactive<CreatePersonnelReq & { id?: number }>({
 })
 
 const formRules = {
-  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+  name: [{ required: true, message: t('personnel.list.form.nameRequired'), trigger: 'blur' }],
 }
 
 // 加载可选用户列表（用于关联选择）
@@ -304,12 +381,17 @@ const loadData = async () => {
     if (res.code === 200) {
       tableData.value = res.data.items || []
       pagination.total = res.data.total || 0
+      // 如果有职位筛选，客户端过滤（后端不支持position过滤则使用前端过滤）
+      if (searchPosition.value) {
+        tableData.value = tableData.value.filter(r => r.position === searchPosition.value)
+        pagination.total = tableData.value.length
+      }
     }
   } finally { loading.value = false }
 }
 
 const handleSearch = () => { pagination.page = 1; loadData() }
-const handleReset = () => { searchKeyword.value = ''; searchStatus.value = ''; searchOnProject.value = ''; pagination.page = 1; loadData() }
+const handleReset = () => { searchKeyword.value = ''; searchStatus.value = ''; searchOnProject.value = ''; searchPosition.value = ''; pagination.page = 1; loadData() }
 const handleSelectionChange = (rows: Personnel[]) => { selectedRows.value = rows }
 
 const handleExport = async () => {
@@ -322,12 +404,12 @@ const handleExport = async () => {
     })
     const url = URL.createObjectURL(blob as Blob)
     const link = document.createElement('a')
-    link.href = url; link.download = `人员列表_${new Date().getTime()}.xlsx`
+    link.href = url; link.download = `${t('personnel.list.exportFileName')}_${new Date().getTime()}.xlsx`
     document.body.appendChild(link); link.click(); document.body.removeChild(link)
     URL.revokeObjectURL(url)
-    ElMessage.success('导出成功')
-    trackExport?.('personnel')
-  } catch (e: any) { ElMessage.error(e.message || '导出失败') }
+    ElMessage.success(t('common.exportSuccess'))
+    trackExport?.(true)
+  } catch (e: any) { ElMessage.error(e.message || t('common.exportError')) }
   finally { exporting.value = false }
 }
 
@@ -350,10 +432,10 @@ const handleEdit = async (row: Personnel) => {
 
 const handleDelete = async (row: Personnel) => {
   try {
-    await ElMessageBox.confirm(`确定要删除人员"${row.name}"吗？`, '删除确认', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
+    await ElMessageBox.confirm(t('personnel.list.form.deleteConfirm', { name: row.name }), t('personnel.list.form.deleteConfirmTitle'), { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' })
     await PersonnelApi.del(row.id)
-    ElMessage.success('删除成功'); loadData()
-  } catch (e: any) { if (e !== 'cancel') ElMessage.error(e.message || '删除失败') }
+    ElMessage.success(t('common.deleteSuccess')); loadData()
+  } catch (e: any) { if (e !== 'cancel') ElMessage.error(e.message || t('common.deleteError')) }
 }
 
 const handleAction = (key: string, row: Personnel) => {
@@ -364,11 +446,11 @@ const handleAction = (key: string, row: Personnel) => {
 const handleBatchDelete = async () => {
   const ids = selectedRows.value.map(r => r.id)
   try {
-    await ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 个人员吗？`, '批量删除', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
+    await ElMessageBox.confirm(t('personnel.list.form.batchDeleteConfirm', { count: selectedRows.value.length }), t('personnel.list.form.batchDeleteTitle'), { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' })
     await PersonnelApi.batchDelete(ids)
-    ElMessage.success(`成功删除 ${selectedRows.value.length} 个人员`)
+    ElMessage.success(t('personnel.list.form.batchDeleteSuccess', { count: selectedRows.value.length }))
     selectedRows.value = []; loadData()
-  } catch (e: any) { if (e !== 'cancel') ElMessage.error(e.message || '批量删除失败') }
+  } catch (e: any) { if (e !== 'cancel') ElMessage.error(e.message || t('common.batchDeleteError')) }
 }
 
 const confirmSubmit = async () => {
@@ -376,10 +458,10 @@ const confirmSubmit = async () => {
   if (!valid) return
   submitting.value = true
   try {
-    if (isEdit.value) { await PersonnelApi.update(form as UpdatePersonnelReq); ElMessage.success('更新成功') }
-    else { await PersonnelApi.create(form as CreatePersonnelReq); ElMessage.success('创建成功') }
+    if (isEdit.value) { await PersonnelApi.update(form as UpdatePersonnelReq); ElMessage.success(t('common.updateSuccess')) }
+    else { await PersonnelApi.create(form as CreatePersonnelReq); ElMessage.success(t('common.createSuccess')) }
     drawerVisible.value = false; loadData()
-  } catch (e: any) { ElMessage.error(e.message || '操作失败') }
+  } catch (e: any) { ElMessage.error(e.message || t('common.operationError')) }
   finally { submitting.value = false }
 }
 
@@ -389,7 +471,6 @@ onMounted(() => loadData())
 </script>
 
 <script lang="ts">
-import { watch } from 'vue'
 export default { name: 'PersonnelList' }
 </script>
 
@@ -444,6 +525,54 @@ export default { name: 'PersonnelList' }
 
 .btn-icon {
   margin-right: 4px;
+  flex-shrink: 0;
+}
+
+/* 人员统计 */
+.person-stats {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 10px;
+  padding: 12px 20px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  gap: 0;
+}
+
+.person-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 16px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  min-width: 56px;
+
+  &:hover { background: #f5f7fa; }
+}
+
+.person-stat-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: #409eff;
+  line-height: 1;
+}
+
+.person-stat-label {
+  font-size: 11px;
+  color: #909399;
+  white-space: nowrap;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 32px;
+  background: #ebeef5;
   flex-shrink: 0;
 }
 

@@ -19,10 +19,13 @@ type ProjectCreateReq struct {
 	Status        string           `json:"status"`
 	Stage         string           `json:"stage"`
 	Sort          int              `json:"sort"`
-	ProjectPerson string           `json:"projectPerson"`  // 项目人员
-	OpsPerson     string           `json:"opsPerson"`     // 运维人员
-	CompanyAddr   string           `json:"companyAddr"`   // 公司地点
-	ProjectPeriod string           `json:"projectPeriod"` // 项目周期
+	ProjectPerson string           `json:"projectPerson"`    // 项目人员
+	OpsPerson     string           `json:"opsPerson"`       // 运维人员
+	OpsStaffPerson string          `json:"opsStaffPerson"`  // 运营人员
+	Solution      string           `json:"solution"`        // 解决方案描述
+	SolutionPerson string          `json:"solutionPerson"`  // 解决方案人员
+	CompanyAddr   string           `json:"companyAddr"`    // 公司地点
+	ProjectPeriod string           `json:"projectPeriod"`  // 项目周期
 	OnsiteStations []OnSiteStation `json:"onsiteStations"` // 驻场点列表
 }
 
@@ -35,11 +38,14 @@ type ProjectUpdateReq struct {
 	Status        string           `json:"status"`
 	Stage         string           `json:"stage"`
 	Sort          int              `json:"sort"`
-	ProjectPerson string           `json:"projectPerson"`  // 项目人员
-	OpsPerson     string           `json:"opsPerson"`     // 运维人员
-	CompanyAddr   string           `json:"companyAddr"`   // 公司地点
-	ProjectPeriod string           `json:"projectPeriod"` // 项目周期
-	OnsiteStations []OnSiteStation `json:"onsiteStations"` // 驻场点列表
+	ProjectPerson string           `json:"projectPerson"`    // 项目人员
+	OpsPerson     string           `json:"opsPerson"`       // 运维人员
+	OpsStaffPerson string          `json:"opsStaffPerson"`  // 运营人员
+	Solution      string           `json:"solution"`        // 解决方案描述
+	SolutionPerson string          `json:"solutionPerson"`  // 解决方案人员
+	CompanyAddr   string           `json:"companyAddr"`    // 公司地点
+	ProjectPeriod string           `json:"projectPeriod"`   // 项目周期
+	OnsiteStations []OnSiteStation `json:"onsiteStations"`  // 驻场点列表
 }
 
 // ProjectListReq 项目列表请求
@@ -60,13 +66,16 @@ type ProjectResp struct {
 	Status        string           `json:"status"`
 	Stage         string           `json:"stage"`
 	Sort          int              `json:"sort"`
-	ProjectPerson string           `json:"projectPerson"`  // 项目人员
-	OpsPerson     string           `json:"opsPerson"`     // 运维人员
-	CompanyAddr   string           `json:"companyAddr"`   // 公司地点
-	ProjectPeriod string           `json:"projectPeriod"` // 项目周期
-	OnsiteStations []OnSiteStation `json:"onsiteStations"` // 驻场点列表
-	RecordCount   int64            `json:"recordCount"`  // 该项目的上传记录数量
-	TotalDataSize int64            `json:"totalDataSize"` // 该项目的上传数据总量(字节)
+	ProjectPerson string           `json:"projectPerson"`    // 项目人员
+	OpsPerson     string           `json:"opsPerson"`       // 运维人员
+	OpsStaffPerson string          `json:"opsStaffPerson"`  // 运营人员
+	Solution      string           `json:"solution"`        // 解决方案描述
+	SolutionPerson string          `json:"solutionPerson"`  // 解决方案人员
+	CompanyAddr   string           `json:"companyAddr"`     // 公司地点
+	ProjectPeriod string           `json:"projectPeriod"`   // 项目周期
+	OnsiteStations []OnSiteStation `json:"onsiteStations"`   // 驻场点列表
+	RecordCount   int64            `json:"recordCount"`     // 该项目的上传记录数量
+	TotalDataSize int64            `json:"totalDataSize"`    // 该项目的上传数据总量(字节)
 	CreatedAt     time.Time        `json:"createdAt"`
 	UpdatedAt     time.Time        `json:"updatedAt"`
 }

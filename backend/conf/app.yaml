@@ -26,7 +26,7 @@ log:
 
 session:
   timeout: 7200
-  secret: fCxGypurV94EOkMhipQdEzgJgp3w5YQc
+  secret: AJtGnt9enlhfemz9UVlTtMjkuxiNpNIZ
 
 cors:
   allow_origins:
@@ -50,17 +50,4 @@ cors:
   max_age: 86400
 
 jwt:
-  secret: GZ0AIWmQbpQ4Rd4Faen3mD6eIckRQHEZ
-
-# Active Directory (LDAP) 认证配置
-ad:
-  enabled: false
-  server: ldap://192.168.1.100
-  port: 389
-  use_ssl: false
-  base_dn: OU=Users,DC=company,DC=com
-  bind_dn: CN=admin,DC=company,DC=com
-  bind_password: ""
-  user_filter: "(sAMAccountName=%s)"
-  auto_register: false
-  default_role_id: 3
+  secret: E1U4JvPDkPxt8MnsnnF5r7u4ix4bVeCj

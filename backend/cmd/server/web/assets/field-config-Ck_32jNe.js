@@ -1,1 +1,0 @@
-import{r}from"./index-DS89-sK2.js";var s;(t=>{t.list=e=>r.get("/field-configs",e),t.create=e=>r.post("/field-configs",e),t.getById=e=>r.get(`/field-configs/${e}`),t.update=e=>r.put("/field-configs",e),t.del=e=>r.delete(`/field-configs/${e}`),t.batchDelete=e=>r.post("/field-configs/batch-delete",{ids:e}),t.getAllEnabled=()=>r.get("/field-configs/all")})(s||(s={}));export{s as F};

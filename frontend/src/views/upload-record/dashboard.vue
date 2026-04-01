@@ -5,7 +5,7 @@
       <!-- 页面标题 -->
       <div class="page-header">
         <div class="header-left">
-          <h1 class="page-title">数据概览</h1>
+          <h1 class="page-title">{{ t('uploadRecord.dashboard.title') }}</h1>
           <div class="auto-refresh" :class="{ refreshing: nextRefresh <= 5 }">
             <span class="refresh-dot"></span>
             <span class="refresh-text">{{ nextRefresh }}s</span>
@@ -15,12 +15,12 @@
           <span v-if="hasActiveFilters" class="filter-tags">
             <span v-if="searchProjectName" class="filter-tag">{{ searchProjectName }}<button @click="searchProjectName = ''; handleFilterChange()">×</button></span>
             <span v-if="searchDataType" class="filter-tag">{{ searchDataType }}<button @click="searchDataType = ''; handleFilterChange()">×</button></span>
-            <span v-if="searchStatus" class="filter-tag">{{ getStatusText(searchStatus) }}<button @click="searchStatus = ''; handleFilterChange()">×</button></span>
+            <span v-if="searchStatus" class="filter-tag">{{ t(getStatusText(searchStatus)) }}<button @click="searchStatus = ''; handleFilterChange()">×</button></span>
             <span v-if="searchUploader" class="filter-tag">{{ searchUploader }}<button @click="searchUploader = ''; handleFilterChange()">×</button></span>
           </span>
           <el-button type="primary" @click="filterDrawerVisible = true" class="filter-btn" :class="{ 'has-badge': hasActiveFilters }">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 5px"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-            筛选
+            {{ t('uploadRecord.dashboard.filter') }}
           </el-button>
         </div>
       </div>
@@ -36,17 +36,17 @@
       <div class="stats-row" v-else>
         <div class="stat-card stat-card--primary">
           <div class="stat-card__top">
-            <span class="stat-card__label">今日上传</span>
+            <span class="stat-card__label">{{ t('uploadRecord.dashboard.todayUpload') }}</span>
             <div class="stat-card__icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
             </div>
           </div>
           <div class="stat-card__big-value">
-            <span class="big-counter">{{ animatedStats.todayCount }}</span>
-            <span class="big-unit">条</span>
+            <span class="big-counter">{{ statistics.todayCount }}</span>
+            <span class="big-unit">{{ t('uploadRecord.dashboard.recordCount') }}</span>
           </div>
           <div class="stat-card__meta-row">
-            <span class="stat-card__size">{{ animatedStats.todaySizeStr }}</span>
+            <span class="stat-card__size">{{ statistics.todaySizeStr }}</span>
             <span class="stat-card__trend" :class="todayTrend >= 0 ? 'trend--up' : 'trend--down'">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path v-if="todayTrend >= 0" d="M18 15l-6-6-6 6"/><path v-else d="M6 9l6 6 6-6"/></svg>
               {{ Math.abs(todayTrend) }}%
@@ -56,17 +56,17 @@
 
         <div class="stat-card stat-card--week">
           <div class="stat-card__top">
-            <span class="stat-card__label">本周上传</span>
+            <span class="stat-card__label">{{ t('uploadRecord.dashboard.weekUpload') }}</span>
             <div class="stat-card__icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
           </div>
           <div class="stat-card__big-value">
-            <span class="big-counter">{{ animatedStats.weekCount }}</span>
-            <span class="big-unit">条</span>
+            <span class="big-counter">{{ statistics.weekCount }}</span>
+            <span class="big-unit">{{ t('uploadRecord.dashboard.recordCount') }}</span>
           </div>
           <div class="stat-card__meta-row">
-            <span class="stat-card__size">{{ animatedStats.weekSizeStr || '—' }}</span>
+            <span class="stat-card__size">{{ statistics.weekSizeStr || '—' }}</span>
             <span class="stat-card__trend" :class="weekTrend >= 0 ? 'trend--up' : 'trend--down'">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path v-if="weekTrend >= 0" d="M18 15l-6-6-6 6"/><path v-else d="M6 9l6 6 6-6"/></svg>
               {{ Math.abs(weekTrend) }}%
@@ -76,17 +76,17 @@
 
         <div class="stat-card stat-card--month">
           <div class="stat-card__top">
-            <span class="stat-card__label">本月上传</span>
+            <span class="stat-card__label">{{ t('uploadRecord.dashboard.monthUpload') }}</span>
             <div class="stat-card__icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             </div>
           </div>
           <div class="stat-card__big-value">
-            <span class="big-counter">{{ animatedStats.monthCount }}</span>
-            <span class="big-unit">条</span>
+            <span class="big-counter">{{ statistics.monthCount }}</span>
+            <span class="big-unit">{{ t('uploadRecord.dashboard.recordCount') }}</span>
           </div>
           <div class="stat-card__meta-row">
-            <span class="stat-card__size">{{ animatedStats.monthSizeStr || '—' }}</span>
+            <span class="stat-card__size">{{ statistics.monthSizeStr || '—' }}</span>
             <span class="stat-card__trend" :class="monthTrend >= 0 ? 'trend--up' : 'trend--down'">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path v-if="monthTrend >= 0" d="M18 15l-6-6-6 6"/><path v-else d="M6 9l6 6 6-6"/></svg>
               {{ Math.abs(monthTrend) }}%
@@ -96,23 +96,23 @@
 
         <div class="stat-card stat-card--total">
           <div class="stat-card__top">
-            <span class="stat-card__label">累计总量</span>
+            <span class="stat-card__label">{{ t('uploadRecord.dashboard.totalCount') }}</span>
             <div class="stat-card__icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
             </div>
           </div>
           <div class="stat-card__big-value">
-            <span class="big-counter">{{ animatedStats.totalCount }}</span>
-            <span class="big-unit">条</span>
+            <span class="big-counter">{{ statistics.totalCount }}</span>
+            <span class="big-unit">{{ t('uploadRecord.dashboard.recordCount') }}</span>
           </div>
           <div class="stat-card__meta-row">
-            <span class="stat-card__size">{{ animatedStats.totalSizeStr }}</span>
+            <span class="stat-card__size">{{ statistics.totalSizeStr }}</span>
           </div>
         </div>
 
         <div class="stat-card stat-card--rate">
           <div class="stat-card__top">
-            <span class="stat-card__label">处理成功率</span>
+            <span class="stat-card__label">{{ t('uploadRecord.dashboard.successRate') }}</span>
             <div class="stat-card__icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             </div>
@@ -137,7 +137,7 @@
                 {{ tab.label }}
               </button>
             </div>
-            <span class="panel__meta">共 {{ totalTrendCount }} 条记录</span>
+            <span class="panel__meta">共 {{ totalTrendCount }} {{ t('uploadRecord.dashboard.recordCount') }}</span>
           </div>
           <div class="panel__body panel__body--chart">
             <div ref="trendChartRef" class="chart-canvas"></div>
@@ -146,15 +146,15 @@
 
         <div class="panel panel--status card-appear" style="animation-delay: 0.1s">
           <div class="panel__header">
-            <span class="panel__title">状态分布</span>
-            <span class="panel__meta">{{ (statistics.byStatus || []).length }} 种状态</span>
+            <span class="panel__title">{{ t('uploadRecord.dashboard.statusDistribution') }}</span>
+            <span class="panel__meta">{{ (statistics.byStatus || []).length }} {{ t('uploadRecord.dashboard.statusTypes') }}</span>
           </div>
           <div class="panel__body panel__body--status">
             <div ref="donutChartRef" class="chart-canvas chart-canvas--donut"></div>
             <div class="status-legend">
               <div v-for="item in (statistics.byStatus || [])" :key="item.status" class="legend-row">
                 <span class="legend-bar" :style="{ background: statusColors[item.status] }"></span>
-                <span class="legend-name">{{ getStatusText(item.status) }}</span>
+                <span class="legend-name">{{ t(getStatusText(item.status)) }}</span>
                 <span class="legend-count">{{ item.count }}</span>
                 <span class="legend-pct">{{ getPercent(item.count) }}%</span>
               </div>
@@ -164,8 +164,8 @@
 
         <div class="panel panel--project card-appear" style="animation-delay: 0.2s">
           <div class="panel__header">
-            <span class="panel__title">项目分布</span>
-            <span class="panel__meta">{{ projectTotal }} 个项目</span>
+            <span class="panel__title">{{ t('uploadRecord.dashboard.projectDistribution') }}</span>
+            <span class="panel__meta">{{ projectTotal }} {{ t('uploadRecord.dashboard.projectCount') }}</span>
           </div>
           <div class="panel__body">
             <div ref="projectChartRef" class="chart-canvas chart-canvas--bar"></div>
@@ -174,8 +174,8 @@
 
         <div class="panel panel--datatype card-appear" style="animation-delay: 0.3s">
           <div class="panel__header">
-            <span class="panel__title">数据类型分布</span>
-            <span class="panel__meta">{{ dataTypeTotal }} 种类型</span>
+            <span class="panel__title">{{ t('uploadRecord.dashboard.dataTypeDistribution') }}</span>
+            <span class="panel__meta">{{ dataTypeTotal }} {{ t('uploadRecord.dashboard.dataTypeCount') }}</span>
           </div>
           <div class="panel__body">
             <div ref="dataTypeChartRef" class="chart-canvas chart-canvas--bar"></div>
@@ -184,7 +184,7 @@
 
         <div class="panel panel--health card-appear" style="animation-delay: 0.4s">
           <div class="panel__header">
-            <span class="panel__title">处理健康度</span>
+            <span class="panel__title">{{ t('uploadRecord.dashboard.processingHealth') }}</span>
           </div>
           <div class="panel__body panel__body--health">
             <div class="health-gauge">
@@ -195,14 +195,14 @@
                 </svg>
                 <div class="gauge-center">
                   <span class="gauge-value">{{ successRate }}%</span>
-                  <span class="gauge-label">成功率</span>
+                  <span class="gauge-label">{{ t('uploadRecord.dashboard.ratePercent') }}</span>
                 </div>
               </div>
             </div>
             <div class="health-bars">
               <div v-for="item in (statistics.byStatus || [])" :key="item.status" class="health-bar-item">
                 <div class="health-bar-item__header">
-                  <span class="health-bar-item__name">{{ getStatusText(item.status) }}</span>
+                  <span class="health-bar-item__name">{{ t(getStatusText(item.status)) }}</span>
                   <span class="health-bar-item__count">{{ item.count }}</span>
                 </div>
                 <div class="health-bar-item__track">
@@ -216,18 +216,18 @@
         <!-- 近期活动 -->
         <div class="panel panel--activity card-appear" style="animation-delay: 0.5s">
           <div class="panel__header">
-            <span class="panel__title">近期活动</span>
-            <router-link to="/upload-record/list" class="panel__link">查看全部 →</router-link>
+            <span class="panel__title">{{ t('uploadRecord.dashboard.recentActivity') }}</span>
+            <router-link to="/upload-record/list" class="panel__link">{{ t('uploadRecord.dashboard.viewAll') }} →</router-link>
           </div>
           <div class="panel__body panel__body--activity">
             <div class="activity-table">
               <div class="table-head">
                 <span>#</span>
-                <span>流水号</span>
-                <span>磁盘标签</span>
-                <span>上传容量</span>
-                <span>状态</span>
-                <span>时间</span>
+                <span>{{ t('uploadRecord.dashboard.tableSerial') }}</span>
+                <span>{{ t('uploadRecord.dashboard.tableDisk') }}</span>
+                <span>{{ t('uploadRecord.dashboard.tableUploadSize') }}</span>
+                <span>{{ t('uploadRecord.dashboard.tableStatus') }}</span>
+                <span>{{ t('uploadRecord.dashboard.tableTime') }}</span>
               </div>
               <div class="table-body">
                 <div v-for="(item, index) in recentRecords" :key="item.id" class="table-row">
@@ -240,7 +240,7 @@
                   </span>
                   <span class="row-time">{{ formatTime(item.createdAt) }}</span>
                 </div>
-                <div v-if="recentRecords.length === 0" class="table-empty">暂无上传记录</div>
+                <div v-if="recentRecords.length === 0" class="table-empty">{{ t('uploadRecord.dashboard.noUploadRecord') }}</div>
               </div>
             </div>
           </div>
@@ -252,39 +252,39 @@
     <el-drawer v-model="filterDrawerVisible" direction="rtl" size="280px">
       <template #header>
         <div class="drawer-head">
-          <span class="drawer-mode-tag drawer-mode-tag--filter">筛选</span>
-          <span class="drawer-title-text">筛选条件</span>
+          <span class="drawer-mode-tag drawer-mode-tag--filter">{{ t('uploadRecord.dashboard.filter') }}</span>
+          <span class="drawer-title-text">{{ t('uploadRecord.dashboard.filterCondition') }}</span>
         </div>
       </template>
       <div class="filter-drawer-content">
         <div class="filter-group">
-          <div class="filter-group__title">时间范围</div>
+          <div class="filter-group__title">{{ t('uploadRecord.dashboard.filterTimeRange') }}</div>
           <div class="time-presets-grid">
             <button v-for="preset in timePresets" :key="preset.key" class="preset-btn" :class="{ 'is-active': activeTimePreset === preset.key }" @click="setTimePreset(preset.key)">{{ preset.label }}</button>
           </div>
-          <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始" end-placeholder="结束" value-format="YYYY-MM-DD" format="MM-DD" :clearable="false" size="small" @change="loadStatistics"/>
+          <el-date-picker v-model="dateRange" type="daterange" :range-separator="t('common.to')" :start-placeholder="t('common.startDate')" :end-placeholder="t('common.endDate')" value-format="YYYY-MM-DD" :clearable="false" size="small" style="width: 100%" @change="loadStatistics"/>
         </div>
         <div class="filter-group">
-          <div class="filter-group__title">项目名称</div>
-          <el-select v-model="searchProjectName" placeholder="全部项目" clearable size="small" @change="handleFilterChange"><el-option v-for="p in projectList" :key="p.code" :label="p.name" :value="p.name" /></el-select>
+          <div class="filter-group__title">{{ t('uploadRecord.dashboard.filterProjectName') }}</div>
+          <el-select v-model="searchProjectName" :placeholder="t('uploadRecord.dashboard.filterAllProjects')" clearable size="small" @change="handleFilterChange"><el-option v-for="p in projectList" :key="p.code" :label="p.name" :value="p.name" /></el-select>
         </div>
         <div class="filter-group">
-          <div class="filter-group__title">磁盘标签</div>
-          <el-select v-model="searchDataType" placeholder="全部磁盘" clearable size="small" @change="handleFilterChange"><el-option v-for="dt in dataTypeOptions" :key="dt" :label="dt" :value="dt" /></el-select>
+          <div class="filter-group__title">{{ t('uploadRecord.dashboard.filterDiskLabel') }}</div>
+          <el-select v-model="searchDataType" :placeholder="t('uploadRecord.dashboard.filterAllDisk')" clearable size="small" @change="handleFilterChange"><el-option v-for="dt in dataTypeOptions" :key="dt" :label="dt" :value="dt" /></el-select>
         </div>
         <div class="filter-group">
-          <div class="filter-group__title">上传状态</div>
-          <el-select v-model="searchStatus" placeholder="全部状态" clearable size="small" @change="handleFilterChange">
-            <el-option label="成功" value="completed" /><el-option label="处理中" value="processing" /><el-option label="待处理" value="pending" /><el-option label="失败" value="failed" />
+          <div class="filter-group__title">{{ t('uploadRecord.dashboard.filterUploadStatus') }}</div>
+          <el-select v-model="searchStatus" :placeholder="t('uploadRecord.dashboard.filterAllStatus')" clearable size="small" @change="handleFilterChange">
+            <el-option :label="t('status.completed')" value="completed" /><el-option :label="t('status.processing')" value="processing" /><el-option :label="t('status.pending')" value="pending" /><el-option :label="t('status.failed')" value="failed" />
           </el-select>
         </div>
         <div class="filter-group">
-          <div class="filter-group__title">上传者</div>
-          <el-select v-model="searchUploader" placeholder="全部上传者" clearable size="small" @change="handleFilterChange"><el-option v-for="u in uploaderOptions" :key="u" :label="u" :value="u" /></el-select>
+          <div class="filter-group__title">{{ t('uploadRecord.dashboard.filterUploader') }}</div>
+          <el-select v-model="searchUploader" :placeholder="t('uploadRecord.dashboard.filterAllUploader')" clearable size="small" @change="handleFilterChange"><el-option v-for="u in uploaderOptions" :key="u" :label="u" :value="u" /></el-select>
         </div>
         <div class="drawer-footer">
-          <el-button @click="resetFilters" size="small">重置筛选</el-button>
-          <el-button type="primary" @click="filterDrawerVisible = false" size="small">完成</el-button>
+          <el-button @click="resetFilters" size="small">{{ t('uploadRecord.dashboard.resetFilter') }}</el-button>
+          <el-button type="primary" @click="filterDrawerVisible = false" size="small">{{ t('uploadRecord.dashboard.complete') }}</el-button>
         </div>
       </div>
     </el-drawer>
@@ -296,6 +296,9 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import type { UploadRecordStatistics, UploadRecord } from '@/api/upload-record'
 import { UploadRecordApi } from '@/api/upload-record'
 import { ProjectApi } from '@/api/project'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 let echarts: any = null
 const isInitialLoading = ref(true)
@@ -306,10 +309,10 @@ const nextRefresh = ref(30)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 const timePresets = [
-  { key: 'today' as const, label: '今日' },
-  { key: 'week' as const, label: '近7天' },
-  { key: 'month' as const, label: '近30天' },
-  { key: 'all' as const, label: '全部' }
+  { key: 'today' as const, label: t('uploadRecord.dashboard.timePresetToday') },
+  { key: 'week' as const, label: t('uploadRecord.dashboard.timePresetWeek') },
+  { key: 'month' as const, label: t('uploadRecord.dashboard.timePresetMonth') },
+  { key: 'all' as const, label: t('uploadRecord.dashboard.timePresetAll') }
 ]
 
 const setTimeRange = (key: typeof activeTimePreset.value) => {
@@ -349,37 +352,38 @@ const statistics = reactive<UploadRecordStatistics>({
 })
 
 const recentRecords = ref<UploadRecord[]>([])
-const animatedStats = reactive({ todayCount: 0, todaySizeStr: '0 B', weekCount: 0, weekSizeStr: '', monthCount: 0, monthSizeStr: '', totalCount: 0, totalSizeStr: '0 B' })
 const todayTrend = ref(0)
 const weekTrend = ref(0)
 const monthTrend = ref(0)
 
-let animFrame: number | null = null
-const animateCounter = (from: number, to: number, key: keyof typeof animatedStats, duration = 600) => {
-  if (animFrame) cancelAnimationFrame(animFrame)
-  const start = performance.now()
-  const step = (now: number) => {
-    const progress = Math.min((now - start) / duration, 1)
-    const ease = 1 - Math.pow(1 - progress, 3)
-    animatedStats[key] = Math.round(from + (to - from) * ease)
-    if (progress < 1) animFrame = requestAnimationFrame(step)
-  }
-  animFrame = requestAnimationFrame(step)
-}
-
 const statusColors: Record<string, string> = { completed: '#22c55e', pending: '#f59e0b', processing: '#3b82f6', failed: '#ef4444' }
-const getStatusText = (status: string) => ({ completed: '成功', pending: '待处理', processing: '处理中', failed: '失败' })[status] || status
+const getStatusText = (status: string) => ({ completed: 'status.completed', pending: 'status.pending', processing: 'status.processing', failed: 'status.failed' })[status] || status
 const getStatusClass = (status: string) => `badge--${({ completed: 'success', pending: 'warning', processing: 'info', failed: 'danger' })[status] || 'info'}`
 const getPercent = (count: number) => { const arr = statistics.byStatus || []; const total = arr.reduce((s, i) => s + i.count, 0); return total ? Math.round((count / total) * 100) : 0 }
 const successRate = computed(() => { if (statistics.totalCount === 0) return 0; const arr = statistics.byStatus || []; const completed = arr.find(s => s.status === 'completed'); return completed ? Math.round((completed.count / statistics.totalCount) * 100) : 0 })
 const totalTrendCount = computed(() => (statistics.trend || []).reduce((s, t) => s + t.count, 0))
 const dataTypeTotal = computed(() => (statistics.byDataType || []).length)
 const projectTotal = computed(() => (statistics.byProject || []).length)
+
+// 将后端返回的累计趋势数据转换为每日增量
+const trendDaily = computed(() => {
+  const arr = statistics.trend || []
+  if (arr.length === 0) return []
+  return arr.map((t: any, idx: number) => {
+    const prevCount = idx > 0 ? (arr[idx - 1]?.count || 0) : 0
+    const prevSize = idx > 0 ? (arr[idx - 1]?.totalSize || 0) : 0
+    return {
+      date: t.date,
+      count: t.count - prevCount,
+      totalSize: t.totalSize - prevSize,
+    }
+  })
+})
 const formatTime = (timeStr: string) => { const d = new Date(timeStr); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 
 let trendChart: any = null, donutChart: any = null, dataTypeChart: any = null, projectChart: any = null
 const activeTrendTab = ref('count')
-const trendTabs = [{ key: 'count', label: '记录数', color: '#3b82f6' }, { key: 'size', label: '数据量', color: '#8b5cf6' }]
+const trendTabs = [{ key: 'count', label: t('uploadRecord.dashboard.chartRecordCount'), color: '#3b82f6' }, { key: 'size', label: t('uploadRecord.dashboard.chartDataSize'), color: '#8b5cf6' }]
 const setTrendTab = (key: string) => { activeTrendTab.value = key; nextTick(() => updateTrendChart()) }
 
 const trendChartRef = ref<HTMLElement>()
@@ -400,7 +404,7 @@ const initCharts = async () => {
 
 const updateTrendChart = () => {
   if (!trendChart || !echarts) return
-  const arr = statistics.trend || []
+  const arr = trendDaily.value || []
   const field = activeTrendTab.value === 'count' ? 'count' : 'totalSize'
   const formatter = activeTrendTab.value === 'count' ? (v: number) => `${v} 条` : (v: number) => formatFileSizeStatic(v)
   trendChart.setOption({
@@ -420,14 +424,75 @@ const updateDonutChart = () => {
 
 const updateDataTypeChart = () => {
   if (!dataTypeChart || !echarts) return
-  const arr = (statistics.byDataType || []).slice(0, 8)
-  dataTypeChart.setOption({ backgroundColor: 'transparent', animation: true, animationDuration: 800, animationEasing: 'cubicOut', tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#e0e2ec', textStyle: { color: '#191c23', fontSize: 12 }, axisPointer: { type: 'shadow' } }, grid: { top: 10, right: 80, bottom: 10, left: 10, containLabel: true }, xAxis: { type: 'value', show: false }, yAxis: { type: 'category', data: arr.map((d: any) => d.dataType || '(空)').reverse(), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#414754', fontSize: 12 } }, series: [{ type: 'bar', data: arr.map((d: any) => d.count).reverse(), barWidth: 14, itemStyle: { borderRadius: [0, 6, 6, 0], color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#06b6d4' }, { offset: 1, color: '#3b82f6' }]) }, label: { show: true, position: 'right', color: '#727785', fontSize: 11, formatter: (params: any) => formatFileSizeStatic(arr[params.dataIndex]?.totalSize || 0) } }] })
+  const all = statistics.byDataType || []
+  const arr = all.slice(0, 10)
+  // 反转数组用于显示（从下到上）
+  const reversed = [...arr].reverse()
+  dataTypeChart.setOption({
+    backgroundColor: 'transparent',
+    animation: true,
+    animationDuration: 800,
+    animationEasing: 'cubicOut',
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#fff',
+      borderColor: '#e0e2ec',
+      textStyle: { color: '#191c23', fontSize: 12 },
+      axisPointer: { type: 'shadow' },
+      formatter: (params: any) => {
+        const item = params[0]
+        const d = reversed[item.dataIndex]
+        if (!d) return ''
+        return `${d.dataType || '(空)'}<br/>${item.marker} ${d.count} 条<br/>数据量: ${formatFileSizeStatic(d.totalSize || 0)}`
+      }
+    },
+    grid: { top: 10, right: 80, bottom: 10, left: 10, containLabel: true },
+    xAxis: { type: 'value', show: false },
+    yAxis: { type: 'category', data: reversed.map((d: any) => d.dataType || '(空)'), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#414754', fontSize: 12 } },
+    series: [{
+      type: 'bar',
+      data: reversed.map((d: any) => d.count),
+      barWidth: 14,
+      itemStyle: { borderRadius: [0, 6, 6, 0], color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#06b6d4' }, { offset: 1, color: '#3b82f6' }]) },
+      label: { show: true, position: 'right', color: '#727785', fontSize: 11, formatter: (params: any) => formatFileSizeStatic(reversed[params.dataIndex]?.totalSize || 0) }
+    }]
+  })
 }
 
 const updateProjectChart = () => {
   if (!projectChart || !echarts) return
-  const arr = (statistics.byProject || []).slice(0, 8)
-  projectChart.setOption({ backgroundColor: 'transparent', animation: true, animationDuration: 800, animationEasing: 'cubicOut', tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#e0e2ec', textStyle: { color: '#191c23', fontSize: 12 }, axisPointer: { type: 'shadow' }, formatter: (params: any) => { const item = params[0]; const project = arr[item.dataIndex]; if (!project) return ''; return `${item.name}<br/>${item.marker} ${item.value} 条<br/>数据量: ${formatFileSizeStatic(project.totalSize || 0)}` } }, grid: { top: 10, right: 80, bottom: 10, left: 10, containLabel: true }, xAxis: { type: 'value', show: false }, yAxis: { type: 'category', data: arr.map((p: any) => p.projectName || '(空项目)').reverse(), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#414754', fontSize: 12 } }, series: [{ type: 'bar', data: arr.map((p: any) => p.count).reverse(), barWidth: 14, itemStyle: { borderRadius: [0, 6, 6, 0], color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#8b5cf6' }, { offset: 1, color: '#a78bfa' }]) }, label: { show: true, position: 'right', color: '#727785', fontSize: 11, formatter: (params: any) => { const project = arr[params.dataIndex]; return project ? formatFileSizeStatic(project.totalSize || 0) : '' } } }] })
+  const all = statistics.byProject || []
+  const arr = all.slice(0, 10)
+  const reversed = [...arr].reverse()
+  projectChart.setOption({
+    backgroundColor: 'transparent',
+    animation: true,
+    animationDuration: 800,
+    animationEasing: 'cubicOut',
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#fff',
+      borderColor: '#e0e2ec',
+      textStyle: { color: '#191c23', fontSize: 12 },
+      axisPointer: { type: 'shadow' },
+      formatter: (params: any) => {
+        const item = params[0]
+        const p = reversed[item.dataIndex]
+        if (!p) return ''
+        return `${p.projectName || '(空项目)'}<br/>${item.marker} ${p.count} 条<br/>数据量: ${formatFileSizeStatic(p.totalSize || 0)}`
+      }
+    },
+    grid: { top: 10, right: 80, bottom: 10, left: 10, containLabel: true },
+    xAxis: { type: 'value', show: false },
+    yAxis: { type: 'category', data: reversed.map((p: any) => p.projectName || '(空项目)'), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#414754', fontSize: 12 } },
+    series: [{
+      type: 'bar',
+      data: reversed.map((p: any) => p.count),
+      barWidth: 14,
+      itemStyle: { borderRadius: [0, 6, 6, 0], color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#8b5cf6' }, { offset: 1, color: '#a78bfa' }]) },
+      label: { show: true, position: 'right', color: '#727785', fontSize: 11, formatter: (params: any) => formatFileSizeStatic(reversed[params.dataIndex]?.totalSize || 0) }
+    }]
+  })
 }
 
 const updateAllCharts = () => { updateTrendChart(); updateDonutChart(); updateDataTypeChart(); updateProjectChart() }
@@ -443,26 +508,43 @@ const handleResize = () => { trendChart?.resize(); donutChart?.resize(); dataTyp
 
 const loadStatistics = async () => {
   try {
-    const params: any = {}
+    const params: Record<string, any> = {}
     if (dateRange.value?.length === 2) { params.startDate = dateRange.value[0]; params.endDate = dateRange.value[1] }
     if (searchProjectName.value) params.projectName = searchProjectName.value
     if (searchDataType.value) params.dataType = searchDataType.value
     if (searchStatus.value) params.status = searchStatus.value
     if (searchUploader.value) params.uploader = searchUploader.value
     const res = await UploadRecordApi.statistics(params)
-    const prev = { todayCount: statistics.todayCount, weekCount: statistics.weekCount, monthCount: statistics.monthCount, totalCount: statistics.totalCount }
     const data = res.data || {}
-    Object.assign(statistics, { todayCount: data.todayCount ?? 0, todaySize: data.todaySize ?? 0, todaySizeStr: data.todaySizeStr ?? '0 B', weekCount: data.weekCount ?? 0, monthCount: data.monthCount ?? 0, totalCount: data.totalCount ?? 0, trend: data.trend || [], byStatus: data.byStatus || [], byDataType: data.byDataType || [], byProject: data.byProject || [] })
-    animateCounter(prev.todayCount, data.todayCount ?? 0, 'todayCount')
-    animateCounter(prev.weekCount, data.weekCount ?? 0, 'weekCount')
-    animateCounter(prev.monthCount, data.monthCount ?? 0, 'monthCount')
-    animateCounter(prev.totalCount, data.totalCount ?? 0, 'totalCount')
-    animatedStats.todaySizeStr = data.todaySizeStr ?? '0 B'
-    animatedStats.weekSizeStr = data.weekSizeStr || ''
-    animatedStats.monthSizeStr = data.monthSizeStr || ''
-    animatedStats.totalSizeStr = data.totalSizeStr ?? '0 B'
+
+    // 同步更新统计数据（确保立即显示）
+    statistics.todayCount = data.todayCount ?? 0
+    statistics.todaySize = data.todaySize ?? 0
+    statistics.todaySizeStr = data.todaySizeStr ?? '0 B'
+    statistics.weekCount = data.weekCount ?? 0
+    statistics.weekSize = data.weekSize ?? 0
+    statistics.weekSizeStr = data.weekSizeStr || '—'
+    statistics.monthCount = data.monthCount ?? 0
+    statistics.monthSize = data.monthSize ?? 0
+    statistics.monthSizeStr = data.monthSizeStr || '—'
+    statistics.totalCount = data.totalCount ?? 0
+    statistics.totalSize = data.totalSize ?? 0
+    statistics.totalSizeStr = data.totalSizeStr ?? '0 B'
+    statistics.trend = data.trend || []
+    statistics.byStatus = data.byStatus || []
+    statistics.byDataType = data.byDataType || []
+    statistics.byProject = data.byProject || []
+
     const trend = data.trend || []
-    if (trend.length >= 2) { const last = trend[trend.length - 1]; const prev2 = trend[Math.max(0, trend.length - 2)]; const base = prev2.count || 1; const diff = last.count - prev2.count; const pct = Math.round((Math.abs(diff) / base) * 100); todayTrend.value = diff >= 0 ? pct : -pct }
+    if (trend.length >= 2) {
+      const last = trend[trend.length - 1]
+      const prev2 = trend[Math.max(0, trend.length - 2)]
+      const base = prev2.count || 1
+      const diff = last.count - prev2.count
+      const pct = Math.round((Math.abs(diff) / base) * 100)
+      todayTrend.value = diff >= 0 ? pct : -pct
+    }
+
     updateAllCharts()
   } catch (error) { console.error('Failed to load statistics:', error) }
 }
@@ -500,7 +582,7 @@ onMounted(() => {
   }, 30000)
 })
 
-onUnmounted(() => { if (animFrame) cancelAnimationFrame(animFrame); if (refreshTimer) clearInterval(refreshTimer); trendChart?.dispose(); donutChart?.dispose(); dataTypeChart?.dispose(); projectChart?.dispose(); window.removeEventListener('resize', handleResize) })
+onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); trendChart?.dispose(); donutChart?.dispose(); dataTypeChart?.dispose(); projectChart?.dispose(); window.removeEventListener('resize', handleResize) })
 </script>
 
 <style scoped lang="scss">

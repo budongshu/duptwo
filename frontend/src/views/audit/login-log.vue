@@ -3,8 +3,8 @@
     <!-- 页面标题 -->
     <header class="page-header">
       <div>
-        <h1 class="page-title">登录日志</h1>
-        <p class="page-subtitle">记录用户登录系统的情况</p>
+        <h1 class="page-title">{{ t('audit.login.title') }}</h1>
+        <p class="page-subtitle">{{ t('audit.login.subtitle') }}</p>
       </div>
       <div class="header-actions">
         <el-button type="success" @click="handleExport">
@@ -13,36 +13,36 @@
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
-          导出 Excel
+          {{ t('audit.login.exportExcel') }}
         </el-button>
       </div>
     </header>
 
     <!-- 筛选栏 -->
     <div class="filter-card">
-      <el-input v-model="searchKeyword" placeholder="搜索用户名" clearable @keyup.enter="handleSearch" />
-      <el-select v-model="searchStatus" placeholder="登录状态" clearable style="width: 120px" @change="handleSearch">
-        <el-option label="成功" value="success" />
-        <el-option label="失败" value="failed" />
+      <el-input v-model="searchKeyword" :placeholder="t('audit.login.searchPlaceholder')" clearable @keyup.enter="handleSearch" />
+      <el-select v-model="searchStatus" :placeholder="t('audit.login.status')" clearable style="width: 120px" @change="handleSearch">
+        <el-option :label="t('audit.login.statusSuccess')" value="success" />
+        <el-option :label="t('audit.login.statusFailed')" value="failed" />
       </el-select>
       <el-date-picker
         v-model="searchDateRange"
         type="daterange"
-        range-separator="至"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
+        :range-separator="t('common.to')"
+        :start-placeholder="t('common.startDate')"
+        :end-placeholder="t('common.endDate')"
         value-format="YYYY-MM-DD"
         style="width: 300px"
       />
-      <el-button type="primary" @click="handleSearch">查询</el-button>
-      <el-button @click="handleReset">重置</el-button>
+      <el-button type="primary" @click="handleSearch">{{ t('common.search') }}</el-button>
+      <el-button @click="handleReset">{{ t('common.reset') }}</el-button>
     </div>
 
     <!-- 表格 -->
     <div class="table-card">
       <el-table :data="tableData" v-loading="loading" stripe>
-        <el-table-column prop="username" label="用户名" min-width="120" />
-        <el-table-column prop="status" label="状态" min-width="90" align="center">
+        <el-table-column prop="username" :label="t('audit.login.username')" min-width="120" />
+        <el-table-column prop="status" :label="t('audit.login.status')" min-width="90" align="center">
           <template #default="{ row }">
             <span class="status-badge" :class="row.status === 'success' ? 'status-badge--success' : 'status-badge--danger'">
               <svg v-if="row.status === 'success'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
@@ -51,32 +51,32 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="loginMethod" label="登录方式" min-width="100" align="center">
+        <el-table-column prop="loginMethod" :label="t('audit.login.loginMethod')" min-width="100" align="center">
           <template #default="{ row }">
-            <span class="method-tag">{{ row.loginMethod === 'mfa' ? 'MFA' : '密码' }}</span>
+            <span class="method-tag">{{ row.loginMethod === 'mfa' ? t('audit.login.mfa') : t('audit.login.password') }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="mfaUsed" label="MFA验证" min-width="90" align="center">
+        <el-table-column prop="mfaUsed" :label="t('audit.login.mfaVerify')" min-width="90" align="center">
           <template #default="{ row }">
             <span v-if="row.mfaUsed" class="mfa-enabled">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              已验证
+              {{ t('audit.login.verified') }}
             </span>
             <span v-else class="mfa-disabled">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="failReason" label="失败原因" min-width="160" show-overflow-tooltip>
+        <el-table-column prop="failReason" :label="t('audit.login.failReason')" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">
             <span class="fail-reason" v-if="row.failReason">{{ row.failReason }}</span>
             <span v-else class="empty-text">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="ipAddress" label="IP地址" min-width="130" align="center">
+        <el-table-column prop="ipAddress" :label="t('audit.login.ipAddress')" min-width="130" align="center">
           <template #default="{ row }">
             <span class="ip-text">{{ row.ipAddress || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="登录时间" min-width="140">
+        <el-table-column prop="createdAt" :label="t('audit.login.loginTime')" min-width="140">
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
           </template>
@@ -101,10 +101,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, inject } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { LoginLogApi, type LoginLog } from '@/api/audit'
 
-const trackExport = inject<(action?: string) => void>('trackExport')
+const { t } = useI18n()
+const trackExport = inject<(success?: boolean) => void>('trackExport')
 
 const loading = ref(false)
 const tableData = ref<LoginLog[]>([])
@@ -127,7 +129,8 @@ const formatDate = (dateStr: string | undefined) => {
   const day = String(date.getDate()).padStart(2, '0')
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hours}:${minutes}`
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
 const loadData = async () => {
@@ -175,15 +178,15 @@ const handleExport = async () => {
     const link = document.createElement('a')
     const timestamp = new Date().toISOString().slice(0, 10)
     link.href = url
-    link.download = `登录日志_${timestamp}.xlsx`
+    link.download = `${t('audit.login.fileName')}_${timestamp}.xlsx`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-    ElMessage.success('导出成功')
-    trackExport?.('login-log')
+    ElMessage.success(t('audit.login.exportSuccess'))
+    trackExport?.(true)
   } catch (error) {
-    ElMessage.error('导出失败')
+    ElMessage.error(t('audit.login.exportFailed'))
   }
 }
 

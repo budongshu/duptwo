@@ -10,7 +10,7 @@
               <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </div>
-          <span class="brand-name">数据登记管理平台</span>
+          <span class="brand-name">{{ t('register.brandName') }}</span>
         </div>
         <div class="top-bar-right">
           <span class="version-tag">v1.0.0</span>
@@ -25,8 +25,8 @@
     <main class="login-main">
       <div class="login-card">
         <div class="card-title">
-          <h2>用户注册</h2>
-          <p>创建您的账号</p>
+          <h2>{{ t('register.cardTitle') }}</h2>
+          <p>{{ t('register.cardSubtitle') }}</p>
         </div>
 
         <el-form
@@ -39,7 +39,7 @@
           <el-form-item prop="username">
             <el-input
               v-model="form.username"
-              placeholder="用户名"
+              :placeholder="t('register.username')"
               size="large"
               :prefix-icon="User"
             />
@@ -47,7 +47,7 @@
           <el-form-item prop="nickname">
             <el-input
               v-model="form.nickname"
-              placeholder="昵称（选填）"
+              :placeholder="t('register.nicknamePlaceholder')"
               size="large"
               :prefix-icon="UserFilled"
             />
@@ -56,7 +56,7 @@
             <el-input
               v-model="form.password"
               type="password"
-              placeholder="密码"
+              :placeholder="t('register.password')"
               size="large"
               :prefix-icon="Lock"
               show-password
@@ -66,7 +66,7 @@
             <el-input
               v-model="form.confirmPassword"
               type="password"
-              placeholder="确认密码"
+              :placeholder="t('register.confirmPassword')"
               size="large"
               :prefix-icon="Lock"
               show-password
@@ -80,13 +80,13 @@
             class="login-btn"
             @click="handleRegister"
           >
-            注 册
+            {{ t('register.registerBtn') }}
           </el-button>
         </el-form>
 
         <div class="login-footer">
-          <span>已有账号？</span>
-          <router-link to="/login" class="link">立即登录</router-link>
+          <span>{{ t('register.hasAccount') }}</span>
+          <router-link to="/login" class="link">{{ t('register.loginNow') }}</router-link>
         </div>
       </div>
     </main>
@@ -101,11 +101,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, UserFilled } from '@element-plus/icons-vue'
 import { AuthApi } from '@/api/auth'
+import { usePasswordPolicy } from '@/composables/usePasswordPolicy'
+
+const { t } = useI18n()
+const { policy } = usePasswordPolicy()
 
 const router = useRouter()
 const formRef = ref()
@@ -120,26 +125,26 @@ const form = reactive({
 
 const validateConfirmPassword = (rule: any, value: string, callback: any) => {
   if (value !== form.password) {
-    callback(new Error('两次输入的密码不一致'))
+    callback(new Error(t('register.passwordMismatch')))
   } else {
     callback()
   }
 }
 
-const rules = {
+const rules = computed(() => ({
   username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 32, message: '用户名长度为 3-32 个字符', trigger: 'blur' }
+    { required: true, message: t('register.usernameRequired'), trigger: 'blur' },
+    { min: 3, max: 32, message: t('register.usernameLength'), trigger: 'blur' }
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 64, message: '密码长度为 6-64 个字符', trigger: 'blur' }
+    { required: true, message: t('register.passwordRequired'), trigger: 'blur' },
+    { min: policy.value.passwordMinLength, max: 64, message: t('register.passwordLength', { min: policy.value.passwordMinLength }), trigger: 'blur' }
   ],
   confirmPassword: [
-    { required: true, message: '请确认密码', trigger: 'blur' },
+    { required: true, message: t('register.confirmPasswordRequired'), trigger: 'blur' },
     { validator: validateConfirmPassword, trigger: 'blur' }
   ]
-}
+}))
 
 const handleRegister = async () => {
   const valid = await formRef.value?.validate().catch(() => false)
@@ -153,13 +158,13 @@ const handleRegister = async () => {
       nickname: form.nickname || undefined
     })
     if (res.code === 200) {
-      ElMessage.success('注册成功，请登录')
+      ElMessage.success(t('register.registerSuccess'))
       router.push('/login')
     } else {
-      ElMessage.error(res.message || '注册失败')
+      ElMessage.error(res.message || t('register.registerFailed'))
     }
   } catch (error: any) {
-    ElMessage.error(error.message || '注册失败')
+    ElMessage.error(error.message || t('register.registerFailed'))
   } finally {
     loading.value = false
   }

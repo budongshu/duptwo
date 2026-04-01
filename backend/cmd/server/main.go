@@ -52,6 +52,19 @@ var (
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "conf/app.yaml", "配置文件路径")
 	rootCmd.PersistentFlags().BoolVarP(&serveWeb, "serve-web", "w", false, "是否启用 Web 前端（覆盖配置文件）")
+
+	// reset-admin 子命令：重置 admin 密码
+	resetAdminCmd := &cobra.Command{
+		Use:   "reset-admin [新密码]",
+		Short: "重置 admin 账号密码",
+		Long:  `连接数据库，重置 admin 账号的密码，同时解锁该账号。
+示例：
+  datauptwo reset-admin mynewpassword
+  datauptwo reset-admin -c conf/app.yaml admin123`,
+		Args: cobra.ExactArgs(1),
+		Run:  runResetAdmin,
+	}
+	rootCmd.AddCommand(resetAdminCmd)
 }
 
 func main() {
@@ -156,6 +169,101 @@ func initDatabase() {
 	global.AppLogger.Info("Database(%s) initialized successfully", dbType)
 }
 
+// runResetAdmin 重置 admin 密码
+func runResetAdmin(cmd *cobra.Command, args []string) {
+	newPassword := args[0]
+
+	// 初始化配置
+	viper.SetConfigFile(configFile)
+	viper.SetConfigType("yaml")
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("读取配置文件失败: %v", err)
+	}
+	if err := viper.Unmarshal(&global.CONF); err != nil {
+		log.Fatalf("解析配置文件失败: %v", err)
+	}
+
+	// 初始化日志（minimal 模式）
+	global.InitLogger()
+
+	// 连接数据库
+	db, err := openDatabase()
+	if err != nil {
+		log.Fatalf("连接数据库失败: %v", err)
+	}
+	global.DB = db
+
+	// 查找 admin 用户
+	var admin model.User
+	if err := db.Where("username = ?", "admin").First(&admin).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			log.Fatalf("admin 用户不存在，请先启动一次服务自动创建")
+		}
+		log.Fatalf("查询 admin 用户失败: %v", err)
+	}
+
+	// 哈希密码
+	hashed, err := service.HashPassword(newPassword)
+	if err != nil {
+		log.Fatalf("密码哈希失败: %v", err)
+	}
+
+	// 更新密码
+	if err := db.Model(&admin).Update("password", hashed).Error; err != nil {
+		log.Fatalf("更新密码失败: %v", err)
+	}
+	log.Printf("✅ admin 密码已重置为: %s", newPassword)
+
+	// 解锁 admin（如有锁定记录）
+	if err := db.Where("target = ? AND type = ?", "admin", "user").Delete(&model.LoginLockout{}).Error; err != nil {
+		log.Printf("⚠️  解锁 admin 失败（不影响登录）: %v", err)
+	} else {
+		log.Printf("✅ admin 锁定记录已清除")
+	}
+}
+
+// openDatabase 根据配置打开数据库连接
+func openDatabase() (*gorm.DB, error) {
+	dbType := global.CONF.Database.Type
+	var dial gorm.Dialector
+
+	switch dbType {
+	case "sqlite":
+		dbPath := global.CONF.Database.Path
+		dir := path.Dir(dbPath)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("创建数据库目录失败: %w", err)
+		}
+		dial = sqlite.Open(dbPath)
+	case "mysql":
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+			global.CONF.Database.User,
+			global.CONF.Database.Pass,
+			global.CONF.Database.Host,
+			global.CONF.Database.Port,
+			global.CONF.Database.Name,
+		)
+		dial = mysql.Open(dsn)
+	case "postgres":
+		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Shanghai",
+			global.CONF.Database.Host,
+			global.CONF.Database.User,
+			global.CONF.Database.Pass,
+			global.CONF.Database.Name,
+			global.CONF.Database.Port,
+		)
+		dial = postgres.Open(dsn)
+	default:
+		return nil, fmt.Errorf("不支持的数据库类型: %s", dbType)
+	}
+
+	db, err := gorm.Open(dial, &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Warn),
+	})
+	return db, err
+}
+
+// initData 初始化数据
 func initData() {
 	// 自动迁移表结构
 	if err := migrateModels(); err != nil {
@@ -236,7 +344,7 @@ func initDefaultSecuritySettings() {
 		IPWhitelist:            "",
 		IPBlacklist:            "",
 		PasswordExpiryDays:     0,
-		PasswordMinLength:      6,
+		PasswordMinLength:      8,
 		PasswordRequireUppercase: false,
 		PasswordRequireLowercase: false,
 		PasswordRequireDigit:   false,

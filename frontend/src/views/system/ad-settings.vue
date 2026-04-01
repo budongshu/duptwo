@@ -3,8 +3,8 @@
     <!-- 页面标题栏 -->
     <header class="page-header">
       <div class="header-left">
-        <h1 class="page-title">AD域配置</h1>
-        <span class="page-subtitle">Active Directory 域用户认证</span>
+        <h1 class="page-title">{{ t('adSettings.title') }}</h1>
+        <span class="page-subtitle">{{ t('adSettings.subtitle') }}</span>
       </div>
     </header>
 
@@ -16,8 +16,8 @@
           <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </div>
         <div class="enable-text">
-          <div class="enable-title">{{ form.enabled ? 'AD域认证已启用' : 'AD域认证未启用' }}</div>
-          <div class="enable-desc">{{ form.enabled ? '系统登录页面将显示"域账号(AD)"登录选项' : '开启后支持 Active Directory 域用户登录' }}</div>
+          <div class="enable-title">{{ form.enabled ? t('adSettings.enabled') : t('adSettings.disabled') }}</div>
+          <div class="enable-desc">{{ form.enabled ? t('adSettings.enabledDesc') : t('adSettings.disabledDesc') }}</div>
         </div>
       </div>
       <el-switch v-model="form.enabled" size="large" @change="onEnabledChange" />
@@ -30,36 +30,36 @@
       <div class="config-card">
         <div class="config-card-header">
           <div class="config-card-dot" style="background: #005eeb"></div>
-          <span class="config-card-title">连接配置</span>
-          <span class="config-card-badge">服务器</span>
+          <span class="config-card-title">{{ t('adSettings.connection.title') }}</span>
+          <span class="config-card-badge">{{ t('adSettings.connection.badge') }}</span>
         </div>
         <div class="config-card-body">
           <el-form ref="formRef" :model="form" :rules="rules" label-position="top" :disabled="loading">
             <div class="form-grid-2">
               <div class="form-field">
-                <label class="field-label">服务器地址 <span class="required-mark">*</span></label>
-                <el-input v-model="form.server" placeholder="ldap://192.168.1.100 或 192.168.1.100" clearable size="default" class="field-input">
+                <label class="field-label">{{ t('adSettings.connection.server') }} <span class="required-mark">*</span></label>
+                <el-input v-model="form.server" :placeholder="t('adSettings.connection.serverPlaceholder')" clearable size="default" class="field-input">
                   <template #prefix><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></template>
                 </el-input>
               </div>
               <div class="form-field">
-                <label class="field-label">端口 <span class="required-mark">*</span></label>
-                <el-input-number v-model="form.port" :min="1" :max="65535" placeholder="389" style="width: 100%" size="default" />
-                <div class="field-hint">标准LDAP: 389, LDAPS: 636</div>
+                <label class="field-label">{{ t('adSettings.connection.port') }} <span class="required-mark">*</span></label>
+                <el-input-number v-model="form.port" :min="1" :max="65535" :placeholder="t('adSettings.connection.portPlaceholder')" style="width: 100%" size="default" />
+                <div class="field-hint">{{ t('adSettings.connection.portHint') }}</div>
               </div>
             </div>
             <div class="form-field">
-              <label class="field-label">基准DN（Base DN） <span class="required-mark">*</span></label>
-              <el-input v-model="form.base_dn" placeholder="OU=Users,DC=company,DC=com" clearable size="default" class="field-input">
+              <label class="field-label">{{ t('adSettings.connection.baseDn') }} <span class="required-mark">*</span></label>
+              <el-input v-model="form.base_dn" :placeholder="t('adSettings.connection.baseDnPlaceholder')" clearable size="default" class="field-input">
                 <template #prefix><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></template>
               </el-input>
-              <div class="field-hint">用户和组的搜索起点</div>
+              <div class="field-hint">{{ t('adSettings.connection.baseDnHint') }}</div>
             </div>
             <div class="ssl-toggle-row">
               <el-switch v-model="form.use_ssl" size="small" />
               <span class="ssl-label">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                使用 LDAPS 加密连接（SSL/TLS）
+                {{ t('adSettings.connection.useSsl') }}
               </span>
             </div>
           </el-form>
@@ -70,33 +70,32 @@
       <div class="config-card">
         <div class="config-card-header">
           <div class="config-card-dot" style="background: #06b6d4"></div>
-          <span class="config-card-title">认证配置</span>
-          <span class="config-card-badge">安全</span>
+          <span class="config-card-title">{{ t('adSettings.auth.title') }}</span>
+          <span class="config-card-badge">{{ t('adSettings.auth.badge') }}</span>
         </div>
         <div class="config-card-body">
           <el-form ref="formRef2" :model="form" :rules="rules" label-position="top" :disabled="loading">
             <div class="form-field">
-              <label class="field-label">管理账号DN（Bind DN） <span class="required-mark">*</span></label>
-              <el-input v-model="form.bind_dn" placeholder="CN=admin,DC=company,DC=com" clearable size="default" class="field-input">
+              <label class="field-label">{{ t('adSettings.auth.bindDn') }} <span class="required-mark">*</span></label>
+              <el-input v-model="form.bind_dn" :placeholder="t('adSettings.auth.bindDnPlaceholder')" clearable size="default" class="field-input">
                 <template #prefix><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></template>
               </el-input>
-              <div class="field-hint">具有搜索用户权限的管理员账号DN</div>
+              <div class="field-hint">{{ t('adSettings.auth.bindDnHint') }}</div>
             </div>
             <div class="form-field">
-              <label class="field-label">管理账号密码</label>
-              <el-input v-model="form.bind_password" type="password" placeholder="留空则保持原密码不变" show-password clearable size="default" class="field-input">
+              <label class="field-label">{{ t('adSettings.auth.bindPassword') }}</label>
+              <el-input v-model="form.bind_password" type="password" :placeholder="t('adSettings.auth.bindPasswordPlaceholder')" show-password clearable size="default" class="field-input">
                 <template #prefix><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></template>
               </el-input>
-              <div class="field-hint">留空表示不修改密码</div>
+              <div class="field-hint">{{ t('adSettings.auth.bindPasswordHint') }}</div>
             </div>
             <div class="form-field">
-              <label class="field-label">用户搜索过滤器</label>
-              <el-input v-model="form.user_filter" placeholder="(sAMAccountName=%s)" clearable size="default" class="field-input">
+              <label class="field-label">{{ t('adSettings.auth.userFilter') }}</label>
+              <el-input v-model="form.user_filter" :placeholder="t('adSettings.auth.userFilterPlaceholder')" clearable size="default" class="field-input">
                 <template #prefix><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></template>
               </el-input>
               <div class="field-hint">
-                <code>%s</code> 替换为登录用户名。常用：
-                <code>(sAMAccountName=%s)</code>（AD）、<code>(uid=%s)</code>（LDAP）
+                {{ t('adSettings.auth.userFilterHint') }}
               </div>
             </div>
           </el-form>
@@ -107,14 +106,14 @@
       <div class="config-card" :class="{ 'config-card--warn': form.enabled && form.auto_register }">
         <div class="config-card-header">
           <div class="config-card-dot" style="background: #f59e0b"></div>
-          <span class="config-card-title">自动注册</span>
-          <span class="config-card-badge config-card-badge--warn">用户</span>
+          <span class="config-card-title">{{ t('adSettings.autoReg.title') }}</span>
+          <span class="config-card-badge config-card-badge--warn">{{ t('adSettings.autoReg.badge') }}</span>
         </div>
         <div class="config-card-body">
           <div class="auto-reg-row">
             <div class="auto-reg-info">
-              <div class="auto-reg-title">允许AD用户自动注册</div>
-              <div class="auto-reg-desc">首次登录时自动创建本地账号（Source = AD）</div>
+              <div class="auto-reg-title">{{ t('adSettings.autoReg.allowAuto') }}</div>
+              <div class="auto-reg-desc">{{ t('adSettings.autoReg.allowAutoDesc') }}</div>
             </div>
             <el-switch v-model="form.auto_register" :disabled="!form.enabled" size="small" />
           </div>
@@ -123,20 +122,20 @@
             <div class="policy-box">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               <div class="policy-content">
-                <div class="policy-title">自动注册策略</div>
+                <div class="policy-title">{{ t('adSettings.autoReg.policyTitle') }}</div>
                 <ul class="policy-list">
-                  <li>首次AD登录时，系统自动在本地创建用户记录</li>
-                  <li>若本地已有同名用户（Source=LOCAL），则拒绝注册</li>
-                  <li>AD用户密码由域控制器管理，本地不存储</li>
+                  <li>{{ t('adSettings.autoReg.policy1') }}</li>
+                  <li>{{ t('adSettings.autoReg.policy2') }}</li>
+                  <li>{{ t('adSettings.autoReg.policy3') }}</li>
                 </ul>
               </div>
             </div>
             <div class="form-field" style="margin-top: 16px">
-              <label class="field-label">新AD用户的默认角色</label>
-              <el-select v-model="form.default_role_id" placeholder="请选择默认角色" size="default" style="width: 280px">
+              <label class="field-label">{{ t('adSettings.autoReg.defaultRole') }}</label>
+              <el-select v-model="form.default_role_id" :placeholder="t('adSettings.autoReg.defaultRolePlaceholder')" size="default" style="width: 280px">
                 <el-option v-for="role in roles" :key="role.id" :label="role.name + '（' + role.code + '）'" :value="role.id" />
               </el-select>
-              <div class="field-hint">自动注册的AD用户将被授予该角色</div>
+              <div class="field-hint">{{ t('adSettings.autoReg.defaultRoleHint') }}</div>
             </div>
           </div>
         </div>
@@ -147,22 +146,22 @@
         <div class="actions-left">
           <el-button @click="handleTest" :loading="testLoading" :disabled="!form.enabled || !form.server" size="default" class="test-btn">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 2 13 9 20 9"/><path d="M20 14.66V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"/></svg>
-            测试连接
+            {{ t('adSettings.actions.test') }}
           </el-button>
           <!-- 测试结果 -->
           <transition name="result-fade">
             <span v-if="testResult !== null" class="test-result" :class="testResult ? 'result--ok' : 'result--fail'">
               <svg v-if="testResult" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              {{ testResult ? '连接成功' : '连接失败' }}
+              {{ testResult ? t('adSettings.actions.testSuccess') : t('adSettings.actions.testFail') }}
             </span>
           </transition>
         </div>
         <div class="actions-right">
-          <el-button @click="loadConfig" :disabled="loading" size="default">重置</el-button>
+          <el-button @click="loadConfig" :disabled="loading" size="default">{{ t('common.reset') }}</el-button>
           <el-button type="primary" @click="handleSave" :loading="saving" :disabled="!form.enabled" size="default" class="save-btn">
             <svg v-if="!saving" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-            保存配置
+            {{ t('adSettings.actions.save') }}
           </el-button>
         </div>
       </div>
@@ -172,9 +171,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { AdminApi, type ADConfig } from '@/api/admin'
 import { RoleApi } from '@/api/role'
+
+const { t } = useI18n()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -199,9 +201,9 @@ const form = reactive<ADConfig>({
 })
 
 const rules = {
-  server: [{ required: true, message: '请输入AD服务器地址', trigger: 'blur' }],
-  base_dn: [{ required: true, message: '请输入Base DN', trigger: 'blur' }],
-  bind_dn: [{ required: true, message: '请输入管理账号DN', trigger: 'blur' }]
+  server: [{ required: true, message: t('adSettings.rules.serverRequired'), trigger: 'blur' }],
+  base_dn: [{ required: true, message: t('adSettings.rules.baseDnRequired'), trigger: 'blur' }],
+  bind_dn: [{ required: true, message: t('adSettings.rules.bindDnRequired'), trigger: 'blur' }]
 }
 
 const loadConfig = async () => {
@@ -213,7 +215,7 @@ const loadConfig = async () => {
       form.bind_password = '' // 清空密码显示
     }
   } catch (e) {
-    console.error('加载配置失败', e)
+    console.error(t('adSettings.messages.loadFailed'), e)
   } finally {
     loading.value = false
   }
@@ -226,7 +228,7 @@ const loadRoles = async () => {
       roles.value = res.data || []
     }
   } catch (e) {
-    console.error('加载角色列表失败', e)
+    console.error(t('adSettings.messages.rolesFailed'), e)
   }
 }
 
@@ -246,12 +248,12 @@ const handleSave = async () => {
   try {
     const res = await AdminApi.updateADConfig(form)
     if (res.code === 200) {
-      ElMessage.success('AD配置已保存')
+      ElMessage.success(t('adSettings.messages.saveSuccess'))
     } else {
-      ElMessage.error(res.message || '保存失败')
+      ElMessage.error(res.message || t('adSettings.messages.saveFailed'))
     }
   } catch (e: any) {
-    ElMessage.error(e.message || '保存失败')
+    ElMessage.error(e.message || t('adSettings.messages.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -273,13 +275,13 @@ const handleTest = async () => {
     })
     testResult.value = res.code === 200
     if (res.code === 200) {
-      ElMessage.success(res.message || '连接测试成功')
+      ElMessage.success(res.message || t('adSettings.messages.testSuccess'))
     } else {
-      ElMessage.error(res.message || '连接测试失败')
+      ElMessage.error(res.message || t('adSettings.messages.testFailed'))
     }
   } catch (e: any) {
     testResult.value = false
-    ElMessage.error(e.message || '连接测试失败')
+    ElMessage.error(e.message || t('adSettings.messages.testFailed'))
   } finally {
     testLoading.value = false
   }

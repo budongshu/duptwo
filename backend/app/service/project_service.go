@@ -48,6 +48,9 @@ func (s *ProjectService) Create(req dto.ProjectCreateReq) (*model.Project, error
 		Sort:          req.Sort,
 		ProjectPerson: req.ProjectPerson,
 		OpsPerson:     req.OpsPerson,
+		OpsStaffPerson: req.OpsStaffPerson,
+		Solution:      req.Solution,
+		SolutionPerson: req.SolutionPerson,
 		CompanyAddr:   req.CompanyAddr,
 		ProjectPeriod: req.ProjectPeriod,
 		OnsiteStations: onsiteJSON,
@@ -105,6 +108,9 @@ func (s *ProjectService) Update(req dto.ProjectUpdateReq) error {
 	project.Sort = req.Sort
 	project.ProjectPerson = req.ProjectPerson
 	project.OpsPerson = req.OpsPerson
+	project.OpsStaffPerson = req.OpsStaffPerson
+	project.Solution = req.Solution
+	project.SolutionPerson = req.SolutionPerson
 	project.CompanyAddr = req.CompanyAddr
 	project.ProjectPeriod = req.ProjectPeriod
 	project.OnsiteStations = onsiteJSON
@@ -221,6 +227,9 @@ func (s *ProjectService) toProjectResp(p *model.Project, stats *repo.ProjectStat
 		Sort:          p.Sort,
 		ProjectPerson: p.ProjectPerson,
 		OpsPerson:     p.OpsPerson,
+		OpsStaffPerson: p.OpsStaffPerson,
+		Solution:      p.Solution,
+		SolutionPerson: p.SolutionPerson,
 		CompanyAddr:   p.CompanyAddr,
 		ProjectPeriod: p.ProjectPeriod,
 		OnsiteStations: onsiteStations,
@@ -251,6 +260,9 @@ func (s *ProjectService) toProjectRespSimple(p *model.Project) *dto.ProjectResp 
 		Sort:          p.Sort,
 		ProjectPerson: p.ProjectPerson,
 		OpsPerson:     p.OpsPerson,
+		OpsStaffPerson: p.OpsStaffPerson,
+		Solution:      p.Solution,
+		SolutionPerson: p.SolutionPerson,
 		CompanyAddr:   p.CompanyAddr,
 		ProjectPeriod: p.ProjectPeriod,
 		OnsiteStations: onsiteStations,

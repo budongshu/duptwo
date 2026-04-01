@@ -3,8 +3,8 @@
     <!-- 页面标题 -->
     <header class="page-header">
       <div>
-        <h1 class="page-title">操作日志</h1>
-        <p class="page-subtitle">记录用户的所有操作行为</p>
+        <h1 class="page-title">{{ t('audit.operation.title') }}</h1>
+        <p class="page-subtitle">{{ t('audit.operation.subtitle') }}</p>
       </div>
       <div class="header-actions">
         <el-button type="success" @click="handleExport">
@@ -13,69 +13,69 @@
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
-          导出 Excel
+          {{ t('audit.operation.exportExcel') }}
         </el-button>
       </div>
     </header>
 
     <!-- 筛选栏 -->
     <div class="filter-card">
-      <el-input v-model="searchKeyword" placeholder="搜索用户名/资源名称" clearable @keyup.enter="handleSearch" />
-      <el-select v-model="searchAction" placeholder="操作类型" clearable style="width: 120px" @change="handleSearch">
-        <el-option label="查看" value="view" />
-        <el-option label="创建" value="create" />
-        <el-option label="更新" value="update" />
-        <el-option label="删除" value="delete" />
-        <el-option label="导出" value="export" />
+      <el-input v-model="searchKeyword" :placeholder="t('audit.operation.searchPlaceholder')" clearable @keyup.enter="handleSearch" />
+      <el-select v-model="searchAction" :placeholder="t('audit.operation.actionType')" clearable style="width: 120px" @change="handleSearch">
+        <el-option :label="t('audit.operation.action.view')" value="view" />
+        <el-option :label="t('audit.operation.action.create')" value="create" />
+        <el-option :label="t('audit.operation.action.update')" value="update" />
+        <el-option :label="t('audit.operation.action.delete')" value="delete" />
+        <el-option :label="t('audit.operation.action.export')" value="export" />
       </el-select>
-      <el-select v-model="searchResourceType" placeholder="资源类型" clearable style="width: 140px" @change="handleSearch">
-        <el-option label="用户" value="User" />
-        <el-option label="角色" value="Role" />
-        <el-option label="用户组" value="UserGroup" />
-        <el-option label="上传记录" value="UploadRecord" />
-        <el-option label="字段配置" value="FieldConfig" />
+      <el-select v-model="searchResourceType" :placeholder="t('audit.operation.resourceType')" clearable style="width: 140px" @change="handleSearch">
+        <el-option :label="t('audit.operation.resource.User')" value="User" />
+        <el-option :label="t('audit.operation.resource.Role')" value="Role" />
+        <el-option :label="t('audit.operation.resource.UserGroup')" value="UserGroup" />
+        <el-option :label="t('audit.operation.resource.UploadRecord')" value="UploadRecord" />
+        <el-option :label="t('audit.operation.resource.FieldConfig')" value="FieldConfig" />
       </el-select>
       <el-date-picker
         v-model="searchDateRange"
         type="daterange"
-        range-separator="至"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
+        :range-separator="t('common.to')"
+        :start-placeholder="t('common.startDate')"
+        :end-placeholder="t('common.endDate')"
         value-format="YYYY-MM-DD"
         style="width: 300px"
       />
-      <el-button type="primary" @click="handleSearch">查询</el-button>
-      <el-button @click="handleReset">重置</el-button>
+      <el-button type="primary" @click="handleSearch">{{ t('common.search') }}</el-button>
+      <el-button @click="handleReset">{{ t('common.reset') }}</el-button>
     </div>
 
     <!-- 表格 -->
     <div class="table-card">
       <el-table :data="tableData" v-loading="loading" stripe>
-        <el-table-column prop="username" label="用户名" min-width="100" />
-        <el-table-column prop="menuName" label="功能菜单" min-width="140">
+        <el-table-column prop="username" :label="t('audit.operation.username')" min-width="100" />
+        <el-table-column prop="menuName" :label="t('audit.operation.menu')" min-width="140">
           <template #default="{ row }">
             <span class="menu-name">{{ row.menuName || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="action" label="操作" min-width="80" align="center">
+        <el-table-column prop="action" :label="t('audit.operation.action')" min-width="80" align="center">
           <template #default="{ row }">
             <span class="action-badge" :class="getActionClass(row.action)">
               {{ row.actionText }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="resourceType" label="资源类型" min-width="100" align="center">
+        <el-table-column prop="resourceType" :label="t('audit.operation.resourceType')" min-width="100" align="center">
           <template #default="{ row }">
             <span class="type-tag">{{ row.resourceType || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="resourceName" label="资源名称" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="ipAddress" label="IP地址" min-width="120" align="center">
+        <el-table-column prop="resourceName" :label="t('audit.operation.resourceName')" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="ipAddress" :label="t('audit.operation.ipAddress')" min-width="120" align="center">
           <template #default="{ row }">
             <span class="ip-text">{{ row.ipAddress || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="操作时间" min-width="140">
+        <el-table-column prop="createdAt" :label="t('audit.operation.actionTime')" min-width="140">
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
           </template>
@@ -100,10 +100,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, inject } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { OperationLogApi, type OperationLog } from '@/api/audit'
 
-const trackExport = inject<(action?: string) => void>('trackExport')
+const { t } = useI18n()
+const trackExport = inject<(success?: boolean) => void>('trackExport')
 
 const loading = ref(false)
 const tableData = ref<OperationLog[]>([])
@@ -138,7 +140,8 @@ const formatDate = (dateStr: string | undefined) => {
   const day = String(date.getDate()).padStart(2, '0')
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hours}:${minutes}`
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
 const loadData = async () => {
@@ -189,15 +192,15 @@ const handleExport = async () => {
     const link = document.createElement('a')
     const timestamp = new Date().toISOString().slice(0, 10)
     link.href = url
-    link.download = `操作日志_${timestamp}.xlsx`
+    link.download = `${t('audit.operation.fileName')}_${timestamp}.xlsx`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-    ElMessage.success('导出成功')
-    trackExport?.('operation-log')
+    ElMessage.success(t('audit.operation.exportSuccess'))
+    trackExport?.(true)
   } catch (error) {
-    ElMessage.error('导出失败')
+    ElMessage.error(t('audit.operation.exportFailed'))
   }
 }
 

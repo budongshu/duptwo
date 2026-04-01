@@ -432,6 +432,7 @@ type APIKeyResp struct {
 // UploadRecordCreateReq 创建上传记录请求
 type UploadRecordCreateReq struct {
 	DataType    string                 `json:"dataType" validate:"required,max=64"`
+	ProjectID   *uint                  `json:"projectId"`   // 项目ID（可选，可通过 projectName 查找）
 	ProjectName string                 `json:"projectName" validate:"max=128"`
 	DestPath    string                 `json:"destPath" validate:"required,max=512"`
 	FileSize    int64                  `json:"fileSize" validate:"required,min=0"`
@@ -439,6 +440,7 @@ type UploadRecordCreateReq struct {
 	Status      string                 `json:"status" validate:"required,oneof=pending processing completed failed"`
 	Remark      string                 `json:"remark" validate:"max=512"`
 	Data        map[string]interface{} `json:"data"` // 动态字段数据
+	CreatedAt   string                 `json:"createdAt"` // 可选，格式：2006-01-02 或 2006-01-02T15:04:05
 }
 
 // UploadRecordUpdateReq 更新上传记录请求
@@ -467,6 +469,7 @@ type UploadRecordResp struct {
 	ID          uint                  `json:"id"`
 	SerialNo    string                `json:"serialNo"`
 	DataType    string                `json:"dataType"`
+	ProjectID   *uint                 `json:"projectId"`
 	ProjectName string                `json:"projectName"`
 	DestPath    string                `json:"destPath"`
 	FileSize    int64                 `json:"fileSize"`
@@ -486,7 +489,11 @@ type UploadRecordStatisticsResp struct {
 	TodaySize    int64            `json:"todaySize"`
 	TodaySizeStr string           `json:"todaySizeStr"`
 	WeekCount    int64            `json:"weekCount"`
+	WeekSize     int64            `json:"weekSize"`
+	WeekSizeStr  string           `json:"weekSizeStr"`
 	MonthCount   int64            `json:"monthCount"`
+	MonthSize    int64            `json:"monthSize"`
+	MonthSizeStr string           `json:"monthSizeStr"`
 	TotalCount   int64            `json:"totalCount"`
 	TotalSize    int64            `json:"totalSize"`
 	TotalSizeStr string           `json:"totalSizeStr"`
@@ -502,10 +509,11 @@ type StatusCount struct {
 	Count  int64  `json:"count"`
 }
 
-// DataTypeCount 数据类型统计
+// DataTypeCount 数据标签统计
 type DataTypeCount struct {
-	DataType string `json:"dataType"`
-	Count    int64  `json:"count"`
+	DataType  string `json:"dataType"`
+	Count     int64  `json:"count"`
+	TotalSize int64  `json:"totalSize"`
 }
 
 // ProjectCount 项目统计

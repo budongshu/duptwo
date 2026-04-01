@@ -4,7 +4,7 @@
 
 .PHONY: help build build-linux build-docker build-all clean
 .PHONY: run run-dev test fmt lint
-.PHONY: docker-build docker-up docker-down docker-restart
+.PHONY: docker-build docker-up docker-up-mysql docker-up-sqlite docker-up-postgres docker-down docker-restart
 .PHONY: k8s-apply k8s-delete k8s-logs
 .PHONY: swagger-gen
 
@@ -44,11 +44,12 @@ help:
 	@echo "  make swagger-gen     生成 Swagger 文档"
 	@echo ""
 	@echo "=== Docker 部署 ==="
-	@echo "  make docker-up        启动 Docker 服务（MySQL 版）"
-	@echo "  make docker-up-sqlite 启动 Docker 服务（SQLite 版，轻量）"
-	@echo "  make docker-down      停止并删除 Docker 容器"
-	@echo "  make docker-restart   重启 Docker 服务"
-	@echo "  make docker-logs      查看 Docker 日志"
+	@echo "  make docker-up          启动 Docker 服务（MySQL 版）"
+	@echo "  make docker-up-sqlite    启动 Docker 服务（SQLite 版，轻量）"
+	@echo "  make docker-up-postgres  启动 Docker 服务（PostgreSQL 版）"
+	@echo "  make docker-down         停止并删除 Docker 容器"
+	@echo "  make docker-restart      重启 Docker 服务"
+	@echo "  make docker-logs         查看 Docker 日志"
 	@echo ""
 	@echo "=== Kubernetes 部署 ==="
 	@echo "  make k8s-apply        部署到 Kubernetes"
@@ -120,16 +121,21 @@ clean:
 # ========== Docker 部署 ==========
 docker-up:
 	@echo "启动 Docker 服务 (MySQL 版)..."
-	cd $(DOCKER_DIR) && docker compose up -d
+	cd $(DOCKER_DIR) && docker compose -f docker-compose.mysql.yml up -d
 	@echo "服务已启动:"
-	@echo "  Web UI:  http://localhost:8080"
-	@echo "  API:     http://localhost:8080/api"
-	@echo "  Swagger: http://localhost:8080/swagger"
+	@echo "  Web UI:  http://localhost:80"
+	@echo "  API:     http://localhost:80/api"
+	@echo "  Swagger: http://localhost:80/swagger"
 
 docker-up-sqlite:
 	@echo "启动 Docker 服务 (SQLite 版)..."
 	cd $(DOCKER_DIR) && docker compose -f docker-compose.sqlite.yml up -d
-	@echo "服务已启动: http://localhost:8080"
+	@echo "服务已启动: http://localhost:80"
+
+docker-up-postgres:
+	@echo "启动 Docker 服务 (PostgreSQL 版)..."
+	cd $(DOCKER_DIR) && docker compose -f docker-compose.postgres.yml up -d
+	@echo "服务已启动: http://localhost:80"
 
 docker-down:
 	cd $(DOCKER_DIR) && docker compose down

@@ -1,6 +1,9 @@
 import request from './index'
 import type { PageResult } from './index'
 
+// Authorization header helper
+const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token') || ''}` })
+
 // 人员响应
 export interface Personnel {
   id: number
@@ -118,7 +121,8 @@ export namespace PersonnelApi {
     const qs = query.toString()
     const url = (import.meta.env.VITE_API_URL as string || '/api') + '/personnels/export' + (qs ? '?' + qs : '')
     return fetch(url, {
-      credentials: 'include'
+      credentials: 'include',
+      headers: { ...getAuthHeader() }
     }).then(res => {
       if (!res.ok) {
         throw new Error('导出失败')

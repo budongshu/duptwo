@@ -1,0 +1,228 @@
+name: Release v1.0.0
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      db_type:
+        description: 'Database type'
+        required: true
+        default: 'sqlite'
+        type: choice
+        options:
+          - sqlite
+          - mysql
+          - postgres
+
+env:
+  GO_VERSION: '1.23'
+  NODE_VERSION: '20'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/duptwo
+
+jobs:
+  # ============================================================
+  # 构建 Linux amd64 二进制（SQLite 版，可跨平台）
+  # ============================================================
+  build-binary:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Get Go dependencies
+        run: cd backend && go mod download && cd ..
+
+      - name: Build frontend
+        run: cd frontend && npm ci && npm run build && cd ..
+
+      - name: Generate Swagger
+        run: |
+          cd backend
+          go install github.com/swaggo/swag/cmd/swag@v1.16.3
+          swag init --parseInternal --parseDependency ./docs
+          cd ..
+
+      - name: Build Linux binary
+        env:
+          CGO_ENABLED: 1
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          cd backend
+          BUILD_TIME=$(date +'%Y-%m-%d %H:%M:%S')
+          go build -ldflags="-s -w -X datauptwo/global.VERSION=${{ github.ref_name }} -X datauptwo/global.BUILD_TIME=${BUILD_TIME}" \
+            -o ../duptwo-linux-amd64 ./cmd/server/main.go
+          cd ..
+
+      - name: Package release
+        run: |
+          mkdir -p release
+          tar -czf release/duptwo-${{ github.ref_name }}-linux-amd64.tar.gz \
+            duptwo-linux-amd64 \
+            deploy/docker/conf \
+            deploy/docker/docker-compose.yml \
+            deploy/docker/docker-compose.sqlite.yml \
+            deploy/docker/docker-compose.mysql.yml \
+            deploy/docker/docker-compose.postgres.yml \
+            deploy/docker/Dockerfile \
+            deploy/docker/nginx \
+            deploy/deploy.sh
+          mv duptwo-linux-amd64 release/
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: duptwo-binary
+          path: release/
+          retention-days: 30
+
+  # ============================================================
+  # 构建 Docker 镜像（推送到 GitHub Container Registry）
+  # ============================================================
+  build-docker:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha,prefix=
+            type=raw,value=latest,enable=false
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            BUILD_TIME=${{ steps.meta.outputs.created }}
+          outputs: type=docker,dest=/tmp/duptwo.tar
+
+      - name: Upload Docker artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: duptwo-docker
+          path: /tmp/duptwo.tar
+          retention-days: 1
+
+  # ============================================================
+  # 创建 GitHub Release
+  # ============================================================
+  create-release:
+    needs: [build-binary, build-docker]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: duptwo-binary
+          path: release/
+
+      - name: Download Docker artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: duptwo-docker
+          path: release/
+
+      - name: Load Docker image
+        run: docker load --input release/duptwo.tar
+
+      - name: Tag Docker image
+        run: |
+          IMAGE_TAG=${GITHUB_REF#refs/tags/}
+          docker tag ghcr.io/${{ github.repository }}:$IMAGE_TAG ghcr.io/${{ github.repository }}:latest
+          docker push ghcr.io/${{ github.repository }}:$IMAGE_TAG
+          docker push ghcr.io/${{ github.repository }}:latest
+
+      - name: Generate checksums
+        run: |
+          cd release
+          sha256sum *.tar.gz duptwo-linux-amd64 > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          files: |
+            release/*.tar.gz
+            release/duptwo-linux-amd64
+            release/SHA256SUMS
+          generate_release_notes: |
+            ## v${{ github.ref_name }} Release
+
+            ### 📦 下载说明
+
+            **Docker（推荐）：**
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            docker pull ghcr.io/${{ github.repository }}:latest
+            ```
+
+            **Linux 二进制（SQLite）：**
+            ```bash
+            tar -xzf duptwo-${{ github.ref_name }}-linux-amd64.tar.gz
+            cd duptwo-${{ github.ref_name }}-linux-amd64
+            ```
+
+            ### 🗄️ 数据库支持
+            | 数据库 | 适用场景 | 启动命令 |
+            |-------|---------|---------|
+            | SQLite | 开发/小规模 | `docker compose -f docker-compose.sqlite.yml up -d` |
+            | MySQL | 生产环境 | `docker compose -f docker-compose.mysql.yml up -d` |
+            | PostgreSQL | 生产环境 | `docker compose -f docker-compose.postgres.yml up -d` |
+
+            ### 🔑 默认账号
+            - 用户名: `admin`
+            - 密码: `admin123`
+
+            ### ⚠️ 重要提醒
+            生产部署前请务必：
+            1. 修改 `jwt.secret` 为随机字符串
+            2. 修改 `session.secret` 为随机字符串
+            3. 修改默认管理员密码
+            4. 配置 HTTPS

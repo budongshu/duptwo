@@ -28,7 +28,15 @@ func (r *SecuritySettingsRepo) Get() (*model.SecuritySettings, error) {
 }
 
 func (r *SecuritySettingsRepo) Update(settings *model.SecuritySettings) error {
+	if settings.ID == 0 {
+		// 记录不存在，创建新记录
+		return global.DB.Create(settings).Error
+	}
 	return global.DB.Save(settings).Error
+}
+
+func (r *SecuritySettingsRepo) Create(settings *model.SecuritySettings) error {
+	return global.DB.Create(settings).Error
 }
 
 type LoginLockoutRepo struct{}
