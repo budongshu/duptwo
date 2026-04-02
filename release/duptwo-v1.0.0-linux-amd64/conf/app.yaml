@@ -15,7 +15,7 @@ base:
 
 database:
   type: sqlite
-  path: ./data/duptwo.db
+  path: ./data/registry.db
 
 log:
   level: info

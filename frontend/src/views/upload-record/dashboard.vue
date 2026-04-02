@@ -249,43 +249,137 @@
     </main>
 
     <!-- ==================== 筛选抽屉 ==================== -->
-    <el-drawer v-model="filterDrawerVisible" direction="rtl" size="280px">
+    <el-drawer v-model="filterDrawerVisible" direction="rtl" size="320px" :with-header="true">
       <template #header>
-        <div class="drawer-head">
-          <span class="drawer-mode-tag drawer-mode-tag--filter">{{ t('uploadRecord.dashboard.filter') }}</span>
-          <span class="drawer-title-text">{{ t('uploadRecord.dashboard.filterCondition') }}</span>
+        <div class="filter-drawer-header">
+          <div class="filter-drawer-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+            </svg>
+          </div>
+          <span class="filter-drawer-title">{{ t('uploadRecord.dashboard.filterCondition') }}</span>
         </div>
       </template>
-      <div class="filter-drawer-content">
-        <div class="filter-group">
-          <div class="filter-group__title">{{ t('uploadRecord.dashboard.filterTimeRange') }}</div>
-          <div class="time-presets-grid">
-            <button v-for="preset in timePresets" :key="preset.key" class="preset-btn" :class="{ 'is-active': activeTimePreset === preset.key }" @click="setTimePreset(preset.key)">{{ preset.label }}</button>
+
+      <div class="filter-drawer-body">
+        <!-- 时间范围 -->
+        <div class="filter-card">
+          <div class="filter-card-header">
+            <span>时间范围</span>
           </div>
-          <el-date-picker v-model="dateRange" type="daterange" :range-separator="t('common.to')" :start-placeholder="t('common.startDate')" :end-placeholder="t('common.endDate')" value-format="YYYY-MM-DD" :clearable="false" size="small" style="width: 100%" @change="loadStatistics"/>
+          <div class="filter-card-body">
+            <div class="quick-presets">
+              <button
+                v-for="preset in timePresets"
+                :key="preset.key"
+                class="preset-btn"
+                :class="{ 'is-active': activeTimePreset === preset.key }"
+                @click="setTimePreset(preset.key)"
+              >
+                {{ preset.label }}
+              </button>
+            </div>
+            <el-date-picker
+              v-model="dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              value-format="YYYY-MM-DD"
+              :clearable="false"
+              size="small"
+              style="width: 100%"
+              @change="loadStatistics"
+            />
+          </div>
         </div>
-        <div class="filter-group">
-          <div class="filter-group__title">{{ t('uploadRecord.dashboard.filterProjectName') }}</div>
-          <el-select v-model="searchProjectName" :placeholder="t('uploadRecord.dashboard.filterAllProjects')" clearable size="small" @change="handleFilterChange"><el-option v-for="p in projectList" :key="p.code" :label="p.name" :value="p.name" /></el-select>
+
+        <!-- 项目名称 -->
+        <div class="filter-card">
+          <div class="filter-card-header">
+            <span>项目名称</span>
+          </div>
+          <div class="filter-card-body">
+            <el-select
+              v-model="searchProjectName"
+              :placeholder="t('uploadRecord.dashboard.filterAllProjects')"
+              clearable
+              filterable
+              size="small"
+              style="width: 100%"
+              @change="handleFilterChange"
+            >
+              <el-option v-for="p in projectList" :key="p.code" :label="p.name" :value="p.name" />
+            </el-select>
+          </div>
         </div>
-        <div class="filter-group">
-          <div class="filter-group__title">{{ t('uploadRecord.dashboard.filterDiskLabel') }}</div>
-          <el-select v-model="searchDataType" :placeholder="t('uploadRecord.dashboard.filterAllDisk')" clearable size="small" @change="handleFilterChange"><el-option v-for="dt in dataTypeOptions" :key="dt" :label="dt" :value="dt" /></el-select>
+
+        <!-- 磁盘标签 -->
+        <div class="filter-card">
+          <div class="filter-card-header">
+            <span>磁盘标签</span>
+          </div>
+          <div class="filter-card-body">
+            <el-select
+              v-model="searchDataType"
+              :placeholder="t('uploadRecord.dashboard.filterAllDisk')"
+              clearable
+              filterable
+              size="small"
+              style="width: 100%"
+              @change="handleFilterChange"
+            >
+              <el-option v-for="dt in dataTypeOptions" :key="dt" :label="dt" :value="dt" />
+            </el-select>
+          </div>
         </div>
-        <div class="filter-group">
-          <div class="filter-group__title">{{ t('uploadRecord.dashboard.filterUploadStatus') }}</div>
-          <el-select v-model="searchStatus" :placeholder="t('uploadRecord.dashboard.filterAllStatus')" clearable size="small" @change="handleFilterChange">
-            <el-option :label="t('status.completed')" value="completed" /><el-option :label="t('status.processing')" value="processing" /><el-option :label="t('status.pending')" value="pending" /><el-option :label="t('status.failed')" value="failed" />
-          </el-select>
+
+        <!-- 上传状态 -->
+        <div class="filter-card">
+          <div class="filter-card-header">
+            <span>上传状态</span>
+          </div>
+          <div class="filter-card-body">
+            <el-select
+              v-model="searchStatus"
+              :placeholder="t('uploadRecord.dashboard.filterAllStatus')"
+              clearable
+              size="small"
+              style="width: 100%"
+              @change="handleFilterChange"
+            >
+              <el-option :label="t('status.completed')" value="completed" />
+              <el-option :label="t('status.processing')" value="processing" />
+              <el-option :label="t('status.pending')" value="pending" />
+              <el-option :label="t('status.failed')" value="failed" />
+            </el-select>
+          </div>
         </div>
-        <div class="filter-group">
-          <div class="filter-group__title">{{ t('uploadRecord.dashboard.filterUploader') }}</div>
-          <el-select v-model="searchUploader" :placeholder="t('uploadRecord.dashboard.filterAllUploader')" clearable size="small" @change="handleFilterChange"><el-option v-for="u in uploaderOptions" :key="u" :label="u" :value="u" /></el-select>
+
+        <!-- 上传人 -->
+        <div class="filter-card">
+          <div class="filter-card-header">
+            <span>上传人</span>
+          </div>
+          <div class="filter-card-body">
+            <el-select
+              v-model="searchUploader"
+              :placeholder="t('uploadRecord.dashboard.filterAllUploader')"
+              clearable
+              filterable
+              size="small"
+              style="width: 100%"
+              @change="handleFilterChange"
+            >
+              <el-option v-for="u in uploaderOptions" :key="u" :label="u" :value="u" />
+            </el-select>
+          </div>
         </div>
-        <div class="drawer-footer">
-          <el-button @click="resetFilters" size="small">{{ t('uploadRecord.dashboard.resetFilter') }}</el-button>
-          <el-button type="primary" @click="filterDrawerVisible = false" size="small">{{ t('uploadRecord.dashboard.complete') }}</el-button>
-        </div>
+      </div>
+
+      <div class="filter-drawer-footer">
+        <el-button @click="resetFilters" size="small">重置</el-button>
+        <el-button type="primary" size="small" @click="filterDrawerVisible = false">完成</el-button>
       </div>
     </el-drawer>
   </div>
@@ -697,46 +791,97 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); trendChart?.d
 .status-badge.badge--info { background: var(--color-info-bg); color: var(--color-info-text); }
 .status-badge.badge--danger { background: var(--color-danger-bg); color: var(--color-danger-text); }
 .table-empty { padding: 24px; text-align: center; color: var(--color-text-muted); font-size: 12px; }
-.filter-drawer-content { display: flex; flex-direction: column; gap: 18px; }
 
-.drawer-head {
+/* ==================== 筛选抽屉样式 ==================== */
+.filter-drawer-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
+  gap: 10px;
 }
 
-.drawer-mode-tag {
-  font-size: 10px;
-  font-weight: 800;
-  font-family: 'DM Sans', sans-serif;
-  padding: 2px 8px;
-  border-radius: 4px;
-  letter-spacing: 0.5px;
-  background: var(--color-primary-light-9);
-  color: var(--color-primary);
-  border: 1px solid rgba(0, 94, 235, 0.2);
-
-  &--filter {
-    background: var(--color-success-light-9);
-    color: var(--color-success);
-    border-color: rgba(0, 176, 80, 0.2);
-  }
+.filter-drawer-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #409eff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
 }
 
-.drawer-title-text {
-  font-family: 'Manrope', 'DM Sans', sans-serif;
+.filter-drawer-title {
   font-size: 15px;
   font-weight: 700;
   color: var(--color-text-primary);
 }
-.filter-group { display: flex; flex-direction: column; gap: 7px; }
-.filter-group__title { font-size: 11px; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.4px; }
-.filter-group .el-select { width: 100%; }
-.filter-group .el-date-editor { width: 100% !important; }
-.time-presets-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
-.preset-btn { padding: 6px 8px; border: 1.5px solid var(--color-border); background: transparent; border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; color: var(--color-text-secondary); cursor: pointer; transition: all 0.15s ease; }
-.preset-btn:hover { border-color: var(--color-primary); color: var(--color-primary); background: rgba(0,94,235,0.04); }
-.preset-btn.is-active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; font-weight: 600; }
-.drawer-footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--color-border-light); }
+
+.filter-drawer-body {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filter-card {
+  background: #fff;
+  border: 1px solid var(--color-border-light);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.filter-card-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-page-bg);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.filter-card-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quick-presets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.preset-btn {
+  padding: 6px 4px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  &.is-active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+    font-weight: 600;
+  }
+}
+
+.filter-drawer-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border-light);
+}
 </style>

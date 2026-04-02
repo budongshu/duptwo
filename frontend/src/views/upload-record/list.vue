@@ -64,94 +64,142 @@
       </div>
     </header>
 
-    <!-- 导出弹窗 -->
+    <!-- 导出抽屉 -->
     <el-drawer
       v-model="exportDialogVisible"
       direction="rtl"
-      size="440px"
+      size="420px"
       :with-header="true"
       append-to-body
       class="export-drawer"
     >
       <template #header>
-        <div class="drawer-title-inner">
-          <div class="drawer-title-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        <div class="export-drawer-header">
+          <div class="export-drawer-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
           </div>
-          <span class="drawer-title-text">{{ t('uploadRecord.list.exportDialogTitle') }}</span>
+          <div class="export-drawer-head-text">
+            <span class="export-drawer-title">{{ t('uploadRecord.list.exportDialogTitle') }}</span>
+            <span class="export-drawer-sub">选择筛选条件导出数据</span>
+          </div>
         </div>
       </template>
 
-      <div class="export-form">
-        <!-- 摘要预览 -->
-        <div class="export-summary-card" v-if="exportPreviewCount > 0">
-          <div class="summary-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-            </svg>
+      <div class="export-drawer-body">
+        <!-- 预览统计 -->
+        <div class="export-preview-card">
+          <div class="preview-stat">
+            <div class="preview-num">{{ pagination.total }}</div>
+            <div class="preview-label">条记录</div>
           </div>
-          <div class="summary-info">
-            <span class="summary-num">{{ exportPreviewCount }}</span>
-            <span class="summary-label">{{ t('uploadRecord.list.exportRecordsWillExport') }}</span>
+          <div class="preview-divider"></div>
+          <div class="preview-hint-text">
+            <el-icon><InfoFilled /></el-icon>
+            基于当前筛选条件
           </div>
-          <div class="summary-tip">{{ t('uploadRecord.list.exportCurrentFilter') }}</div>
         </div>
 
-        <!-- 筛选条件 -->
-        <div class="export-filter-section">
-          <div class="filter-section-title">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-            {{ t('uploadRecord.list.exportFilterCondition') }}
+        <!-- 快速同步 -->
+        <div class="export-sync-section">
+          <div class="sync-header">
+            <span>快速同步当前筛选</span>
+            <el-switch v-model="syncCurrentFilter" size="small" />
           </div>
-
-          <div class="filter-field">
-            <label class="filter-label">{{ t('uploadRecord.list.filterDiskLabel') }}</label>
-            <el-input v-model="exportForm.dataType" :placeholder="t('uploadRecord.list.filterAllLabels')" clearable size="small" />
+          <div class="sync-active-tags" v-if="syncCurrentFilter">
+            <el-tag v-if="searchDataType" size="small" closable @close="searchDataType = ''; syncFilterToExport()">
+              标签: {{ searchDataType }}
+            </el-tag>
+            <el-tag v-if="searchProjectName" size="small" closable @close="searchProjectName = ''; syncFilterToExport()">
+              项目: {{ searchProjectName }}
+            </el-tag>
+            <el-tag v-if="searchStatus" size="small" closable @close="searchStatus = ''; syncFilterToExport()">
+              {{ getStatusText(searchStatus) }}
+            </el-tag>
+            <el-tag v-if="searchUploader" size="small" closable @close="searchUploader = ''; syncFilterToExport()">
+              上传人: {{ searchUploader }}
+            </el-tag>
+            <el-tag v-if="searchDateRange?.length" size="small" closable @close="searchDateRange = []; syncFilterToExport()">
+              {{ searchDateRange[0] }} ~ {{ searchDateRange[1] }}
+            </el-tag>
           </div>
+        </div>
 
-          <div class="filter-field">
-            <label class="filter-label">{{ t('uploadRecord.list.filterStatus') }}</label>
-            <el-select v-model="exportForm.status" :placeholder="t('uploadRecord.list.filterAllStatuses')" clearable size="small" style="width: 100%">
-              <el-option :label="t('status.pending')" value="pending" />
-              <el-option :label="t('status.processing')" value="processing" />
-              <el-option :label="t('status.completed')" value="completed" />
-              <el-option :label="t('status.failed')" value="failed" />
-            </el-select>
+        <!-- 高级筛选 -->
+        <div class="export-filter-card">
+          <div class="filter-card-header">
+            <el-icon><Filter /></el-icon>
+            <span>自定义筛选</span>
           </div>
-
-          <div class="filter-field">
-            <label class="filter-label">{{ t('uploadRecord.list.filterUploader') }}</label>
-            <el-input v-model="exportForm.uploader" :placeholder="t('uploadRecord.list.filterAllPersonnel')" clearable size="small" />
+          <div class="filter-card-body">
+            <div class="filter-row">
+              <label>磁盘标签</label>
+              <el-input v-model="exportForm.dataType" placeholder="输入标签筛选" clearable size="small" />
+            </div>
+            <div class="filter-row">
+              <label>项目名称</label>
+              <el-select v-model="exportForm.projectName" placeholder="选择项目" clearable filterable size="small" style="width: 100%">
+                <el-option v-for="p in projectList" :key="p.id" :label="p.name" :value="p.name" />
+              </el-select>
+            </div>
+            <div class="filter-row">
+              <label>状态</label>
+              <el-select v-model="exportForm.status" placeholder="选择状态" clearable size="small" style="width: 100%">
+                <el-option label="待处理" value="pending" />
+                <el-option label="处理中" value="processing" />
+                <el-option label="已完成" value="completed" />
+                <el-option label="失败" value="failed" />
+              </el-select>
+            </div>
+            <div class="filter-row">
+              <label>上传人</label>
+              <el-input v-model="exportForm.uploader" placeholder="输入上传人" clearable size="small" />
+            </div>
+            <div class="filter-row">
+              <label>关键词</label>
+              <el-input v-model="exportForm.keyword" placeholder="搜索关键词" clearable size="small" />
+            </div>
+            <div class="filter-row">
+              <label>日期范围</label>
+              <el-date-picker
+                v-model="exportForm.dateRange"
+                type="daterange"
+                range-separator="至"
+                start-placeholder="开始日期"
+                end-placeholder="结束日期"
+                value-format="YYYY-MM-DD"
+                size="small"
+                style="width: 100%"
+              />
+            </div>
           </div>
+        </div>
 
-          <div class="filter-field">
-            <label class="filter-label">{{ t('uploadRecord.list.filterDateRange') }}</label>
-            <el-date-picker
-              v-model="exportForm.dateRange"
-              type="daterange"
-              :range-separator="t('common.to')"
-              :start-placeholder="t('common.startDate')"
-              :end-placeholder="t('common.endDate')"
-              value-format="YYYY-MM-DD"
-              size="small"
-              style="width: 100%"
-            />
+        <!-- 导出字段选择 -->
+        <div class="export-field-card">
+          <div class="filter-card-header">
+            <el-icon><Grid /></el-icon>
+            <span>导出字段</span>
           </div>
-
-          <div class="filter-field">
-            <label class="filter-label">{{ t('uploadRecord.list.filterKeyword') }}</label>
-            <el-input v-model="exportForm.keyword" :placeholder="t('uploadRecord.list.filterKeywordPlaceholder')" clearable size="small" />
+          <div class="field-check-list">
+            <el-checkbox v-model="exportAllFields" @change="handleExportAllChange">全选</el-checkbox>
+            <div class="field-check-grid">
+              <el-checkbox v-for="col in allColumns.filter(c => c.prop !== 'data')" :key="col.prop" v-model="col.visible">
+                {{ col.label }}
+              </el-checkbox>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="export-drawer-foot">
-        <el-button size="small" @click="exportDialogVisible = false">{{ t('uploadRecord.list.exportCancel') }}</el-button>
-        <el-button type="primary" size="small" :loading="exporting" @click="handleExport">
-          <svg v-if="!exporting" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          {{ t('uploadRecord.list.exportBtn') }}
+      <div class="export-drawer-footer">
+        <el-button @click="exportDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="exporting" @click="handleExport">
+          <el-icon v-if="!exporting"><Download /></el-icon>
+          导出 Excel
         </el-button>
       </div>
     </el-drawer>
@@ -552,74 +600,100 @@
     </el-dialog>
 
     <!-- 编辑弹窗 -->
-    <el-dialog v-model="editVisible" width="520px" append-to-body>
+    <el-dialog v-model="editVisible" width="560px" destroy-on-close append-to-body>
       <template #header>
-        <div class="dialog-head">
-          <span class="dialog-mode-tag">{{ t('uploadRecord.list.editDialogTag') }}</span>
-          <span class="dialog-title-text">{{ t('uploadRecord.list.editDialogTitle') }}</span>
+        <div class="edit-dialog-header">
+          <div class="edit-dialog-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </div>
+          <div class="edit-dialog-head-text">
+            <span class="edit-dialog-title">{{ t('uploadRecord.list.editDialogTitle') }}</span>
+            <span class="edit-dialog-sub" v-if="editForm.serialNo">{{ editForm.serialNo }}</span>
+          </div>
         </div>
       </template>
-      <el-form :model="editForm" label-width="80px">
-        <el-form-item :label="t('uploadRecord.list.editStatus')">
-          <el-select v-model="editForm.status" style="width: 100%">
-            <el-option :label="t('status.pending')" value="pending" />
-            <el-option :label="t('status.processing')" value="processing" />
-            <el-option :label="t('status.completed')" value="completed" />
-            <el-option :label="t('status.failed')" value="failed" />
-          </el-select>
-        </el-form-item>
 
-        <!-- 动态字段编辑 -->
-        <el-form-item
-          v-for="col in dynamicColumns"
-          :key="col.code"
-          :label="col.name"
-        >
-          <el-select
-            v-if="col.type === 'select'"
-            v-model="editForm.data[col.code]"
-            style="width: 100%"
-            clearable
-            :placeholder="col.placeholder"
-          >
-            <el-option v-for="opt in col.options" :key="opt" :label="opt" :value="opt" />
-          </el-select>
-          <el-date-picker
-            v-else-if="col.type === 'date'"
-            v-model="editForm.data[col.code]"
-            type="date"
-            value-format="YYYY-MM-DD"
-            style="width: 100%"
-            :placeholder="col.placeholder"
-          />
-          <el-date-picker
-            v-else-if="col.type === 'datetime'"
-            v-model="editForm.data[col.code]"
-            type="datetime"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            style="width: 100%"
-            :placeholder="col.placeholder"
-          />
-          <el-input-number
-            v-else-if="col.type === 'number'"
-            v-model="editForm.data[col.code]"
-            style="width: 100%"
-            :placeholder="col.placeholder"
-          />
-          <el-input
-            v-else
-            v-model="editForm.data[col.code]"
-            :placeholder="col.placeholder"
-          />
-        </el-form-item>
+      <div class="edit-dialog-body">
+        <!-- 基本信息卡片 -->
+        <div class="edit-card">
+          <div class="edit-card-header">
+            <el-icon><Document /></el-icon>
+            <span>基本信息</span>
+          </div>
+          <div class="edit-card-body">
+            <div class="edit-field">
+              <label>状态</label>
+              <el-select v-model="editForm.status" placeholder="选择状态">
+                <el-option label="待处理" value="pending" />
+                <el-option label="处理中" value="processing" />
+                <el-option label="已完成" value="completed" />
+                <el-option label="失败" value="failed" />
+              </el-select>
+            </div>
+            <div class="edit-field">
+              <label>备注</label>
+              <el-input v-model="editForm.remark" type="textarea" :rows="2" placeholder="添加备注信息" />
+            </div>
+          </div>
+        </div>
 
-        <el-form-item :label="t('uploadRecord.list.editRemark')">
-          <el-input v-model="editForm.remark" type="textarea" :rows="3" />
-        </el-form-item>
-      </el-form>
+        <!-- 动态字段卡片 -->
+        <div class="edit-card" v-if="dynamicColumns.length > 0">
+          <div class="edit-card-header">
+            <el-icon><Grid /></el-icon>
+            <span>扩展信息</span>
+          </div>
+          <div class="edit-card-body">
+            <div class="edit-field" v-for="col in dynamicColumns" :key="col.code">
+              <label>{{ col.name }}</label>
+              <el-select
+                v-if="col.type === 'select'"
+                v-model="editForm.data[col.code]"
+                clearable
+                :placeholder="col.placeholder || '请选择'"
+              >
+                <el-option v-for="opt in col.options" :key="opt" :label="opt" :value="opt" />
+              </el-select>
+              <el-date-picker
+                v-else-if="col.type === 'date'"
+                v-model="editForm.data[col.code]"
+                type="date"
+                value-format="YYYY-MM-DD"
+                :placeholder="col.placeholder || '选择日期'"
+              />
+              <el-date-picker
+                v-else-if="col.type === 'datetime'"
+                v-model="editForm.data[col.code]"
+                type="datetime"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                :placeholder="col.placeholder || '选择时间'"
+              />
+              <el-input-number
+                v-else-if="col.type === 'number'"
+                v-model="editForm.data[col.code]"
+                :placeholder="col.placeholder || '输入数字'"
+              />
+              <el-input
+                v-else
+                v-model="editForm.data[col.code]"
+                :placeholder="col.placeholder || '输入内容'"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <template #footer>
-        <el-button @click="editVisible = false">{{ t('uploadRecord.list.editCancel') }}</el-button>
-        <el-button type="primary" :loading="submitting" @click="confirmEdit">{{ t('uploadRecord.list.editSave') }}</el-button>
+        <div class="edit-dialog-footer">
+          <el-button @click="editVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitting" @click="confirmEdit">
+            <el-icon v-if="!submitting"><Select /></el-icon>
+            保存修改
+          </el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -851,6 +925,7 @@
 import { ref, reactive, computed, onMounted, inject } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import { InfoFilled, Filter, Grid, Download } from '@element-plus/icons-vue'
 import { UploadRecordApi, type UploadRecord, type ImportTemplateField, type ImportResultResp } from '@/api/upload-record'
 import { FieldConfigApi, type FieldConfig } from '@/api/field-config'
 import { ProjectApi, type ProjectSimple } from '@/api/project'
@@ -950,10 +1025,8 @@ const updateDynamicColumnsConfig = () => {
 // ==================== 其他状态 ====================
 const loading = ref(false)
 const submitting = ref(false)
-const exporting = ref(false)
 const selectedRows = ref<UploadRecord[]>([])
 const exportDialogVisible = ref(false)
-const exportPreviewCount = ref(0)
 
 // ==================== 批量导入状态 ====================
 const importDialogVisible = ref(false)
@@ -1087,8 +1160,9 @@ const getFieldClass = (col: FieldConfig) => {
   return ''
 }
 
-const editForm = reactive<{ id: number; status: string; remark: string; data: Record<string, any> }>({
+const editForm = reactive<{ id: number; serialNo: string; status: string; remark: string; data: Record<string, any> }>({
   id: 0,
+  serialNo: '',
   status: '',
   remark: '',
   data: {}
@@ -1096,11 +1170,88 @@ const editForm = reactive<{ id: number; status: string; remark: string; data: Re
 
 const exportForm = reactive({
   dataType: '',
+  projectName: '',
   status: '',
   uploader: '',
   dateRange: [] as string[],
   keyword: ''
 })
+
+// 导出相关
+const syncCurrentFilter = ref(true)
+const exportAllFields = ref(true)
+const exporting = ref(false)
+
+const getStatusText = (status: string) => {
+  const map: Record<string, string> = { pending: '待处理', processing: '处理中', completed: '已完成', failed: '失败' }
+  return map[status] || status
+}
+
+// 同步当前筛选条件到导出表单
+const syncFilterToExport = () => {
+  if (syncCurrentFilter.value) {
+    exportForm.dataType = searchDataType.value
+    exportForm.projectName = searchProjectName.value
+    exportForm.status = searchStatus.value
+    exportForm.uploader = searchUploader.value
+    exportForm.dateRange = searchDateRange.value ? [...searchDateRange.value] : []
+    exportForm.keyword = searchKeyword.value
+  }
+}
+
+// 导出字段全选切换
+const handleExportAllChange = (val: boolean) => {
+  allColumns.value.forEach(c => { if (c.prop !== 'data') c.visible = val })
+}
+
+const showExportDialog = () => {
+  // 重置导出表单
+  exportForm.dataType = ''
+  exportForm.projectName = ''
+  exportForm.status = ''
+  exportForm.uploader = ''
+  exportForm.dateRange = []
+  exportForm.keyword = ''
+  exportAllFields.value = true
+  // 同步当前筛选
+  syncFilterToExport()
+  exportDialogVisible.value = true
+}
+
+const handleExport = async () => {
+  exporting.value = true
+  try {
+    const params: any = {}
+    if (exportForm.dataType) params.dataType = exportForm.dataType
+    if (exportForm.projectName) params.projectName = exportForm.projectName
+    if (exportForm.status) params.status = exportForm.status
+    if (exportForm.uploader) params.uploader = exportForm.uploader
+    if (exportForm.keyword) params.keyword = exportForm.keyword
+    if (exportForm.dateRange && exportForm.dateRange.length === 2) {
+      params.startDate = exportForm.dateRange[0]
+      params.endDate = exportForm.dateRange[1]
+    }
+
+    const res = await UploadRecordApi.exportExcel(params)
+    const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const timestamp = new Date().toISOString().slice(0, 10)
+    link.href = url
+    link.download = `上传记录_${timestamp}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    exportDialogVisible.value = false
+    ElMessage.success('导出成功')
+    trackExport?.(true)
+  } catch (error: any) {
+    ElMessage.error(error?.message || '导出失败')
+  } finally {
+    exporting.value = false
+  }
+}
 
 const createForm = reactive({
   dataType: '',
@@ -1227,6 +1378,7 @@ const handleDetail = (row: UploadRecord) => {
 
 const handleEdit = (row: UploadRecord) => {
   editForm.id = row.id
+  editForm.serialNo = row.serialNo
   editForm.status = row.status
   editForm.remark = row.remark
   editForm.data = { ...row.data } || {}
@@ -1365,50 +1517,6 @@ const confirmEdit = async () => {
     ElMessage.error(t('uploadRecord.list.updateFailed'))
   } finally {
     submitting.value = false
-  }
-}
-
-const showExportDialog = () => {
-  exportForm.dataType = searchDataType.value
-  exportForm.status = searchStatus.value
-  exportForm.uploader = searchUploader.value
-  exportForm.dateRange = searchDateRange.value || []
-  exportForm.keyword = searchKeyword.value
-  exportPreviewCount.value = pagination.total
-  exportDialogVisible.value = true
-}
-
-const handleExport = async () => {
-  exporting.value = true
-  try {
-    const params: any = {}
-    if (exportForm.dataType) params.dataType = exportForm.dataType
-    if (exportForm.status) params.status = exportForm.status
-    if (exportForm.uploader) params.uploader = exportForm.uploader
-    if (exportForm.keyword) params.keyword = exportForm.keyword
-    if (exportForm.dateRange && exportForm.dateRange.length === 2) {
-      params.startDate = exportForm.dateRange[0]
-      params.endDate = exportForm.dateRange[1]
-    }
-
-    const res = await UploadRecordApi.exportExcel(params)
-    const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    const timestamp = new Date().toISOString().slice(0, 10)
-    link.href = url
-    link.download = `上传记录_${timestamp}.xlsx`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    exportDialogVisible.value = false
-    // Track export milestone
-    trackExport?.(true)
-  } catch (error) {
-    console.error('Export failed:', error)
-  } finally {
-    exporting.value = false
   }
 }
 
@@ -1901,11 +2009,10 @@ onMounted(() => {
 
 :deep(.export-drawer) {
   .el-drawer__header {
-    padding: 10px 16px;
+    padding: 14px 16px;
     margin-bottom: 0;
     border-bottom: 1px solid var(--color-border-light);
     background: var(--color-surface);
-    align-items: center;
   }
 
   .el-drawer__body {
@@ -1916,127 +2023,188 @@ onMounted(() => {
   }
 }
 
-/* 导出表单 */
-.export-form {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  background: var(--color-surface-2);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-
-  &::-webkit-scrollbar { width: 3px; }
-  &::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 2px; }
-}
-
-/* 摘要卡片 */
-.export-summary-card {
-  background: linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(22,163,74,0.04) 100%);
-  border: 1px solid rgba(34,197,94,0.15);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
+.export-drawer-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 3px;
-    height: 100%;
-    background: var(--color-success);
-    border-radius: 3px 0 0 3px;
-  }
 }
 
-.summary-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  background: rgba(34,197,94,0.12);
-  color: var(--color-success);
+.export-drawer-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #22c55e;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #fff;
   flex-shrink: 0;
 }
 
-.summary-info {
+.export-drawer-head-text {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
-.summary-num {
-  font-family: 'Manrope', monospace;
-  font-size: 22px;
+.export-drawer-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.export-drawer-sub {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.export-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+}
+
+/* 预览统计卡片 */
+.export-preview-card {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.preview-stat {
+  text-align: center;
+}
+
+.preview-num {
+  font-family: 'Manrope', sans-serif;
+  font-size: 28px;
   font-weight: 900;
-  color: var(--color-success);
+  color: #16a34a;
   line-height: 1;
 }
 
-.summary-label {
+.preview-label {
   font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+  color: #16a34a;
+  margin-top: 4px;
 }
 
-.summary-tip {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--color-text-muted);
-  align-self: flex-start;
+.preview-divider {
+  width: 1px;
+  height: 36px;
+  background: rgba(22, 163, 74, 0.2);
 }
 
-/* 筛选区块 */
-.export-filter-section {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.filter-section-title {
+.preview-hint-text {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--color-border-light);
+  font-size: 12px;
+  color: #16a34a;
 
-  svg { color: var(--color-primary); }
+  .el-icon { font-size: 14px; }
 }
 
-.filter-field {
+/* 同步筛选区域 */
+.export-sync-section {
+  background: #fff;
+  border: 1px solid var(--color-border-light);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.sync-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 10px;
+}
+
+.sync-active-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* 筛选卡片 */
+.export-filter-card,
+.export-field-card {
+  background: #fff;
+  border: 1px solid var(--color-border-light);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.filter-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border-light);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-page-bg);
+
+  .el-icon { color: var(--color-primary); }
+}
+
+.filter-card-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filter-row {
   display: flex;
   flex-direction: column;
   gap: 4px;
+
+  label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    letter-spacing: 0.3px;
+  }
 }
 
-.filter-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+/* 字段选择 */
+.field-check-list {
+  padding: 12px 14px;
+
+  .el-checkbox {
+    margin-right: 0;
+    margin-bottom: 8px;
+  }
+}
+
+.field-check-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-top: 8px;
 }
 
 /* 底部 */
-.export-drawer-foot {
+.export-drawer-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 14px 16px;
   background: var(--color-surface);
   border-top: 1px solid var(--color-border-light);
   flex-shrink: 0;
@@ -2725,5 +2893,108 @@ onMounted(() => {
   font-size: 15px;
   font-weight: 700;
   color: var(--color-text-primary);
+}
+
+/* ==================== 编辑弹窗样式 ==================== */
+.edit-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.edit-dialog-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #409eff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.edit-dialog-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.edit-dialog-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.edit-dialog-sub {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-family: 'SF Mono', Monaco, monospace;
+}
+
+.edit-dialog-body {
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.edit-card {
+  background: var(--color-page-bg);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.edit-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid var(--color-border-light);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+
+  .el-icon {
+    color: var(--color-primary);
+  }
+}
+
+.edit-card-body {
+  padding: 16px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    letter-spacing: 0.3px;
+  }
+
+  .el-select,
+  .el-input,
+  .el-date-editor,
+  .el-input-number,
+  .el-textarea {
+    width: 100%;
+  }
+}
+
+.edit-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-light);
 }
 </style>

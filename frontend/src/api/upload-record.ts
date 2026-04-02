@@ -190,13 +190,17 @@ const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('to
       })
     }
     const qs = query.toString()
-    const url = getApiBase() + '/upload-records/export' + (qs ? '?' + qs : '')
+    // 直接使用 /api 前缀，不要重复
+    const url = '/api/upload-records/export' + (qs ? '?' + qs : '')
     return fetch(url, {
       credentials: 'include',
-      headers: { ...getAuthHeader() }
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }
     }).then(res => {
       if (!res.ok) {
-        throw new Error('导出失败')
+        return res.json().then(err => Promise.reject(err)).catch(() => Promise.reject(new Error('导出失败')))
       }
       return res.blob()
     })

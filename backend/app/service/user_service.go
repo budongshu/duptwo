@@ -207,6 +207,10 @@ func (s *UserService) toUserResp(user *model.User) *dto.UserResp {
 
 // ResetPassword 重置用户密码
 func (s *UserService) ResetPassword(userID uint, newPassword string) error {
+	if userID == 0 {
+		return errors.New("用户ID无效")
+	}
+
 	user, err := s.userRepo.GetByID(userID)
 	if err != nil {
 		return errors.New("用户不存在")

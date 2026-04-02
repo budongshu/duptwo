@@ -206,62 +206,11 @@
       </el-tab-pane>
 
       <!-- 密码策略 -->
-      <el-tab-pane :label="t('security.passwordBlock.title')" name="password">
+      <el-tab-pane :label="t('security.passwordBlock.title')" name="password" disabled>
         <div class="config-section">
-          <!-- 密码长度和过期 -->
-          <div class="config-row">
-            <div class="config-label">
-              <el-icon><Key /></el-icon>
-              <span>{{ t('security.passwordBlock.strengthLabel') }}</span>
-            </div>
-            <div class="config-control config-control--inline">
-              <div class="inline-item">
-                <span class="inline-label">{{ t('security.passwordBlock.minLength') }}</span>
-                <el-input-number v-model="form.passwordMinLength" :min="6" :max="128" size="small" controls-position="right" />
-              </div>
-              <div class="inline-item">
-                <span class="inline-label">{{ t('security.passwordBlock.expiry') }}</span>
-                <el-input-number v-model="form.passwordExpiryDays" :min="0" :max="365" size="small" controls-position="right" />
-                <span class="unit">{{ t('common.days') }}</span>
-                <span class="input-hint inline-hint">{{ t('security.passwordBlock.expiryDesc') }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 密码组成规则 -->
-          <div class="config-row config-row--vertical">
-            <div class="config-label">
-              <el-icon><Connection /></el-icon>
-              <span>{{ t('security.passwordBlock.compositionLabel') }}</span>
-            </div>
-            <div class="config-control config-control--full">
-              <div class="checkbox-grid">
-                <el-checkbox v-model="form.passwordRequireUppercase">
-                  {{ t('security.passwordBlock.uppercase') }}
-                  <template #sub>
-                    <span class="checkbox-sub">{{ t('security.passwordBlock.uppercaseDesc') }}</span>
-                  </template>
-                </el-checkbox>
-                <el-checkbox v-model="form.passwordRequireLowercase">
-                  {{ t('security.passwordBlock.lowercase') }}
-                  <template #sub>
-                    <span class="checkbox-sub">{{ t('security.passwordBlock.lowercaseDesc') }}</span>
-                  </template>
-                </el-checkbox>
-                <el-checkbox v-model="form.passwordRequireDigit">
-                  {{ t('security.passwordBlock.digit') }}
-                  <template #sub>
-                    <span class="checkbox-sub">{{ t('security.passwordBlock.digitDesc') }}</span>
-                  </template>
-                </el-checkbox>
-                <el-checkbox v-model="form.passwordRequireSpecial">
-                  {{ t('security.passwordBlock.special') }}
-                  <template #sub>
-                    <span class="checkbox-sub">{{ t('security.passwordBlock.specialDesc') }}</span>
-                  </template>
-                </el-checkbox>
-              </div>
-            </div>
+          <div class="pwd-fixed-notice">
+            <el-icon><InfoFilled /></el-icon>
+            <span>密码要求已固定：至少8位，必须包含大小写字母、数字和特殊字符</span>
           </div>
         </div>
       </el-tab-pane>
@@ -312,7 +261,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Lock, Warning, CircleClose, Guide, Picture, Timer, User, Monitor, Key, Connection, Clock } from '@element-plus/icons-vue'
+import { Lock, Warning, CircleClose, Guide, Picture, Timer, User, Monitor, Key, Connection, Clock, InfoFilled } from '@element-plus/icons-vue'
 import { AdminApi, SecuritySettings } from '@/api/admin'
 import { usePasswordPolicy } from '@/composables/usePasswordPolicy'
 
@@ -660,6 +609,21 @@ onMounted(() => {
   font-size: 12px;
   color: #c0c4cc;
   width: 100%;
+}
+
+/* 密码策略固定提示 */
+.pwd-fixed-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #0369a1;
+
+  .el-icon { font-size: 18px; color: #0ea5e9; }
 }
 
 /* 复选框网格 */

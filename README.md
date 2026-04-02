@@ -70,13 +70,18 @@ docker compose -f docker-compose.postgres.yml up -d
 # 下载 release 包
 wget https://github.com/budongshu/duptwo/releases/download/v1.0.0/duptwo-v1.0.0-linux-amd64.tar.gz
 tar -xzf duptwo-v1.0.0-linux-amd64.tar.gz
-cd duptwo-v1.0.0-linux-amd64
 
-# 修改配置
-vim deploy/docker/conf/app.sqlite.yaml
+# 进入 backend 目录运行（二进制依赖 ./cmd/server/web 读取前端文件）
+cd duptwo/backend
 
-# 启动
-./duptwo --config deploy/docker/conf/app.sqlite.yaml
+# 修改配置（必须修改 JWT Secret 和默认密码）
+vim conf/app.yaml
+
+# 启动（SQLite 模式）
+./duptwo --config conf/app.yaml
+
+# 或指定端口
+./duptwo --config conf/app.yaml --port 8080
 ```
 
 ### 🔨 从源码构建

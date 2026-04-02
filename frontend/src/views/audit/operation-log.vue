@@ -88,10 +88,8 @@
           v-model:page-size="pagination.pageSize"
           :total="pagination.total"
           :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
+          layout="sizes, prev, pager, next"
           background
-          @current-change="loadData"
-          @size-change="loadData"
         />
       </div>
     </div>
@@ -99,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, inject } from 'vue'
+import { ref, reactive, onMounted, inject, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { OperationLogApi, type OperationLog } from '@/api/audit'
@@ -207,6 +205,9 @@ const handleExport = async () => {
 onMounted(() => {
   loadData()
 })
+
+watch(() => pagination.page, () => loadData())
+watch(() => pagination.pageSize, () => { pagination.page = 1; loadData() })
 </script>
 
 <style scoped lang="scss">

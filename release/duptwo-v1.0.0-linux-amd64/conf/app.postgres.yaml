@@ -1,0 +1,58 @@
+# ============================================================
+# duptwo PostgreSQL 生产配置
+# ============================================================
+
+base:
+  mode: prod
+  port: 18421
+  username: admin
+  password: admin123
+  version: v1.0.0
+  language: zh
+  install_dir: ./data
+  serve_web: true
+
+database:
+  type: postgres
+  host: postgres
+  port: 5432
+  user: duptwo
+  pass: duptwo_secure_pass  # ⚠️ 修改为强密码
+  name: duptwo
+  sslmode: disable          # 生产环境建议改为 require 或 verify-full
+  timezone: Asia/Shanghai
+
+log:
+  level: info
+  time_zone: Asia/Shanghai
+  log_name: datauptwo
+  max_backup: 30
+  max_size: 100
+
+session:
+  timeout: 7200
+  secret: CHANGE_THIS_TO_A_LONG_RANDOM_SECRET  # ⚠️ 必须修改
+
+jwt:
+  secret: CHANGE_THIS_TO_A_LONG_RANDOM_SECRET  # ⚠️ 必须修改，32位以上随机字符串
+  expire_hours: 168  # 7天
+
+cors:
+  allow_origins:
+    - "http://localhost"
+    - "https://your-domain.com"  # ⚠️ 修改为你的域名
+  allow_methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  allow_headers:
+    - Origin
+    - Content-Type
+    - Authorization
+    - Accept-Language
+    - X-Submit-Source
+    - X-API-Key
+    - X-Token
+  max_age: 86400

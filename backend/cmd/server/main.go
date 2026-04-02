@@ -360,13 +360,6 @@ func initDefaultSecuritySettings() {
 
 // initDefaultRoles 初始化默认角色
 func initDefaultRoles() {
-	var count int64
-	global.DB.Model(&model.Role{}).Count(&count)
-	if count > 0 {
-		global.AppLogger.Info("Roles already exist, skipping default role creation")
-		return
-	}
-
 	roleRepo := repo.NewRoleRepo()
 
 	permissionsJSON := func(perms []string) string {
@@ -441,10 +434,24 @@ func initDefaultRoles() {
 	}
 
 	for _, role := range roles {
-		if err := roleRepo.Create(&role); err != nil {
-			global.AppLogger.Error("Failed to create default role %s: %v", role.Code, err)
+		// 检查角色是否已存在，如果存在则更新权限
+		existingRole, err := roleRepo.GetByCode(role.Code)
+		if err == nil && existingRole != nil {
+			// 角色已存在，更新权限
+			existingRole.Permissions = role.Permissions
+			existingRole.Description = role.Description
+			if err := roleRepo.Update(existingRole); err != nil {
+				global.AppLogger.Error("Failed to update default role %s: %v", role.Code, err)
+			} else {
+				global.AppLogger.Info("Default role updated: %s", role.Name)
+			}
 		} else {
-			global.AppLogger.Info("Default role created: %s", role.Name)
+			// 角色不存在，创建新角色
+			if err := roleRepo.Create(&role); err != nil {
+				global.AppLogger.Error("Failed to create default role %s: %v", role.Code, err)
+			} else {
+				global.AppLogger.Info("Default role created: %s", role.Name)
+			}
 		}
 	}
 }

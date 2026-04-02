@@ -6,7 +6,7 @@
       class="ta-btn"
       :class="`ta-btn--${action.type || 'default'}`"
       :title="action.label"
-      @click="$emit('action', action.key)"
+      @click="$emit('action', action.key, currentRow)"
     >
       <!-- 查看 -->
       <svg v-if="action.key === 'detail' || action.key === 'view'" class="ta-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -51,7 +51,7 @@
     </button>
 
     <!-- 更多下拉 -->
-    <el-dropdown v-if="overflowActions.length > 0" trigger="click" @command="(key:string) => $emit('action', key)" popper-class="ta-dropdown-popper">
+    <el-dropdown v-if="overflowActions.length > 0" trigger="click" @command="(key:string) => $emit('action', key, currentRow)" popper-class="ta-dropdown-popper">
       <button class="ta-btn ta-btn--more" title="更多">
         <svg class="ta-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
@@ -80,16 +80,20 @@ interface Action {
 const props = withDefaults(defineProps<{
   actions: Action[]
   maxVisible?: number
+  row?: any
 }>(), {
   maxVisible: 5
 })
 
-defineEmits<{
-  action: [key: string]
-}>()
-
 const visibleActions = computed(() => props.actions.slice(0, props.maxVisible))
 const overflowActions = computed(() => props.actions.slice(props.maxVisible))
+
+// Use computed so row is always reactive when props.row changes
+const currentRow = computed(() => props.row)
+
+defineEmits<{
+  action: [key: string, row?: any]
+}>()
 </script>
 
 <style scoped lang="scss">
