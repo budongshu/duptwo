@@ -1,0 +1,31 @@
+# duptwo systemd 服务
+# 安装: sudo ./deploy.sh install
+# 卸载: sudo ./deploy.sh uninstall
+
+[Unit]
+Description=duptwo Data Registry Platform
+Documentation=https://github.com/budongshu/duptwo
+After=network.target
+
+[Service]
+Type=simple
+User={{USER}}
+WorkingDirectory={{WORKDIR}}
+ExecStart={{BINDIR}}/duptwo --config {{CONFDIR}}/app.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# 环境变量（可选）
+Environment="TZ=Asia/Shanghai"
+
+# 安全加固
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{DATADIR}} {{LOGDIR}}
+
+[Install]
+WantedBy=multi-user.target

@@ -12,26 +12,20 @@ wget https://github.com/budongshu/duptwo/releases/download/v1.0.0/duptwo-v1.0.0-
 tar -xzf duptwo-v1.0.0-linux-amd64.tar.gz
 cd duptwo-v1.0.0-linux-amd64
 
-# 2. 创建目录
-mkdir -p data logs
-
-# 3. 修改配置（必读！）
+# 2. 修改配置
 vim conf/app.yaml
 
-# 4. 启动
-./duptwo --config conf/app.yaml
+# 3. 启动
+./ctl.sh start
 ```
 
-### Docker 部署
+### Docker 部署（通用）
+
+如果二进制无法运行（如 glibc 版本问题），使用 Docker：
 
 ```bash
 cd deploy/docker
-
-# SQLite 版（轻量，开发/小规模）
 docker compose -f docker-compose.sqlite.yml up -d
-
-# MySQL 版（生产环境）
-docker compose -f docker-compose.mysql.yml up -d
 ```
 
 ### 启动后访问
@@ -48,7 +42,9 @@ docker compose -f docker-compose.mysql.yml up -d
 ```
 DataRegistry/
 ├── deploy/           # 部署相关
-│   ├── deploy.sh     # 一键部署脚本
+│   ├── DEPLOY.md     # 本文档
+│   ├── ctl.sh        # 服务管理脚本
+│   ├── duptwo.service # systemd 服务文件
 │   ├── docker/       # Docker 配置
 │   ├── kubernetes/   # K8s 配置
 │   └── clients/      # API 客户端示例
@@ -56,6 +52,54 @@ DataRegistry/
 │   └── build-release.sh  # 打包二进制
 └── release/          # 发布产物
     └── duptwo-v1.0.0-linux-amd64.tar.gz
+```
+
+---
+
+## 服务管理
+
+### 方式一：使用 ctl.sh 脚本（推荐）
+
+```bash
+# 启动服务（后台运行）
+./ctl.sh start
+
+# 查看状态
+./ctl.sh status
+
+# 查看日志
+./ctl.sh log
+
+# 跟踪日志
+./ctl.sh log -f
+
+# 停止服务
+./ctl.sh stop
+
+# 重启服务
+./ctl.sh restart
+
+# 调试模式（前台运行）
+./ctl.sh start --no-daemon
+```
+
+### 方式二：systemd 服务（生产环境推荐）
+
+```bash
+# 安装服务（需要 root）
+sudo ./ctl.sh install
+
+# 管理服务
+sudo systemctl start duptwo
+sudo systemctl stop duptwo
+sudo systemctl restart duptwo
+sudo systemctl status duptwo
+
+# 查看日志
+sudo journalctl -u duptwo -f
+
+# 卸载服务
+sudo ./ctl.sh uninstall
 ```
 
 ---
@@ -107,17 +151,14 @@ session:
 
 ```bash
 # 1. 备份
+./ctl.sh stop
 cp -r data data.backup
 
-# 2. 停止
-pkill duptwo
-
-# 3. 替换
-mv duptwo duptwo.old
+# 2. 替换二进制
 cp new-duptwo duptwo
 
-# 4. 重启
-./duptwo --config conf/app.yaml
+# 3. 重启
+./ctl.sh start
 ```
 
 ---
@@ -148,6 +189,15 @@ docker compose -f docker-compose.mysql.yml up -d
 
 ## 常见问题
 
+**glibc 版本不兼容**
+```
+./duptwo: /lib64/libc.so.6: version `GLIBC_2.33' not found
+```
+
+解决方式：
+1. 使用 Docker 部署：`docker compose -f deploy/docker/docker-compose.sqlite.yml up -d`
+2. 在新系统上重新构建：`./scripts/build-release.sh binary --static`（静态编译版）
+
 **端口被占用**
 ```bash
 lsof -i :18421
@@ -155,8 +205,9 @@ lsof -i :18421
 
 **重置系统**
 ```bash
-docker compose -f docker-compose.sqlite.yml down -v
-docker compose -f docker-compose.sqlite.yml up -d
+./ctl.sh stop
+docker compose -f deploy/docker/docker-compose.sqlite.yml down -v
+docker compose -f deploy/docker/docker-compose.sqlite.yml up -d
 ```
 
 ---
