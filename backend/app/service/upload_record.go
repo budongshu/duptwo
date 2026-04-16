@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/xuri/excelize/v2"
@@ -46,7 +47,7 @@ func (s *UploadRecordService) ensureProjectExists(projectName string) (*uint, er
 // Create 创建上传记录
 func (s *UploadRecordService) Create(req dto.UploadRecordCreateReq) (*model.UploadRecord, error) {
 	// 生成流水号
-	serialNo := s.generateSerialNo(req.DataType)
+	serialNo := s.generateSerialNo(req.DiskLabel)
 
 	// 处理动态字段数据
 	dataJSON := ""
@@ -71,11 +72,11 @@ func (s *UploadRecordService) Create(req dto.UploadRecordCreateReq) (*model.Uplo
 
 	record := &model.UploadRecord{
 		SerialNo:    serialNo,
-		DataType:    req.DataType,
+		DiskLabel:   req.DiskLabel,
 		ProjectID:   projectID,
 		ProjectName: req.ProjectName,
 		DestPath:    req.DestPath,
-		FileSize:    req.FileSize,
+		FileSize:    int64(math.Round(req.FileSize)), // float64 四舍五入后转 int64
 		Uploader:    req.Uploader,
 		Status:      req.Status,
 		Remark:      req.Remark,
@@ -85,7 +86,7 @@ func (s *UploadRecordService) Create(req dto.UploadRecordCreateReq) (*model.Uplo
 	// 如果传入了创建时间（批量导入时可选），使用该时间
 	if req.CreatedAt != "" {
 		// 尝试多种日期格式
-		for _, format := range []string{"2006-01-02T15:04:05Z07:00", "2006-01-02 15:04:05", "2006-01-02"} {
+		for _, format := range []string{"2006-01-02", "2006-01-02 15:04:05", "2006-01-02T15:04:05Z07:00"} {
 			if t, err := time.Parse(format, req.CreatedAt); err == nil {
 				record.CreatedAt = t
 				record.UpdatedAt = t
@@ -149,6 +150,11 @@ func (s *UploadRecordService) Update(req dto.UploadRecordUpdateReq) (*model.Uplo
 	record.Status = req.Status
 	record.Remark = req.Remark
 
+	// 上传完成后可补充文件大小
+	if req.FileSize != nil {
+		record.FileSize = *req.FileSize
+	}
+
 	// 处理动态字段数据
 	if req.Data != nil {
 		if b, err := json.Marshal(req.Data); err == nil {
@@ -176,8 +182,16 @@ func (s *UploadRecordService) BatchDelete(ids []uint) error {
 	return s.uploadRecordRepo.BatchDelete(ids)
 }
 
+// BatchUpdateStatus 批量更新记录状态
+func (s *UploadRecordService) BatchUpdateStatus(ids []uint, status string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return s.uploadRecordRepo.BatchUpdateStatus(ids, status)
+}
+
 // GetStatistics 获取统计数据
-func (s *UploadRecordService) GetStatistics(startDate, endDate, projectName, dataType, status, uploader string) (*dto.UploadRecordStatisticsResp, error) {
+func (s *UploadRecordService) GetStatistics(startDate, endDate, projectName, diskLabel, status, uploader string) (*dto.UploadRecordStatisticsResp, error) {
 	now := time.Now()
 	today := now.Format("2006-01-02")
 
@@ -199,13 +213,13 @@ func (s *UploadRecordService) GetStatistics(startDate, endDate, projectName, dat
 	// 构建筛选条件
 	filter := repo.StatisticsFilter{
 		ProjectName: projectName,
-		DataType:    dataType,
+		DiskLabel:   diskLabel,
 		Status:      status,
 		Uploader:    uploader,
 	}
 	filterNoDate := repo.StatisticsFilter{
 		ProjectName: projectName,
-		DataType:    dataType,
+		DiskLabel:   diskLabel,
 		Status:      status,
 		Uploader:    uploader,
 	}
@@ -234,10 +248,10 @@ func (s *UploadRecordService) GetStatistics(startDate, endDate, projectName, dat
 	trend, _ := s.uploadRecordRepo.GetTrend(startDate, endDate, filter)
 	resp.Trend = trend
 
-	// byStatus / byDataType / byProject 应用全部筛选条件（含日期范围）
+	// byStatus / byDiskLabel / byProject 应用全部筛选条件（含日期范围）
 	filterWithDate := repo.StatisticsFilter{
 		ProjectName: projectName,
-		DataType:    dataType,
+		DiskLabel:   diskLabel,
 		StartDate:   startDate,
 		EndDate:    endDate,
 		Status:      status,
@@ -246,8 +260,8 @@ func (s *UploadRecordService) GetStatistics(startDate, endDate, projectName, dat
 	byStatus, _ := s.uploadRecordRepo.CountByStatus(filterWithDate)
 	resp.ByStatus = byStatus
 
-	byDataType, _ := s.uploadRecordRepo.CountByDataType(filterWithDate)
-	resp.ByDataType = byDataType
+	byDiskLabel, _ := s.uploadRecordRepo.CountByDiskLabel(filterWithDate)
+	resp.ByDiskLabel = byDiskLabel
 
 	byProject, _ := s.uploadRecordRepo.CountByProject(filterWithDate)
 	resp.ByProject = byProject
@@ -255,15 +269,56 @@ func (s *UploadRecordService) GetStatistics(startDate, endDate, projectName, dat
 	return resp, nil
 }
 
+// GetDiskLabelStatuses 获取所有磁盘标签及其综合状态（支持日期范围筛选）
+func (s *UploadRecordService) GetDiskLabelStatuses(startDate, endDate string) ([]dto.DiskLabelStatus, error) {
+	// 获取每个标签的总体记录数（带日期筛选）
+	labels, err := s.uploadRecordRepo.GetDiskLabelStatusAll(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	// 获取每个标签下各状态的详细数量（带日期筛选）
+	detail, err := s.uploadRecordRepo.GetDiskLabelStatusDetail(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	// 计算综合状态
+	for i := range labels {
+		d := detail[labels[i].DiskLabel]
+		if d == nil {
+			labels[i].Status = "pending"
+			continue
+		}
+		total := d["pending"] + d["processing"] + d["completed"] + d["failed"]
+		if total == 0 {
+			labels[i].Status = "pending"
+			continue
+		}
+		// 全部完成 → completed
+		if d["failed"] > 0 {
+			// 有失败
+			if d["completed"] > 0 {
+				labels[i].Status = "mixed" // 混合状态
+			} else {
+				labels[i].Status = "failed"
+			}
+		} else if d["completed"] == total {
+			labels[i].Status = "completed"
+		} else {
+			labels[i].Status = "pending" // 处理中或待处理
+		}
+	}
+	return labels, nil
+}
+
 // GetRecent 获取最近上传记录
-func (s *UploadRecordService) GetRecent(limit int, projectName, dataType, status, uploader string) ([]dto.UploadRecordResp, error) {
+func (s *UploadRecordService) GetRecent(limit int, projectName, diskLabel, status, uploader string) ([]dto.UploadRecordResp, error) {
 	if limit < 1 {
 		limit = 10
 	}
 
 	filter := repo.StatisticsFilter{
 		ProjectName: projectName,
-		DataType:    dataType,
+		DiskLabel:   diskLabel,
 		Status:      status,
 		Uploader:    uploader,
 	}
@@ -288,13 +343,13 @@ func (s *UploadRecordService) GetUploaderList() ([]string, error) {
 // GetImportTemplate 获取导入模板字段定义
 func (s *UploadRecordService) GetImportTemplate() *dto.ImportTemplateResp {
 	fields := []dto.ImportTemplateField{
-		{Field: "数据类型", Code: "dataType", Required: true, Type: "text", MaxLength: 64, Example: "原始数据/成果数据"},
+		{Field: "磁盘标签", Code: "diskLabel", Required: true, Type: "text", MaxLength: 64, Example: "原始数据/成果数据"},
 		{Field: "项目名称", Code: "projectName", Required: false, Type: "text", MaxLength: 128, Example: "XX项目"},
 		{Field: "目标路径", Code: "destPath", Required: true, Type: "text", MaxLength: 512, Example: "/data/output/2025"},
 		{Field: "文件大小(字节)", Code: "fileSize", Required: true, Type: "number", MaxLength: 0, Example: "1048576"},
 		{Field: "上传人", Code: "uploader", Required: true, Type: "text", MaxLength: 64, Example: "张三"},
 		{Field: "上传状态", Code: "status", Required: true, Type: "select", Options: "pending,processing,completed,failed", MaxLength: 0, Example: "pending（待处理）/processing（处理中）/completed（已完成）/failed（失败）"},
-		{Field: "创建时间", Code: "createdAt", Required: false, Type: "date", MaxLength: 0, Example: "2025-01-15"},
+		{Field: "创建时间", Code: "createdAt", Required: false, Type: "date", MaxLength: 0, Example: "2025-01-15 10:30:00（文本格式，不可用日期格式）"},
 		{Field: "备注", Code: "remark", Required: false, Type: "text", MaxLength: 512, Example: "这是一批测试数据"},
 	}
 	return &dto.ImportTemplateResp{
@@ -349,8 +404,8 @@ func (s *UploadRecordService) ImportRecords(rows []map[string]string) *dto.Impor
 		}
 
 		// 必填字段校验
-		if v := row["dataType"]; v == "" {
-			result.FailRows = append(result.FailRows, dto.ImportFailRow{Row: rowNum, Data: string(serialized), Reason: "数据类型（dataType）不能为空"})
+		if v := row["diskLabel"]; v == "" {
+			result.FailRows = append(result.FailRows, dto.ImportFailRow{Row: rowNum, Data: string(serialized), Reason: "磁盘标签（diskLabel）不能为空"})
 			continue
 		}
 		if v := row["destPath"]; v == "" {
@@ -366,15 +421,22 @@ func (s *UploadRecordService) ImportRecords(rows []map[string]string) *dto.Impor
 			continue
 		}
 
-		// 解析文件大小
+		// 解析文件大小（支持整数和浮点数，统一四舍五入）
 		var fileSize int64
 		if v := row["fileSize"]; v != "" {
-			var parsed int
-			if _, err := fmt.Sscanf(v, "%d", &parsed); err != nil {
-				result.FailRows = append(result.FailRows, dto.ImportFailRow{Row: rowNum, Data: string(serialized), Reason: fmt.Sprintf("文件大小（fileSize）格式错误，无法解析为数字: %s", v)})
-				continue
+			// 先尝试解析为 float64，再四舍五入转为 int64
+			var parsedFloat float64
+			if _, err := fmt.Sscanf(v, "%f", &parsedFloat); err != nil {
+				// 尝试解析为整数
+				var parsedInt int64
+				if _, err := fmt.Sscanf(v, "%d", &parsedInt); err != nil {
+					result.FailRows = append(result.FailRows, dto.ImportFailRow{Row: rowNum, Data: string(serialized), Reason: fmt.Sprintf("文件大小（fileSize）格式错误，无法解析为数字: %s", v)})
+					continue
+				}
+				fileSize = parsedInt
+			} else {
+				fileSize = int64(math.Round(parsedFloat)) // 四舍五入
 			}
-			fileSize = int64(parsed)
 		}
 		if fileSize <= 0 {
 			result.FailRows = append(result.FailRows, dto.ImportFailRow{Row: rowNum, Data: string(serialized), Reason: "文件大小（fileSize）必须大于0"})
@@ -390,22 +452,38 @@ func (s *UploadRecordService) ImportRecords(rows []map[string]string) *dto.Impor
 
 		// 构建创建请求（传入预查好的 ProjectID）
 		req := dto.UploadRecordCreateReq{
-			DataType:    row["dataType"],
+			DiskLabel:   row["diskLabel"],
 			ProjectID:   validProjectIDs[row["projectName"]], // 预查好的项目ID（可能为 nil）
 			ProjectName: row["projectName"],
 			DestPath:    row["destPath"],
-			FileSize:    fileSize,
+			FileSize:    float64(fileSize), // int64 转 float64 兼容 DTO
 			Uploader:    row["uploader"],
 			Status:      status,
 			Remark:      row["remark"],
 		}
 
-		// 解析可选的创建时间（格式: 2006-01-02 或 2006-01-02 15:04:05）
+		// 解析可选的创建时间（支持多种日期格式）
 		if createdAtStr := row["createdAt"]; createdAtStr != "" {
-			// 尝试多种日期格式，解析成功后转为字符串传给 service
-			for _, format := range []string{"2006-01-02", "2006-01-02 15:04:05", "2006/01/02", "01/02/2006"} {
+			formats := []string{
+				"2006-01-02",
+				"2006-01-02 15:04:05",
+				"2006/01/02",
+				"2006/01/02 15:04:05",
+				"2006/1/2 15:04",
+				"2006-1-2 15:04",
+				"01/02/2006",
+				"1/2/2006",
+				"2006/1/2",
+				"2006-1-2",
+				"1/2/2006 15:04",
+				"01/02/2006 15:04:05",
+				"2006-01-02T15:04:05Z07:00",
+				"2006-01-02T15:04:05",
+				"2006-01-02T15:04",
+			}
+			for _, format := range formats {
 				if t, err := time.Parse(format, createdAtStr); err == nil {
-					req.CreatedAt = t.Format("2006-01-02")
+					req.CreatedAt = t.Format("2006-01-02 15:04:05")
 					break
 				}
 			}
@@ -483,7 +561,7 @@ func (s *UploadRecordService) Export(req dto.UploadRecordListReq) ([]byte, error
 		// 序号
 		f.SetCellValue(sheet, fmt.Sprintf("A%d", row), i+1)
 		f.SetCellValue(sheet, fmt.Sprintf("B%d", row), resp.SerialNo)
-		f.SetCellValue(sheet, fmt.Sprintf("C%d", row), resp.DataType)
+		f.SetCellValue(sheet, fmt.Sprintf("C%d", row), resp.DiskLabel)
 		f.SetCellValue(sheet, fmt.Sprintf("D%d", row), resp.ProjectName)
 		f.SetCellValue(sheet, fmt.Sprintf("E%d", row), resp.DestPath)
 		f.SetCellValue(sheet, fmt.Sprintf("F%d", row), resp.FileSizeStr)
@@ -532,7 +610,7 @@ func (s *UploadRecordService) Export(req dto.UploadRecordListReq) ([]byte, error
 }
 
 // generateSerialNo 生成8位UUID流水号
-func (s *UploadRecordService) generateSerialNo(dataType string) string {
+func (s *UploadRecordService) generateSerialNo(diskLabel string) string {
 	// 格式：8位小写字母+数字随机字符
 	const charset = "0123456789abcdefghijklmnopqrstuvwxyz"
 	var rnd [8]byte
@@ -578,7 +656,7 @@ func (s *UploadRecordService) toRecordResp(record *model.UploadRecord) dto.Uploa
 	return dto.UploadRecordResp{
 		ID:          record.ID,
 		SerialNo:    record.SerialNo,
-		DataType:    record.DataType,
+		DiskLabel:   record.DiskLabel,
 		ProjectID:   record.ProjectID,
 		ProjectName: record.ProjectName,
 		DestPath:    record.DestPath,

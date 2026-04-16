@@ -12,6 +12,8 @@ base:
   language: zh
   install_dir: ./data
   serve_web: true
+  # web_root: 自动推导（开发时为 ./cmd/server/web，release 时为 ./web）
+  # 如需手动指定，可设置绝对路径或相对于配置文件的路径
 
 database:
   type: sqlite
@@ -33,6 +35,8 @@ cors:
     - "http://localhost"
     - "http://localhost:8080"
     - "http://localhost:4004"
+    - "http://duptwo.ecarxmap.com"
+    - "https://duptwo.ecarxmap.com"
   allow_methods:
     - GET
     - POST

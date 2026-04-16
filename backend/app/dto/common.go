@@ -248,6 +248,12 @@ type BatchDeleteReq struct {
 	IDs []uint `json:"ids" validate:"required,min=1"`
 }
 
+// BatchUpdateStatusReq 批量更新状态请求
+type BatchUpdateStatusReq struct {
+	IDs    []uint `json:"ids" validate:"required,min=1"`
+	Status string `json:"status" validate:"required,oneof=pending processing completed failed"`
+}
+
 // BatchOperationResult 批量操作结果
 type BatchOperationResult struct {
 	Total     int      `json:"total"`
@@ -332,7 +338,7 @@ type StatisticsReq struct {
 	EndDate     string `form:"endDate"`
 	GroupBy     string `form:"groupBy"` // day/week/month
 	ProjectName string `form:"projectName"`
-	DataType    string `form:"dataType"`
+	DiskLabel   string `form:"diskLabel"`
 	Status      string `form:"status"`
 	Uploader    string `form:"uploader"`
 }
@@ -431,16 +437,16 @@ type APIKeyResp struct {
 
 // UploadRecordCreateReq 创建上传记录请求
 type UploadRecordCreateReq struct {
-	DataType    string                 `json:"dataType" validate:"required,max=64"`
+	DiskLabel   string                 `json:"diskLabel" validate:"required,max=64"`
 	ProjectID   *uint                  `json:"projectId"`   // 项目ID（可选，可通过 projectName 查找）
 	ProjectName string                 `json:"projectName" validate:"max=128"`
 	DestPath    string                 `json:"destPath" validate:"required,max=512"`
-	FileSize    int64                  `json:"fileSize" validate:"required,min=0"`
+	FileSize    float64                `json:"fileSize" validate:"required,min=0"` // 使用 float64 兼容 Excel 导出的浮点数
 	Uploader    string                 `json:"uploader" validate:"required,max=64"`
 	Status      string                 `json:"status" validate:"required,oneof=pending processing completed failed"`
 	Remark      string                 `json:"remark" validate:"max=512"`
 	Data        map[string]interface{} `json:"data"` // 动态字段数据
-	CreatedAt   string                 `json:"createdAt"` // 可选，格式：2006-01-02 或 2006-01-02T15:04:05
+	CreatedAt   string                `json:"createdAt"` // 可选，创建时间，格式: 2006-01-02
 }
 
 // UploadRecordUpdateReq 更新上传记录请求
@@ -448,14 +454,15 @@ type UploadRecordUpdateReq struct {
 	ID          uint                   `json:"id" validate:"required"`
 	Status      string                 `json:"status" validate:"required,oneof=pending processing completed failed"`
 	Remark      string                 `json:"remark" validate:"max=512"`
-	Data        map[string]interface{} `json:"data"` // 动态字段数据
+	FileSize    *int64                `json:"fileSize"`    // 可选，上传完成后补充文件大小
+	Data        map[string]interface{} `json:"data"`       // 动态字段数据
 }
 
 // UploadRecordListReq 上传记录列表请求
 type UploadRecordListReq struct {
 	Page       int    `form:"page" validate:"min=1"`
 	PageSize   int    `form:"pageSize" validate:"min=1,max=100"`
-	DataType   string `form:"dataType"`
+	DiskLabel   string `form:"diskLabel"`
 	ProjectName string `form:"projectName"`
 	Status     string `form:"status"`
 	Uploader   string `form:"uploader"`
@@ -468,7 +475,7 @@ type UploadRecordListReq struct {
 type UploadRecordResp struct {
 	ID          uint                  `json:"id"`
 	SerialNo    string                `json:"serialNo"`
-	DataType    string                `json:"dataType"`
+	DiskLabel   string                `json:"diskLabel"`
 	ProjectID   *uint                 `json:"projectId"`
 	ProjectName string                `json:"projectName"`
 	DestPath    string                `json:"destPath"`
@@ -499,7 +506,7 @@ type UploadRecordStatisticsResp struct {
 	TotalSizeStr string           `json:"totalSizeStr"`
 	Trend        []DailyTrend     `json:"trend"`
 	ByStatus     []StatusCount    `json:"byStatus"`
-	ByDataType   []DataTypeCount  `json:"byDataType"`
+	ByDiskLabel   []DiskLabelCount  `json:"byDiskLabel"`
 	ByProject    []ProjectCount   `json:"byProject"`
 }
 
@@ -509,9 +516,9 @@ type StatusCount struct {
 	Count  int64  `json:"count"`
 }
 
-// DataTypeCount 数据标签统计
-type DataTypeCount struct {
-	DataType  string `json:"dataType"`
+// DiskLabelCount 磁盘标签统计
+type DiskLabelCount struct {
+	DiskLabel  string `json:"diskLabel"`
 	Count     int64  `json:"count"`
 	TotalSize int64  `json:"totalSize"`
 }
@@ -528,6 +535,13 @@ type DailyTrend struct {
 	Date      string `json:"date"`
 	Count     int64  `json:"count"`
 	TotalSize int64  `json:"totalSize"`
+}
+
+// DiskLabelStatus 磁盘标签状态
+type DiskLabelStatus struct {
+	DiskLabel string `json:"diskLabel"` // 磁盘标签名称
+	Count     int64  `json:"count"`     // 该标签的记录总数
+	Status    string `json:"status"`    // 综合状态: completed/failed/mixed/pending
 }
 
 // ============ 批量导入相关 ============

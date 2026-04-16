@@ -22,6 +22,10 @@ type ProjectCreateReq struct {
 	ProjectPerson string           `json:"projectPerson"`    // 项目人员
 	OpsPerson     string           `json:"opsPerson"`       // 运维人员
 	OpsStaffPerson string          `json:"opsStaffPerson"`  // 运营人员
+	DeveloperPerson string           `json:"developerPerson"`    // 开发人员
+	TesterPerson    string           `json:"testerPerson"`     // 测试人员
+	BusinessPerson  string           `json:"businessPerson"`   // 商务人员
+	CompliancePerson string          `json:"compliancePerson"`  // 合规专员
 	Solution      string           `json:"solution"`        // 解决方案描述
 	SolutionPerson string          `json:"solutionPerson"`  // 解决方案人员
 	CompanyAddr   string           `json:"companyAddr"`    // 公司地点
@@ -41,6 +45,10 @@ type ProjectUpdateReq struct {
 	ProjectPerson string           `json:"projectPerson"`    // 项目人员
 	OpsPerson     string           `json:"opsPerson"`       // 运维人员
 	OpsStaffPerson string          `json:"opsStaffPerson"`  // 运营人员
+	DeveloperPerson string           `json:"developerPerson"`    // 开发人员
+	TesterPerson    string           `json:"testerPerson"`     // 测试人员
+	BusinessPerson  string           `json:"businessPerson"`   // 商务人员
+	CompliancePerson string          `json:"compliancePerson"`  // 合规专员
 	Solution      string           `json:"solution"`        // 解决方案描述
 	SolutionPerson string          `json:"solutionPerson"`  // 解决方案人员
 	CompanyAddr   string           `json:"companyAddr"`    // 公司地点
@@ -69,6 +77,10 @@ type ProjectResp struct {
 	ProjectPerson string           `json:"projectPerson"`    // 项目人员
 	OpsPerson     string           `json:"opsPerson"`       // 运维人员
 	OpsStaffPerson string          `json:"opsStaffPerson"`  // 运营人员
+	DeveloperPerson string           `json:"developerPerson"`    // 开发人员
+	TesterPerson    string           `json:"testerPerson"`     // 测试人员
+	BusinessPerson  string           `json:"businessPerson"`   // 商务人员
+	CompliancePerson string          `json:"compliancePerson"`  // 合规专员
 	Solution      string           `json:"solution"`        // 解决方案描述
 	SolutionPerson string          `json:"solutionPerson"`  // 解决方案人员
 	CompanyAddr   string           `json:"companyAddr"`     // 公司地点

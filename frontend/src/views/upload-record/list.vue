@@ -91,15 +91,31 @@
 
       <div class="export-drawer-body">
         <!-- 预览统计 -->
-        <div class="export-preview-card">
+        <div class="export-preview-card" :class="{ 'is-loading': exportPreviewLoading }">
           <div class="preview-stat">
-            <div class="preview-num">{{ pagination.total }}</div>
+            <div class="preview-num">{{ exportPreviewCount.toLocaleString() }}</div>
             <div class="preview-label">条记录</div>
           </div>
           <div class="preview-divider"></div>
-          <div class="preview-hint-text">
-            <el-icon><InfoFilled /></el-icon>
-            基于当前筛选条件
+          <div class="preview-right">
+            <div class="preview-hint-text">
+              <el-icon><InfoFilled /></el-icon>
+              <span v-if="syncCurrentFilter">已同步当前筛选</span>
+              <span v-else-if="!exportForm.diskLabel && !exportForm.projectName && !exportForm.status && !exportForm.uploader && !exportForm.keyword && !exportForm.dateRange?.length">全部记录</span>
+              <span v-else>已应用筛选条件</span>
+            </div>
+            <div class="preview-filter-tags" v-if="!syncCurrentFilter">
+              <span class="preview-tag" v-if="exportForm.diskLabel">标签</span>
+              <span class="preview-tag" v-if="exportForm.projectName">项目</span>
+              <span class="preview-tag" v-if="exportForm.status">状态</span>
+              <span class="preview-tag" v-if="exportForm.uploader">上传人</span>
+              <span class="preview-tag" v-if="exportForm.keyword">关键词</span>
+              <span class="preview-tag" v-if="exportForm.dateRange?.length">日期</span>
+            </div>
+            <el-button class="preview-refresh-btn" size="small" :loading="exportPreviewLoading" @click="refreshExportPreview">
+              <el-icon v-if="!exportPreviewLoading"><Refresh /></el-icon>
+              刷新
+            </el-button>
           </div>
         </div>
 
@@ -110,8 +126,8 @@
             <el-switch v-model="syncCurrentFilter" size="small" />
           </div>
           <div class="sync-active-tags" v-if="syncCurrentFilter">
-            <el-tag v-if="searchDataType" size="small" closable @close="searchDataType = ''; syncFilterToExport()">
-              标签: {{ searchDataType }}
+            <el-tag v-if="searchDiskLabel" size="small" closable @close="searchDiskLabel = ''; syncFilterToExport()">
+              标签: {{ searchDiskLabel }}
             </el-tag>
             <el-tag v-if="searchProjectName" size="small" closable @close="searchProjectName = ''; syncFilterToExport()">
               项目: {{ searchProjectName }}
@@ -137,7 +153,7 @@
           <div class="filter-card-body">
             <div class="filter-row">
               <label>磁盘标签</label>
-              <el-input v-model="exportForm.dataType" placeholder="输入标签筛选" clearable size="small" />
+              <el-input v-model="exportForm.diskLabel" placeholder="输入标签筛选" clearable size="small" />
             </div>
             <div class="filter-row">
               <label>项目名称</label>
@@ -205,7 +221,7 @@
     </el-drawer>
 
     <!-- 批量导入弹窗 -->
-    <el-dialog v-model="importDialogVisible" width="700px" destroy-on-close append-to-body class="import-dialog">
+    <el-dialog v-model="importDialogVisible" width="640px" destroy-on-close append-to-body class="import-dialog">
       <template #header>
         <div class="diag-head">
           <div class="diag-head-icon">
@@ -224,50 +240,188 @@
 
       <div class="import-body">
 
-        <!-- 三步骤卡片 -->
-        <div class="step-row">
-          <div class="step-card">
-            <div class="step-header">
-              <span class="step-num">1</span>
-              <span class="step-name">{{ t('uploadRecord.list.step1DownloadTemplate') }}</span>
+        <!-- 横向步骤条 -->
+        <div class="stepper">
+          <div class="step-item" :class="{ 'step-item--active': activeImportStep === 1, 'step-item--done': activeImportStep > 1 }">
+            <div class="step-dot">
+              <svg v-if="activeImportStep > 1" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              <span v-else>1</span>
             </div>
-            <div class="step-desc">{{ t('uploadRecord.list.step1Desc') }}</div>
-            <el-button class="step-btn" size="small" :loading="downloadingTemplate" @click="handleDownloadTemplate">{{ t('uploadRecord.list.downloadXlsx') }}</el-button>
+            <span class="step-label">{{ t('uploadRecord.list.step1DownloadTemplate') }}</span>
+          </div>
+          <div class="step-line" :class="{ 'step-line--active': activeImportStep > 1 }"></div>
+          <div class="step-item" :class="{ 'step-item--active': activeImportStep === 2, 'step-item--done': activeImportStep > 2 }">
+            <div class="step-dot">
+              <svg v-if="activeImportStep > 2" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              <span v-else>2</span>
+            </div>
+            <span class="step-label">{{ t('uploadRecord.list.step2UploadFile') }}</span>
+          </div>
+          <div class="step-line" :class="{ 'step-line--active': activeImportStep > 2 }"></div>
+          <div class="step-item" :class="{ 'step-item--active': activeImportStep === 3 }">
+            <div class="step-dot">
+              <span>3</span>
+            </div>
+            <span class="step-label">{{ t('uploadRecord.list.step3ConfirmImport') }}</span>
+          </div>
+        </div>
+
+        <!-- 步骤内容区 -->
+        <div class="step-content">
+          <!-- Step 1: 下载模板 -->
+          <div class="step-panel" v-if="activeImportStep === 1">
+            <div class="step-panel__icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+            <p class="step-panel__desc">{{ t('uploadRecord.list.step1Desc') }}</p>
+            <el-button class="step-panel__btn" :loading="downloadingTemplate" @click="handleDownloadTemplate">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              {{ t('uploadRecord.list.downloadXlsx') }}
+            </el-button>
+            <button class="step-panel__next" @click="activeImportStep = 2">
+              {{ t('uploadRecord.list.nextStep') || '下一步' }}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
           </div>
 
-          <div class="step-arrow">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-
-          <div class="step-card">
-            <div class="step-header">
-              <span class="step-num">2</span>
-              <span class="step-name">{{ t('uploadRecord.list.step2UploadFile') }}</span>
-            </div>
-            <div class="step-desc">{{ t('uploadRecord.list.step2Desc') }}</div>
-            <el-upload ref="uploadRef" class="step-upload" action="#" :auto-upload="false" :limit="1" accept=".xlsx" :on-change="handleFileChange" :on-remove="handleFileRemove" :file-list="fileList">
-              <el-button size="small" plain>{{ t('uploadRecord.list.selectFile') }}</el-button>
+          <!-- Step 2: 上传文件 -->
+          <div class="step-panel" v-if="activeImportStep === 2">
+            <!-- 统一上传区：始终渲染一个 el-upload -->
+            <el-upload
+              ref="uploadRef"
+              class="drop-zone"
+              action="#"
+              :auto-upload="false"
+              :limit="1"
+              accept=".xlsx"
+              :on-change="handleFileChange"
+              :on-remove="handleFileRemove"
+              :file-list="fileList"
+              :drag="!selectedFile"
+            >
+              <!-- 无文件：显示拖拽区 -->
+              <div v-if="!selectedFile" class="drop-zone__inner">
+                <div class="drop-zone__icon">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <p class="drop-zone__text">{{ t('uploadRecord.list.dropHint') || '将 xlsx 文件拖到此处，或' }}</p>
+                <span class="drop-zone__link">{{ t('uploadRecord.list.selectFile') }}</span>
+              </div>
             </el-upload>
-            <div v-if="previewLoading" class="preview-hint loading">{{ t('uploadRecord.list.parsingFile') }}</div>
-            <div v-else-if="previewRowCount !== null" class="preview-hint">{{ t('uploadRecord.list.recognizedRows', [previewRowCount]) }}</div>
-          </div>
 
-          <div class="step-arrow">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-
-          <div class="step-card">
-            <div class="step-header">
-              <span class="step-num">3</span>
-              <span class="step-name">{{ t('uploadRecord.list.step3ConfirmImport') }}</span>
+            <!-- 有文件：显示文件药片 + 替换按钮 -->
+            <div v-if="selectedFile" class="file-actions">
+              <div class="file-chip">
+                <div class="file-chip__icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <div class="file-chip__info">
+                  <span class="file-chip__name">{{ selectedFile.name }}</span>
+                  <span class="file-chip__size">{{ (selectedFile.size / 1024).toFixed(1) }} KB</span>
+                </div>
+                <button class="file-chip__remove" @click="handleFileRemove" :title="t('uploadRecord.list.removeFile')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <!-- 点击触发隐藏的 file input 替换文件 -->
+              <button class="replace-btn" @click="triggerFileReplace">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                {{ t('uploadRecord.list.replaceFile') || '重新选择文件' }}
+              </button>
             </div>
-            <div class="step-desc">{{ t('uploadRecord.list.step3Desc') }}</div>
-            <el-button class="step-btn" type="primary" size="small" :loading="importing" :disabled="!selectedFile" @click="handleImport">{{ t('uploadRecord.list.startImport') }}</el-button>
+
+            <div class="step-panel__actions">
+              <button class="step-panel__back" @click="activeImportStep = 1">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                {{ t('uploadRecord.list.prevStep') || '上一步' }}
+              </button>
+              <div class="step-panel__right">
+                <div v-if="previewLoading" class="preview-pill preview-pill--loading">
+                  <span class="preview-dot"></span>
+                  {{ t('uploadRecord.list.parsingFile') }}
+                </div>
+                <div v-else-if="previewRowCount !== null" class="preview-pill preview-pill--ok">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  {{ t('uploadRecord.list.recognizedRows', [previewRowCount]) }}
+                </div>
+                <button class="step-panel__next" :disabled="!selectedFile" @click="activeImportStep = 3">
+                  {{ t('uploadRecord.list.nextStep') || '下一步' }}
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: 确认导入 -->
+          <div class="step-panel" v-if="activeImportStep === 3 && !importing && !importingDone">
+            <div class="step-panel__icon step-panel__icon--confirm">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <p class="step-panel__desc">{{ t('uploadRecord.list.step3Desc') }}</p>
+            <p class="step-panel__file-name" v-if="selectedFile">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              {{ selectedFile.name }}
+            </p>
+            <div class="step-panel__actions">
+              <button class="step-panel__back" @click="activeImportStep = 2">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                {{ t('uploadRecord.list.prevStep') || '上一步' }}
+              </button>
+              <el-button type="primary" class="import-btn" @click="handleImport">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                {{ t('uploadRecord.list.startImport') }}
+              </el-button>
+            </div>
+          </div>
+
+          <!-- 导入中 — 真实进度条 -->
+          <div class="importing-state" v-if="importing">
+            <div class="progress-wrap">
+              <div class="progress-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+              </div>
+              <div class="progress-content">
+                <div class="progress-header">
+                  <span class="progress-label">{{ t('uploadRecord.list.importingText') || '正在导入数据...' }}</span>
+                  <span class="progress-pct">{{ importProgress }}%</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-bar__fill" :style="{ width: importProgress + '%' }"></div>
+                </div>
+                <span class="progress-sub">{{ t('uploadRecord.list.importProgressTip') || '正在上传并处理 Excel 数据，请稍候' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 导入结果 -->
+          <div class="import-result" v-if="importingDone && importResult">
+            <div class="res-banner" :class="importResult.failed > 0 ? 'res-banner--warn' : 'res-banner--ok'">
+              <div class="res-icon">
+                <svg v-if="importResult.failed === 0" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <div class="res-info">
+                <span class="res-title">{{ t('uploadRecord.list.importComplete', [importResult.total]) }}</span>
+                <span class="res-detail">
+                  <span class="res-ok">{{ t('uploadRecord.list.importSuccess', [importResult.success]) }}</span>
+                  <span v-if="importResult.failed > 0" class="res-fail">{{ t('uploadRecord.list.importFailed', [importResult.failed]) }}</span>
+                </span>
+              </div>
+            </div>
+            <div class="fail-list" v-if="importResult.failRows.length > 0">
+              <div class="fail-list-title">{{ t('uploadRecord.list.failedRows') }}</div>
+              <div class="fail-list-body">
+                <div class="fail-item" v-for="(f, idx) in importResult.failRows" :key="idx">
+                  <span class="fail-item-num">{{ t('uploadRecord.list.row', [f.row]) }}</span>
+                  <span class="fail-item-msg">{{ f.reason }}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- 字段填写说明 -->
-        <div class="field-guide" v-if="importTemplateFields.length > 0">
+        <div class="field-guide" v-if="importTemplateFields.length > 0 && !importingDone">
           <div class="field-guide-head">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             {{ t('uploadRecord.list.fieldGuideTitle') }}
@@ -294,32 +448,6 @@
           </div>
         </div>
 
-        <!-- 导入结果 -->
-        <div class="import-result" v-if="importResult">
-          <div class="res-banner" :class="importResult.failed > 0 ? 'res-banner--warn' : 'res-banner--ok'">
-            <div class="res-icon">
-              <svg v-if="importResult.failed === 0" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            </div>
-            <div class="res-info">
-              <span class="res-title">{{ t('uploadRecord.list.importComplete', [importResult.total]) }}</span>
-              <span class="res-detail">
-                <span class="res-ok">{{ t('uploadRecord.list.importSuccess', [importResult.success]) }}</span>
-                <span v-if="importResult.failed > 0" class="res-fail">{{ t('uploadRecord.list.importFailed', [importResult.failed]) }}</span>
-              </span>
-            </div>
-          </div>
-          <div class="fail-list" v-if="importResult.failRows.length > 0">
-            <div class="fail-list-title">{{ t('uploadRecord.list.failedRows') }}</div>
-            <div class="fail-list-body">
-              <div class="fail-item" v-for="(f, idx) in importResult.failRows" :key="idx">
-                <span class="fail-item-num">{{ t('uploadRecord.list.row', [f.row]) }}</span>
-                <span class="fail-item-msg">{{ f.reason }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
       </div>
 
       <template #footer>
@@ -330,7 +458,7 @@
     <!-- 筛选栏 -->
     <div class="filter-card">
       <!-- 磁盘标签 -->
-      <el-input v-model="searchDataType" :placeholder="t('uploadRecord.list.searchDiskLabel')" clearable size="default" />
+      <el-input v-model="searchDiskLabel" :placeholder="t('uploadRecord.list.searchDiskLabel')" clearable size="default" />
 
       <!-- 项目名称 -->
       <el-select v-model="searchProjectName" :placeholder="t('uploadRecord.list.searchProjectName')" clearable size="default" filterable>
@@ -387,18 +515,45 @@
           </span>
         </div>
         <div class="toolbar-right">
-          <!-- 批量删除按钮 -->
-          <el-button
-            v-if="selectedRows.length > 0"
-            type="danger"
-            @click="handleBatchDelete"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-            {{ t('uploadRecord.list.batchDelete') }}
-          </el-button>
+          <!-- 批量操作按钮组 -->
+          <template v-if="selectedRows.length > 0">
+            <!-- 批量删除按钮 -->
+            <el-button type="danger" @click="handleBatchDelete">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              {{ t('uploadRecord.list.batchDelete') }}
+            </el-button>
+            <!-- 批量修改状态按钮 -->
+            <el-popover placement="bottom" :width="200" trigger="click">
+              <template #reference>
+                <el-button class="batch-edit-btn">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                  {{ t('uploadRecord.list.batchEdit') }}
+                </el-button>
+              </template>
+              <div class="batch-edit-panel">
+                <div class="batch-edit-header">
+                  <span class="batch-edit-label">{{ t('uploadRecord.list.setStatus') }}</span>
+                </div>
+                <div class="batch-edit-options">
+                  <button
+                    v-for="status in statusOptions"
+                    :key="status.value"
+                    class="batch-edit-option"
+                    @click="handleBatchUpdateStatus(status.value)"
+                  >
+                    <span class="batch-edit-option-dot" :class="`dot--${status.value}`"></span>
+                    <span class="batch-edit-option-text">{{ status.label }}</span>
+                  </button>
+                </div>
+              </div>
+            </el-popover>
+          </template>
           <!-- 字段显示配置 -->
           <el-popover
             placement="bottom-end"
@@ -462,10 +617,34 @@
           @selection-change="handleSelectionChange"
         >
         <el-table-column type="selection" width="45" fixed="left" />
-        <el-table-column v-if="isColumnVisible('serialNo')" prop="serialNo" :label="t('uploadRecord.list.colSerialNo')" min-width="110" show-overflow-tooltip />
-        <el-table-column v-if="isColumnVisible('dataType')" prop="dataType" :label="t('uploadRecord.list.colDiskLabel')" min-width="90" align="center">
+        <el-table-column v-if="isColumnVisible('serialNo')" prop="serialNo" :label="t('uploadRecord.list.colSerialNo')" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">
-            <span class="type-tag">{{ row.dataType }}</span>
+            <span class="serial-cell">
+              <span>{{ row.serialNo }}</span>
+              <el-tooltip :content="t('uploadRecord.list.copySerialNo') || '复制流水号'" placement="top">
+                <button class="copy-btn copy-btn--sm" @click.stop="copyPath(row.serialNo)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+              </el-tooltip>
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="isColumnVisible('diskLabel')" prop="diskLabel" :label="t('uploadRecord.list.colDiskLabel')" min-width="100" align="center">
+          <template #default="{ row }">
+            <span class="disk-cell">
+              <span class="type-tag">{{ row.diskLabel }}</span>
+              <el-tooltip :content="t('uploadRecord.list.copyDiskLabel') || '复制磁盘标签'" placement="top">
+                <button class="copy-btn copy-btn--sm" @click.stop="copyPath(row.diskLabel)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+              </el-tooltip>
+            </span>
           </template>
         </el-table-column>
         <el-table-column v-if="isColumnVisible('projectName')" prop="projectName" :label="t('uploadRecord.list.colProjectName')" min-width="110" show-overflow-tooltip />
@@ -512,7 +691,7 @@
           </template>
         </el-table-column>
         <el-table-column v-if="isColumnVisible('remark')" prop="remark" :label="t('uploadRecord.list.colRemark')" min-width="100" show-overflow-tooltip />
-        <el-table-column v-if="isColumnVisible('createdAt')" prop="createdAt" :label="t('uploadRecord.list.colTime')" min-width="130" />
+        <el-table-column v-if="isColumnVisible('createdAt')" prop="createdAt" :label="t('uploadRecord.list.colTime')" min-width="160" />
         <el-table-column :label="t('uploadRecord.list.colActions')" width="110" fixed="right" align="center">
           <template #default="{ row }">
             <TableActions :actions="[
@@ -541,392 +720,297 @@
     </div>
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" width="640px" append-to-body>
+    <el-dialog v-model="detailVisible" width="560px" append-to-body class="detail-dialog">
       <template #header>
-        <div class="dialog-head">
-          <span class="dialog-mode-tag dialog-mode-tag--info">{{ t('uploadRecord.list.detailDialogTag') }}</span>
-          <span class="dialog-title-text">{{ t('uploadRecord.list.detailDialogTitle') }}</span>
+        <div class="detail-head">
+          <span class="detail-head__icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+          </span>
+          <span class="detail-head__title">记录详情</span>
         </div>
       </template>
-      <div v-if="currentRecord" class="detail-content">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item :label="t('uploadRecord.list.detailSerialNo')">
-            <code class="serial-no">{{ currentRecord.serialNo }}</code>
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('uploadRecord.list.detailDiskLabel')">{{ currentRecord.dataType }}</el-descriptions-item>
-          <el-descriptions-item :label="t('uploadRecord.list.detailProjectName')">{{ currentRecord.projectName || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('uploadRecord.list.detailUploader')">{{ currentRecord.uploader }}</el-descriptions-item>
-          <el-descriptions-item :label="t('uploadRecord.list.detailStatus')">
-            <span class="status-chip" :class="getStatusClass(currentRecord.status)">
-              {{ currentRecord.statusText }}
-            </span>
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('uploadRecord.list.detailFileSize')">{{ currentRecord.fileSizeStr }}</el-descriptions-item>
-          <el-descriptions-item :label="t('uploadRecord.list.detailDestPath')" :span="2">
-            <div class="detail-path-cell">
-              <el-tooltip :content="currentRecord.destPath" placement="top" :show-after="200" v-if="currentRecord.destPath">
-                <span class="detail-path-text">{{ currentRecord.destPath }}</span>
-              </el-tooltip>
-              <span v-else class="no-data">-</span>
-              <el-tooltip :content="t('uploadRecord.list.copyPath')" placement="top" v-if="currentRecord.destPath">
-                <button class="copy-btn copy-btn-lg" @click="copyPath(currentRecord.destPath)">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                  </svg>
-                </button>
-              </el-tooltip>
-            </div>
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('uploadRecord.list.detailRemark')" :span="2">{{ currentRecord.remark || t('uploadRecord.list.detailNoRemark') }}</el-descriptions-item>
-          <el-descriptions-item :label="t('uploadRecord.list.detailUploadTime')">{{ currentRecord.createdAt }}</el-descriptions-item>
-          <el-descriptions-item :label="t('uploadRecord.list.detailUpdateTime')">{{ currentRecord.updatedAt }}</el-descriptions-item>
 
-          <!-- 动态字段 -->
-          <template v-if="currentRecord.data && Object.keys(currentRecord.data).length > 0">
-            <el-descriptions-item
-              v-for="col in dynamicColumns"
-              :key="col.code"
-              :label="col.name"
-            >
-              {{ currentRecord.data[col.code] ?? '-' }}
-            </el-descriptions-item>
-          </template>
-        </el-descriptions>
+      <!-- 内容区 -->
+      <div v-if="currentRecord" class="detail-body">
+        <!-- 流水号 -->
+        <div class="detail-row detail-row--serial">
+          <span class="detail-row__label">流水号</span>
+          <span class="detail-row__value detail-row__value--copy">
+            <span class="detail-row__code">{{ currentRecord.serialNo }}</span>
+            <el-tooltip content="复制流水号" placement="top">
+              <button class="copy-btn" @click.stop="copyPath(currentRecord.serialNo || '')">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+            </el-tooltip>
+          </span>
+        </div>
+
+        <!-- 状态行 -->
+        <div class="detail-row">
+          <span class="detail-row__label">状态</span>
+          <span class="status-badge" :class="`status-badge--${currentRecord.status}`">{{ currentRecord.statusText }}</span>
+        </div>
+
+        <!-- 主信息 -->
+        <div class="detail-row">
+          <span class="detail-row__label">磁盘标签</span>
+          <span class="detail-row__value detail-row__value--copy">
+            <span class="detail-row__text">{{ currentRecord.diskLabel }}</span>
+            <el-tooltip content="复制" placement="top">
+              <button class="copy-btn" @click.stop="copyPath(currentRecord.diskLabel)">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+            </el-tooltip>
+          </span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-row__label">项目名称</span>
+          <span class="detail-row__text">{{ currentRecord.projectName || '—' }}</span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-row__label">上传人</span>
+          <span class="detail-row__text">{{ currentRecord.uploader }}</span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-row__label">文件大小</span>
+          <span class="detail-row__text">{{ currentRecord.fileSizeStr }}</span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-row__label">创建时间</span>
+          <span class="detail-row__text">{{ currentRecord.createdAt }}</span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-row__label">更新时间</span>
+          <span class="detail-row__text">{{ currentRecord.updatedAt }}</span>
+        </div>
+
+        <div class="detail-row detail-row--path">
+          <span class="detail-row__label">目标路径</span>
+          <span class="detail-row__value detail-row__value--path">
+            <span class="detail-row__text detail-row__text--path">{{ currentRecord.destPath || '—' }}</span>
+            <el-tooltip v-if="currentRecord.destPath" content="复制路径" placement="top">
+              <button class="copy-btn" @click.stop="copyPath(currentRecord.destPath)">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+            </el-tooltip>
+          </span>
+        </div>
+
+        <div v-if="currentRecord.remark" class="detail-row">
+          <span class="detail-row__label">备注</span>
+          <span class="detail-row__text">{{ currentRecord.remark }}</span>
+        </div>
       </div>
-      <template #footer>
-        <el-button @click="detailVisible = false">{{ t('uploadRecord.list.detailClose') }}</el-button>
-      </template>
     </el-dialog>
 
     <!-- 编辑弹窗 -->
-    <el-dialog v-model="editVisible" width="560px" destroy-on-close append-to-body>
+    <el-dialog v-model="editVisible" width="520px" destroy-on-close append-to-body class="edit-dialog">
       <template #header>
-        <div class="edit-dialog-header">
-          <div class="edit-dialog-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div class="edit-head">
+          <span class="edit-head__icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
-          </div>
-          <div class="edit-dialog-head-text">
-            <span class="edit-dialog-title">{{ t('uploadRecord.list.editDialogTitle') }}</span>
-            <span class="edit-dialog-sub" v-if="editForm.serialNo">{{ editForm.serialNo }}</span>
-          </div>
+          </span>
+          <span class="edit-head__title">编辑记录</span>
         </div>
       </template>
-
-      <div class="edit-dialog-body">
-        <!-- 基本信息卡片 -->
-        <div class="edit-card">
-          <div class="edit-card-header">
-            <el-icon><Document /></el-icon>
-            <span>基本信息</span>
-          </div>
-          <div class="edit-card-body">
-            <div class="edit-field">
-              <label>状态</label>
-              <el-select v-model="editForm.status" placeholder="选择状态">
-                <el-option label="待处理" value="pending" />
-                <el-option label="处理中" value="processing" />
-                <el-option label="已完成" value="completed" />
-                <el-option label="失败" value="failed" />
-              </el-select>
-            </div>
-            <div class="edit-field">
-              <label>备注</label>
-              <el-input v-model="editForm.remark" type="textarea" :rows="2" placeholder="添加备注信息" />
-            </div>
-          </div>
+      <!-- 表单 -->
+      <div class="edit-body">
+        <div class="edit-row">
+          <label class="edit-row__label">状态</label>
+          <el-select v-model="editForm.status" placeholder="选择状态">
+            <el-option label="待处理" value="pending" />
+            <el-option label="处理中" value="processing" />
+            <el-option label="已完成" value="completed" />
+            <el-option label="失败" value="failed" />
+          </el-select>
         </div>
-
-        <!-- 动态字段卡片 -->
-        <div class="edit-card" v-if="dynamicColumns.length > 0">
-          <div class="edit-card-header">
-            <el-icon><Grid /></el-icon>
-            <span>扩展信息</span>
+        <div class="edit-row">
+          <label class="edit-row__label">文件大小</label>
+          <div class="edit-size">
+            <el-input-number v-model="editFileSizeVal" :min="0" :precision="3" controls-position="right" @change="syncEditFileSizeFromInput" />
+            <el-select v-model="editFileSizeUnit" @change="syncEditFileSizeFromInput">
+              <el-option label="B" value="B" />
+              <el-option label="KB" value="KB" />
+              <el-option label="MB" value="MB" />
+              <el-option label="GB" value="GB" />
+              <el-option label="TB" value="TB" />
+            </el-select>
           </div>
-          <div class="edit-card-body">
-            <div class="edit-field" v-for="col in dynamicColumns" :key="col.code">
-              <label>{{ col.name }}</label>
-              <el-select
-                v-if="col.type === 'select'"
-                v-model="editForm.data[col.code]"
-                clearable
-                :placeholder="col.placeholder || '请选择'"
-              >
-                <el-option v-for="opt in col.options" :key="opt" :label="opt" :value="opt" />
-              </el-select>
-              <el-date-picker
-                v-else-if="col.type === 'date'"
-                v-model="editForm.data[col.code]"
-                type="date"
-                value-format="YYYY-MM-DD"
-                :placeholder="col.placeholder || '选择日期'"
-              />
-              <el-date-picker
-                v-else-if="col.type === 'datetime'"
-                v-model="editForm.data[col.code]"
-                type="datetime"
-                value-format="YYYY-MM-DD HH:mm:ss"
-                :placeholder="col.placeholder || '选择时间'"
-              />
-              <el-input-number
-                v-else-if="col.type === 'number'"
-                v-model="editForm.data[col.code]"
-                :placeholder="col.placeholder || '输入数字'"
-              />
-              <el-input
-                v-else
-                v-model="editForm.data[col.code]"
-                :placeholder="col.placeholder || '输入内容'"
-              />
-            </div>
-          </div>
+          <span class="edit-hint" v-if="editFileSizeVal > 0">≈ {{ formatSizeInOtherUnits(editFileSizeVal, editFileSizeUnit) }}</span>
         </div>
+        <div class="edit-row edit-row--full">
+          <label class="edit-row__label">备注</label>
+          <el-input v-model="editForm.remark" type="textarea" :rows="2" placeholder="添加备注" />
+        </div>
+        <template v-if="dynamicColumns.length > 0">
+          <div class="edit-divider"></div>
+          <div class="edit-row" v-for="col in dynamicColumns" :key="col.code">
+            <label class="edit-row__label">{{ col.name }}</label>
+            <el-select v-if="col.type === 'select'" v-model="editForm.data[col.code]" clearable :placeholder="col.placeholder || '请选择'">
+              <el-option v-for="opt in col.options" :key="opt" :label="opt" :value="opt" />
+            </el-select>
+            <el-date-picker v-else-if="col.type === 'date'" v-model="editForm.data[col.code]" type="date" value-format="YYYY-MM-DD" :placeholder="col.placeholder || '选择日期'" popper-class="date-picker-popper" />
+            <el-date-picker v-else-if="col.type === 'datetime'" v-model="editForm.data[col.code]" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" :placeholder="col.placeholder || '选择时间'" popper-class="date-picker-popper" />
+            <el-input-number v-else-if="col.type === 'number'" v-model="editForm.data[col.code]" :placeholder="col.placeholder || '输入数字'" />
+            <el-input v-else v-model="editForm.data[col.code]" :placeholder="col.placeholder || '输入内容'" />
+          </div>
+        </template>
       </div>
 
+      <!-- 底部 -->
       <template #footer>
-        <div class="edit-dialog-footer">
+        <div class="dialog-footer">
           <el-button @click="editVisible = false">取消</el-button>
-          <el-button type="primary" :loading="submitting" @click="confirmEdit">
-            <el-icon v-if="!submitting"><Select /></el-icon>
-            保存修改
-          </el-button>
+          <el-button type="primary" :loading="submitting" @click="confirmEdit">保存</el-button>
         </div>
       </template>
     </el-dialog>
 
-    <!-- 新增上传记录抽屉 -->
-    <el-drawer
+    <!-- 新增上传记录弹窗 -->
+    <el-dialog
       v-model="createVisible"
-      :title="null"
-      direction="rtl"
-      size="600px"
-      :before-close="() => createVisible = false"
+      width="560px"
+      :close-on-click-modal="false"
       append-to-body
-      class="create-drawer"
+      class="create-dialog"
     >
-      <!-- 抽屉头部 -->
       <template #header>
-        <div class="drawer-head">
-          <div class="drawer-head-icon">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div class="dialog-head">
+          <div class="dialog-head-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
               <line x1="12" y1="18" x2="12" y2="12"/>
               <line x1="9" y1="15" x2="15" y2="15"/>
             </svg>
           </div>
-          <div class="drawer-head-text">
-            <span class="drawer-head-title">{{ t('uploadRecord.list.createDialogTitle') }}</span>
-            <span class="drawer-head-sub">{{ t('uploadRecord.list.createDialogSub') }}</span>
-          </div>
+          <span class="dialog-head-title">新建上传记录</span>
         </div>
       </template>
 
       <!-- 表单区域 -->
-      <div class="create-body">
+      <div class="create-form">
 
-        <!-- 第一组：基础信息 -->
-        <div class="field-group">
-          <div class="field-group-header">
-            <span class="field-group-label">{{ t('uploadRecord.list.createBasicInfo') }}</span>
-            <span class="field-group-hint">{{ t('uploadRecord.list.createBasicInfoRequired') }}</span>
-          </div>
-          <div class="field-group-body">
-            <div class="field-row">
-              <div class="field-cell">
-                <label class="field-label">
-                  {{ t('uploadRecord.list.createDiskLabel') }} <span class="field-required">*</span>
-                </label>
-                <el-input
-                  v-model="createForm.dataType"
-                  :placeholder="t('uploadRecord.list.createDiskLabelPlaceholder')"
-                  clearable
-                  class="dr-input"
-                />
-              </div>
-              <div class="field-cell">
-                <label class="field-label">
-                  {{ t('uploadRecord.list.createProjectName') }} <span class="field-required">*</span>
-                </label>
-                <el-input
-                  v-model="createForm.projectName"
-                  :placeholder="t('uploadRecord.list.createProjectNamePlaceholder')"
-                  clearable
-                  class="dr-input"
-                />
-              </div>
+        <!-- 提示卡片 -->
+        <div class="form-hint">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span><em>*</em> 为必填项</span>
+        </div>
+
+        <!-- 基础信息 -->
+        <div class="form-section">
+          <div class="form-section__label">基础信息</div>
+          <div class="form-row">
+            <div class="form-item">
+              <label class="form-item__label">磁盘标签 <em>*</em></label>
+              <el-input v-model="createForm.diskLabel" :placeholder="t('uploadRecord.list.createDiskLabelPlaceholder')" clearable />
             </div>
-            <div class="field-row">
-              <div class="field-cell">
-                <label class="field-label">
-                  {{ t('uploadRecord.list.createUploader') }} <span class="field-required">*</span>
-                </label>
-                <el-select
-                  v-model="createForm.uploader"
-                  :placeholder="t('uploadRecord.list.createUploaderPlaceholder')"
-                  filterable
-                  allow-create
-                  default-first-option
-                  :reserve-keyword="false"
-                  class="dr-select"
-                >
-                  <el-option
-                    v-for="p in personnelList"
-                    :key="p.id"
-                    :label="p.name"
-                    :value="p.name"
-                  />
+            <div class="form-item">
+              <label class="form-item__label">项目名称 <em>*</em></label>
+              <el-select v-model="createForm.projectName" :placeholder="t('uploadRecord.list.createProjectNamePlaceholder')" clearable filterable allow-create default-first-option :reserve-keyword="false">
+                <el-option v-for="p in projectList" :key="p.id" :label="p.name" :value="p.name" />
+              </el-select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-item">
+              <label class="form-item__label">上传人 <em>*</em></label>
+              <el-select v-model="createForm.uploader" :placeholder="t('uploadRecord.list.createUploaderPlaceholder')" filterable allow-create default-first-option :reserve-keyword="false">
+                <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name" />
+              </el-select>
+            </div>
+            <div class="form-item">
+              <label class="form-item__label">状态 <em>*</em></label>
+              <el-select v-model="createForm.status">
+                <el-option :label="t('status.pending')" value="pending"><span class="status-dot status-dot--pending"></span> {{ t('status.pending') }}</el-option>
+                <el-option :label="t('status.processing')" value="processing"><span class="status-dot status-dot--processing"></span> {{ t('status.processing') }}</el-option>
+                <el-option :label="t('status.completed')" value="completed"><span class="status-dot status-dot--completed"></span> {{ t('status.completed') }}</el-option>
+                <el-option :label="t('status.failed')" value="failed"><span class="status-dot status-dot--failed"></span> {{ t('status.failed') }}</el-option>
+              </el-select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 文件信息 -->
+        <div class="form-section">
+          <div class="form-section__label">文件信息</div>
+          <div class="form-row">
+            <div class="form-item form-item--full">
+              <label class="form-item__label">目标路径</label>
+              <el-input v-model="createForm.destPath" :placeholder="t('uploadRecord.list.createDestPathPlaceholder')" clearable />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-item">
+              <label class="form-item__label">文件大小</label>
+              <div class="size-input">
+                <el-input-number v-model="fileSizeInputVal" :min="0" :precision="3" controls-position="right" @change="syncFileSizeFromInput" />
+                <el-select v-model="fileSizeUnit" @change="syncFileSizeFromInput">
+                  <el-option label="B" value="B" /><el-option label="KB" value="KB" /><el-option label="MB" value="MB" /><el-option label="GB" value="GB" /><el-option label="TB" value="TB" />
                 </el-select>
               </div>
-              <div class="field-cell">
-                <label class="field-label">{{ t('uploadRecord.list.createStatus') }} <span class="field-required">*</span></label>
-                <el-select v-model="createForm.status" class="dr-select dr-select--status">
-                  <el-option :label="t('status.pending')" value="pending">
-                    <span class="status-dot status-dot--pending"></span> {{ t('status.pending') }}
-                  </el-option>
-                  <el-option :label="t('status.processing')" value="processing">
-                    <span class="status-dot status-dot--processing"></span> {{ t('status.processing') }}
-                  </el-option>
-                  <el-option :label="t('status.completed')" value="completed">
-                    <span class="status-dot status-dot--completed"></span> {{ t('status.completed') }}
-                  </el-option>
-                  <el-option :label="t('status.failed')" value="failed">
-                    <span class="status-dot status-dot--failed"></span> {{ t('status.failed') }}
-                  </el-option>
-                </el-select>
-              </div>
+              <span class="form-hint-inline" v-if="fileSizeInputVal > 0">≈ {{ formatSizeInOtherUnits(fileSizeInputVal, fileSizeUnit) }}</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-item form-item--date">
+              <label class="form-item__label">创建时间</label>
+              <el-date-picker
+                v-model="createForm.createdAt"
+                type="datetime"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                :placeholder="t('uploadRecord.list.datePlaceholder')"
+                popper-class="date-picker-popper"
+              />
             </div>
           </div>
         </div>
 
-        <!-- 第二组：文件信息 -->
-        <div class="field-group">
-          <div class="field-group-header">
-            <span class="field-group-label">{{ t('uploadRecord.list.createFileInfo') }}</span>
-          </div>
-          <div class="field-group-body">
-            <div class="field-row">
-              <div class="field-cell">
-                <label class="field-label">{{ t('uploadRecord.list.createDestPath') }}</label>
-                <el-input
-                  v-model="createForm.destPath"
-                  :placeholder="t('uploadRecord.list.createDestPathPlaceholder')"
-                  clearable
-                  class="dr-input"
-                />
-              </div>
-              <div class="field-cell">
-                <label class="field-label">{{ t('uploadRecord.list.createFileSize') }}</label>
-                <div class="size-row">
-                  <el-input-number
-                    v-model="fileSizeInputVal"
-                    :min="0"
-                    :precision="3"
-                    controls-position="right"
-                    class="size-num"
-                    @change="syncFileSizeFromInput"
-                  />
-                  <el-select v-model="fileSizeUnit" class="size-unit" @change="syncFileSizeFromInput">
-                    <el-option label="B" value="B" />
-                    <el-option label="KB" value="KB" />
-                    <el-option label="MB" value="MB" />
-                    <el-option label="GB" value="GB" />
-                    <el-option label="TB" value="TB" />
-                  </el-select>
-                </div>
-                <div class="size-hint" v-if="fileSizeInputVal > 0">
-                  ≈ {{ formatSizeInOtherUnits(fileSizeInputVal, fileSizeUnit) }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 第三组：时间信息 -->
-        <div class="field-group">
-          <div class="field-group-header">
-            <span class="field-group-label">{{ t('createdAt') }}</span>
-          </div>
-          <div class="field-group-body">
-            <div class="field-row">
-              <div class="field-cell field-cell--full">
-                <label class="field-label">{{ t('createdAt') }}</label>
-                <el-date-picker
-                  v-model="createForm.createdAt"
-                  type="date"
-                  value-format="YYYY-MM-DD"
-                  :placeholder="t('uploadRecord.list.datePlaceholder')"
-                  style="width:100%"
-                  class="dr-input"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 第四组：扩展字段 -->
-        <div class="field-group" v-if="dynamicColumns.length > 0">
-          <div class="field-group-header">
-            <span class="field-group-label">{{ t('uploadRecord.list.createExtendedFields') }}</span>
-            <span class="field-group-badge">{{ dynamicColumns.length }}</span>
-          </div>
-          <div class="field-group-body">
-            <div class="field-row" v-for="col in dynamicColumns" :key="'c-' + col.code">
-              <div class="field-cell field-cell--full">
-                <label class="field-label">{{ col.name }}</label>
-                <el-input v-if="isIpField(col)" v-model="createForm.data[col.code]" :placeholder="t('uploadRecord.list.ipPlaceholder')" clearable class="dr-input" />
-                <el-input-number v-else-if="col.type === 'number'" v-model="createForm.data[col.code]" style="width:100%" controls-position="right" :placeholder="col.placeholder" class="dr-input" />
-                <el-date-picker v-else-if="col.type === 'date'" v-model="createForm.data[col.code]" type="date" value-format="YYYY-MM-DD" style="width:100%" :placeholder="col.placeholder" class="dr-input" />
-                <el-date-picker v-else-if="col.type === 'datetime'" v-model="createForm.data[col.code]" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" :placeholder="col.placeholder" class="dr-input" />
-                <el-select v-else-if="col.type === 'select'" v-model="createForm.data[col.code]" style="width:100%" clearable :placeholder="col.placeholder" class="dr-select">
-                  <el-option v-for="opt in col.options" :key="opt" :label="opt" :value="opt" />
-                </el-select>
-                <el-input v-else v-model="createForm.data[col.code]" :placeholder="col.placeholder" clearable class="dr-input" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 第五组：备注 -->
-        <div class="field-group">
-          <div class="field-group-header">
-            <span class="field-group-label">{{ t('uploadRecord.list.createRemark') }}</span>
-          </div>
-          <div class="field-group-body">
-            <el-input
-              v-model="createForm.remark"
-              type="textarea"
-              :rows="3"
-              :placeholder="t('uploadRecord.list.createRemarkPlaceholder')"
-              show-word-limit
-              maxlength="500"
-              class="dr-textarea"
-            />
-          </div>
+        <!-- 备注 -->
+        <div class="form-section">
+          <div class="form-section__label">备注</div>
+          <el-input v-model="createForm.remark" type="textarea" :rows="2" :placeholder="t('uploadRecord.list.createRemarkPlaceholder')" show-word-limit maxlength="500" />
         </div>
 
       </div>
 
       <!-- 底部按钮 -->
       <template #footer>
-        <div class="drawer-foot">
-          <el-button class="btn-cancel" @click="createVisible = false">{{ t('uploadRecord.list.createCancel') }}</el-button>
-          <el-button type="primary" class="btn-confirm" :loading="submitting" @click="confirmCreate">{{ t('uploadRecord.list.createConfirm') }}</el-button>
+        <div class="dialog-foot">
+          <el-button @click="createVisible = false">{{ t('uploadRecord.list.createCancel') }}</el-button>
+          <el-button type="primary" :loading="submitting" @click="confirmCreate">{{ t('uploadRecord.list.createConfirm') }}</el-button>
         </div>
       </template>
-    </el-drawer>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, inject } from 'vue'
+import { ref, reactive, computed, onMounted, inject, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { InfoFilled, Filter, Grid, Download } from '@element-plus/icons-vue'
-import { UploadRecordApi, type UploadRecord, type ImportTemplateField, type ImportResultResp } from '@/api/upload-record'
+import { UploadRecordApi, type UploadRecord, type ImportTemplateField, type ImportResultResp, type UploadRecordStatistics } from '@/api/upload-record'
 import { FieldConfigApi, type FieldConfig } from '@/api/field-config'
 import { ProjectApi, type ProjectSimple } from '@/api/project'
 import { PersonnelApi, type Personnel } from '@/api/personnel'
@@ -946,7 +1030,7 @@ interface ColumnConfig {
 
 const allColumns = ref<ColumnConfig[]>([
   { prop: 'serialNo', label: t('uploadRecord.list.colSerialNo'), visible: true, required: true },
-  { prop: 'dataType', label: t('uploadRecord.list.colDiskLabel'), visible: true, required: true },
+  { prop: 'diskLabel', label: t('uploadRecord.list.colDiskLabel'), visible: true, required: true },
   { prop: 'projectName', label: t('uploadRecord.list.colProjectName'), visible: true, required: false },
   { prop: 'destPath', label: t('uploadRecord.list.colDestPath'), visible: false, required: false },
   { prop: 'fileSize', label: t('uploadRecord.list.colFileSize'), visible: false, required: false },
@@ -1031,6 +1115,9 @@ const exportDialogVisible = ref(false)
 // ==================== 批量导入状态 ====================
 const importDialogVisible = ref(false)
 const importing = ref(false)
+const importingDone = ref(false)
+const importProgress = ref(0)
+const activeImportStep = ref(1)
 const downloadingTemplate = ref(false)
 const selectedFile = ref<File | null>(null)
 const fileList = ref<any[]>([])
@@ -1045,13 +1132,13 @@ const getOptionsArr = (opts: string | undefined) => {
   if (!opts) return []
   return String(opts).split(',').map(s => s.trim()).filter(Boolean)
 }
-const searchDataType = ref('')
+const searchDiskLabel = ref('')
 const searchStatus = ref('')
 const searchUploader = ref('')
 const searchKeyword = ref('')
 const searchDateRange = ref<string[]>([])
 const tableData = ref<UploadRecord[]>([])
-const dataTypes = ref<string[]>([])
+const diskLabels = ref<string[]>([])
 const dynamicColumns = ref<FieldConfig[]>([])
 const projectList = ref<ProjectSimple[]>([])
 const personnelList = ref<Personnel[]>([])
@@ -1063,13 +1150,26 @@ const createFormRef = ref()
 const currentRecord = ref<UploadRecord | null>(null)
 const tableRef = ref()
 
-// 统计
-const totalSize = computed(() => tableData.value.reduce((sum, r) => sum + (r.fileSize || 0), 0))
+// 统计（全量数据，不受筛选条件影响）
+const listStats = reactive<UploadRecordStatistics>({
+  todayCount: 0, todaySize: 0, todaySizeStr: '0 B',
+  weekCount: 0, weekSize: 0, weekSizeStr: '—',
+  monthCount: 0, monthSize: 0, monthSizeStr: '—',
+  totalCount: 0, totalSize: 0, totalSizeStr: '0 B',
+  trend: [], byStatus: [], byDiskLabel: [], byProject: []
+})
+const loadListStats = async () => {
+  try {
+    const res = await UploadRecordApi.statistics() as { data: UploadRecordStatistics }
+    const d = res.data
+    Object.assign(listStats, d)
+  } catch (e) { /* ignore */ }
+}
+const totalSize = computed(() => listStats.totalSize)
 const statusCount = computed(() => {
   const s = { completed: 0, pending: 0, processing: 0, failed: 0 }
-  for (const r of tableData.value) {
-    const st = r.status || 'pending'
-    if (st in s) (s as any)[st]++
+  for (const item of (listStats.byStatus || [])) {
+    if (item.status in s) (s as any)[item.status] = item.count
   }
   return s
 })
@@ -1139,6 +1239,34 @@ const formatSizeInOtherUnits = (val: number, unit: string): string => {
   return parts.length > 0 ? `= ${parts.join(', ')}` : ''
 }
 
+// 编辑弹窗文件大小
+const editFileSizeVal = ref(0)
+const editFileSizeUnit = ref('MB')
+
+const syncEditFileSizeFromInput = () => {
+  editForm.fileSize = editFileSizeVal.value * BYTE_UNITS[editFileSizeUnit.value]
+}
+
+// 初始化编辑弹窗的文件大小显示
+const initEditFileSize = (bytes: number) => {
+  if (bytes === 0) {
+    editFileSizeVal.value = 0
+    editFileSizeUnit.value = 'MB'
+    return
+  }
+  const units = ['TB', 'GB', 'MB', 'KB', 'B']
+  for (const unit of units) {
+    const quotient = bytes / BYTE_UNITS[unit]
+    if (quotient >= 1) {
+      editFileSizeVal.value = Math.round(quotient * 1000) / 1000
+      editFileSizeUnit.value = unit
+      return
+    }
+  }
+  editFileSizeVal.value = bytes
+  editFileSizeUnit.value = 'B'
+}
+
 // 根据字段名称判断类型，返回对应的 CSS class
 const isIpField = (col: FieldConfig) => {
   const code = (col.code || '').toLowerCase()
@@ -1160,16 +1288,17 @@ const getFieldClass = (col: FieldConfig) => {
   return ''
 }
 
-const editForm = reactive<{ id: number; serialNo: string; status: string; remark: string; data: Record<string, any> }>({
+const editForm = reactive<{ id: number; serialNo: string; status: string; remark: string; fileSize: number; data: Record<string, any> }>({
   id: 0,
   serialNo: '',
   status: '',
   remark: '',
+  fileSize: 0,
   data: {}
 })
 
 const exportForm = reactive({
-  dataType: '',
+  diskLabel: '',
   projectName: '',
   status: '',
   uploader: '',
@@ -1181,22 +1310,59 @@ const exportForm = reactive({
 const syncCurrentFilter = ref(true)
 const exportAllFields = ref(true)
 const exporting = ref(false)
+const exportPreviewCount = ref(0)
+const exportPreviewLoading = ref(false)
+
+const getExportParams = () => {
+  const p: Record<string, any> = {}
+  if (exportForm.diskLabel) p.diskLabel = exportForm.diskLabel
+  if (exportForm.projectName) p.projectName = exportForm.projectName
+  if (exportForm.status) p.status = exportForm.status
+  if (exportForm.uploader) p.uploader = exportForm.uploader
+  if (exportForm.keyword) p.keyword = exportForm.keyword
+  if (exportForm.dateRange && exportForm.dateRange.length === 2) {
+    p.startDate = exportForm.dateRange[0]
+    p.endDate = exportForm.dateRange[1]
+  }
+  return p
+}
+
+// 刷新导出预览计数
+const refreshExportPreview = async () => {
+  exportPreviewLoading.value = true
+  try {
+    const stats = await UploadRecordApi.statistics(getExportParams())
+    exportPreviewCount.value = (stats as { data: { totalCount: number } }).data.totalCount ?? 0
+  } catch {
+    // ignore
+  } finally {
+    exportPreviewLoading.value = false
+  }
+}
 
 const getStatusText = (status: string) => {
-  const map: Record<string, string> = { pending: '待处理', processing: '处理中', completed: '已完成', failed: '失败' }
-  return map[status] || status
+  return t(`status.${status}`)
 }
+
+// 状态选项列表
+const statusOptions = computed(() => [
+  { value: 'pending', label: t('status.pending') },
+  { value: 'processing', label: t('status.processing') },
+  { value: 'completed', label: t('status.completed') },
+  { value: 'failed', label: t('status.failed') }
+])
 
 // 同步当前筛选条件到导出表单
 const syncFilterToExport = () => {
   if (syncCurrentFilter.value) {
-    exportForm.dataType = searchDataType.value
+    exportForm.diskLabel = searchDiskLabel.value
     exportForm.projectName = searchProjectName.value
     exportForm.status = searchStatus.value
     exportForm.uploader = searchUploader.value
     exportForm.dateRange = searchDateRange.value ? [...searchDateRange.value] : []
     exportForm.keyword = searchKeyword.value
   }
+  refreshExportPreview()
 }
 
 // 导出字段全选切换
@@ -1206,23 +1372,35 @@ const handleExportAllChange = (val: boolean) => {
 
 const showExportDialog = () => {
   // 重置导出表单
-  exportForm.dataType = ''
+  exportForm.diskLabel = ''
   exportForm.projectName = ''
   exportForm.status = ''
   exportForm.uploader = ''
   exportForm.dateRange = []
   exportForm.keyword = ''
   exportAllFields.value = true
+  syncCurrentFilter.value = true
+  exportPreviewCount.value = pagination.total
   // 同步当前筛选
   syncFilterToExport()
+  // 异步刷新预览计数
+  refreshExportPreview()
   exportDialogVisible.value = true
 }
+
+// 自动刷新预览：当同步关闭且手动改了导出筛选时，延迟刷新计数
+watch(() => [exportForm.diskLabel, exportForm.projectName, exportForm.status, exportForm.uploader, exportForm.keyword, exportForm.dateRange], () => {
+  if (!syncCurrentFilter.value) {
+    const t = setTimeout(() => refreshExportPreview(), 400)
+    return () => clearTimeout(t)
+  }
+})
 
 const handleExport = async () => {
   exporting.value = true
   try {
     const params: any = {}
-    if (exportForm.dataType) params.dataType = exportForm.dataType
+    if (exportForm.diskLabel) params.diskLabel = exportForm.diskLabel
     if (exportForm.projectName) params.projectName = exportForm.projectName
     if (exportForm.status) params.status = exportForm.status
     if (exportForm.uploader) params.uploader = exportForm.uploader
@@ -1254,7 +1432,7 @@ const handleExport = async () => {
 }
 
 const createForm = reactive({
-  dataType: '',
+  diskLabel: '',
   projectName: '',
   destPath: '',
   fileSize: 0,
@@ -1278,8 +1456,27 @@ const getStatusClass = (status: string) => {
 // 复制路径到剪贴板
 const copyPath = async (path: string) => {
   try {
-    await navigator.clipboard.writeText(path)
-    ElMessage.success(t('uploadRecord.list.copyPathSuccess'))
+    // 优先使用 Clipboard API
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(path)
+      ElMessage.success(t('uploadRecord.list.copyPathSuccess'))
+      return
+    }
+    // Fallback: 使用 textarea 复制（兼容 HTTP 环境）
+    const textarea = document.createElement('textarea')
+    textarea.value = path
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    textarea.style.left = '-9999px'
+    document.body.appendChild(textarea)
+    textarea.select()
+    const success = document.execCommand('copy')
+    document.body.removeChild(textarea)
+    if (success) {
+      ElMessage.success(t('uploadRecord.list.copyPathSuccess'))
+    } else {
+      ElMessage.error(t('uploadRecord.list.copyPathFailed'))
+    }
   } catch {
     ElMessage.error(t('uploadRecord.list.copyPathFailed'))
   }
@@ -1329,7 +1526,7 @@ const loadRecords = async () => {
     const params = {
       page: pagination.page,
       pageSize: pagination.pageSize,
-      dataType: searchDataType.value || undefined,
+      diskLabel: searchDiskLabel.value || undefined,
       status: searchStatus.value || undefined,
       uploader: searchUploader.value || undefined,
       projectName: searchProjectName.value || undefined,
@@ -1344,8 +1541,8 @@ const loadRecords = async () => {
 
     // 更新数据类型列表
     const stats = await UploadRecordApi.statistics()
-    if (stats.data.byDataType) {
-      dataTypes.value = stats.data.byDataType.map((d: { dataType: string }) => d.dataType)
+    if (stats.data.byDiskLabel) {
+      diskLabels.value = stats.data.byDiskLabel.map((d: { diskLabel: string }) => d.diskLabel)
     }
   } catch (error) {
     console.error('Failed to load records:', error)
@@ -1361,7 +1558,7 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  searchDataType.value = ''
+  searchDiskLabel.value = ''
   searchStatus.value = ''
   searchUploader.value = ''
   searchProjectName.value = ''
@@ -1381,7 +1578,9 @@ const handleEdit = (row: UploadRecord) => {
   editForm.serialNo = row.serialNo
   editForm.status = row.status
   editForm.remark = row.remark
+  editForm.fileSize = row.fileSize
   editForm.data = { ...row.data } || {}
+  initEditFileSize(row.fileSize)
   editVisible.value = true
 }
 
@@ -1400,6 +1599,7 @@ const handleDelete = async (row: UploadRecord) => {
     await UploadRecordApi.del(row.id)
     ElMessage.success(t('uploadRecord.list.deleteSuccess'))
     loadRecords()
+    loadListStats()
   } catch (error: any) {
     if (error !== 'cancel') {
       ElMessage.error(t('uploadRecord.list.deleteFailed'))
@@ -1431,6 +1631,7 @@ const handleBatchDelete = async () => {
     ElMessage.success(t('uploadRecord.list.batchDeleteSuccess', [selectedRows.value.length]))
     selectedRows.value = []
     loadRecords()
+    loadListStats()
   } catch (error: any) {
     if (error !== 'cancel') {
       ElMessage.error(t('uploadRecord.list.batchDeleteFailed'))
@@ -1438,8 +1639,35 @@ const handleBatchDelete = async () => {
   }
 }
 
+// 批量修改状态
+const handleBatchUpdateStatus = async (status: string) => {
+  if (selectedRows.value.length === 0) return
+  try {
+    await ElMessageBox.confirm(
+      t('uploadRecord.list.batchUpdateStatusConfirmMsg', [selectedRows.value.length, getStatusText(status)]),
+      t('uploadRecord.list.batchUpdateStatusConfirmTitle'),
+      {
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning'
+      }
+    )
+
+    const ids = selectedRows.value.map(row => row.id)
+    await UploadRecordApi.batchUpdateStatus(ids, status as any)
+    ElMessage.success(t('uploadRecord.list.batchUpdateStatusSuccess', [selectedRows.value.length, getStatusText(status)]))
+    selectedRows.value = []
+    loadRecords()
+    loadListStats()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(t('uploadRecord.list.batchUpdateStatusFailed'))
+    }
+  }
+}
+
 const handleCreate = () => {
-  createForm.dataType = ''
+  createForm.diskLabel = ''
   createForm.projectName = ''
   createForm.destPath = ''
   createForm.uploader = ''
@@ -1454,7 +1682,7 @@ const handleCreate = () => {
 }
 
 const confirmCreate = async () => {
-  if (!createForm.dataType) {
+  if (!createForm.diskLabel) {
     ElMessage.error(t('uploadRecord.list.selectDiskLabel'))
     return
   }
@@ -1477,10 +1705,10 @@ const confirmCreate = async () => {
   submitting.value = true
   try {
     const res = await UploadRecordApi.create({
-      dataType: createForm.dataType,
+      diskLabel: createForm.diskLabel,
       projectName: createForm.projectName,
       destPath: createForm.destPath,
-      fileSize: createForm.fileSize,
+      fileSize: createForm.fileSize, // 直接发送浮点数，后端统一处理四舍五入
       uploader: createForm.uploader,
       status: createForm.status,
       remark: createForm.remark || undefined,
@@ -1491,6 +1719,7 @@ const confirmCreate = async () => {
       ElMessage.success(t('uploadRecord.list.createSuccess'))
       createVisible.value = false
       loadRecords()
+      loadListStats()
     } else {
       ElMessage.error(res.message || t('uploadRecord.list.createFailed'))
     }
@@ -1508,11 +1737,13 @@ const confirmEdit = async () => {
       id: editForm.id,
       status: editForm.status as any,
       remark: editForm.remark,
+      fileSize: editForm.fileSize > 0 ? editForm.fileSize : undefined, // 直接发送浮点数，后端统一处理四舍五入
       data: editForm.data
     })
     ElMessage.success(t('uploadRecord.list.updateSuccess'))
     editVisible.value = false
     loadRecords()
+    loadListStats()
   } catch (error) {
     ElMessage.error(t('uploadRecord.list.updateFailed'))
   } finally {
@@ -1527,6 +1758,9 @@ const showImportDialog = async () => {
   selectedFile.value = null
   fileList.value = []
   previewRowCount.value = null
+  activeImportStep.value = 1
+  importingDone.value = false
+  importProgress.value = 0
   // 加载模板字段说明
   try {
     const res = await UploadRecordApi.getImportTemplate()
@@ -1553,6 +1787,11 @@ const handleFileChange = async (file: any) => {
   selectedFile.value = file.raw as File
   previewRowCount.value = null
   previewLoading.value = true
+  activeImportStep.value = 2
+  // 清空 el-upload 内部 file list，确保同名文件也能触发 onChange
+  nextTick(() => {
+    uploadRef.value?.clearFiles()
+  })
   try {
     const res = await UploadRecordApi.previewImport(selectedFile.value)
     if (res.code === 200) {
@@ -1568,6 +1807,21 @@ const handleFileChange = async (file: any) => {
 const handleFileRemove = () => {
   selectedFile.value = null
   previewRowCount.value = null
+  uploadRef.value?.clearFiles()
+  fileList.value = []
+  activeImportStep.value = 2
+}
+
+// 触发 file input 点击以替换文件（清空后点击，清除内部状态确保重新触发 onChange）
+const triggerFileReplace = () => {
+  uploadRef.value?.clearFiles()
+  selectedFile.value = null
+  previewRowCount.value = null
+  nextTick(() => {
+    const el = uploadRef.value?.$el as HTMLElement
+    const input = el?.querySelector?.('[type="file"]') as HTMLInputElement | undefined
+    input?.click()
+  })
 }
 
 const handleImport = async () => {
@@ -1575,17 +1829,26 @@ const handleImport = async () => {
     ElMessage.warning(t('uploadRecord.list.selectImportFile'))
     return
   }
+  activeImportStep.value = 3
   importing.value = true
+  importingDone.value = false
   importResult.value = null
+  importProgress.value = 0
   try {
-    const res = await UploadRecordApi.importRecords(selectedFile.value)
+    const res = await UploadRecordApi.importRecords(selectedFile.value, (pct) => {
+      importProgress.value = pct
+    })
     if (res.code === 200) {
       importResult.value = res.data
+      importProgress.value = 100
       if (res.data.failed === 0) {
         ElMessage.success(t('uploadRecord.list.importSuccessMsg', [res.data.success]))
       } else {
         ElMessage.warning(t('uploadRecord.list.importPartial', [res.data.success, res.data.failed]))
       }
+      // 成功后刷新列表和统计
+      loadRecords()
+      loadListStats()
     } else {
       ElMessage.error(res.message || t('uploadRecord.list.importFailedMsg'))
     }
@@ -1593,11 +1856,14 @@ const handleImport = async () => {
     ElMessage.error(e.message || t('uploadRecord.list.importFailedMsg'))
   } finally {
     importing.value = false
+    importingDone.value = true
   }
 }
 
 const closeImportDialog = () => {
   importDialogVisible.value = false
+  importingDone.value = false
+  importProgress.value = 0
   if (importResult.value && importResult.value.success > 0) {
     loadRecords()
   }
@@ -1609,6 +1875,7 @@ onMounted(() => {
   loadProjects()
   loadPersonnel()
   loadRecords()
+  loadListStats()
 })
 </script>
 
@@ -1619,7 +1886,7 @@ onMounted(() => {
   min-height: 100vh;
   background: var(--color-page-bg);
   padding: var(--space-4);
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 
 /* ==================== 页面标题栏 ==================== */
@@ -1768,6 +2035,86 @@ onMounted(() => {
 
 .toolbar-right { display: flex; gap: var(--space-2); }
 
+/* ==================== 批量修改按钮 ==================== */
+.batch-edit-btn {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: var(--color-primary-light-9);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(0,94,235,0.12);
+    border-color: var(--color-primary);
+  }
+}
+
+/* ==================== 批量修改面板 ==================== */
+.batch-edit-panel {
+  padding: 4px 0;
+}
+
+.batch-edit-header {
+  padding: 0 12px 10px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.batch-edit-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.batch-edit-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.batch-edit-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--color-surface-2);
+    border-color: var(--color-primary);
+  }
+
+  .batch-edit-option-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &.dot--pending { background: #e6a23c; }
+    &.dot--processing { background: #409eff; }
+    &.dot--completed { background: #67c23a; }
+    &.dot--failed { background: #f56c6c; }
+  }
+
+  .batch-edit-option-text {
+    font-weight: 500;
+    white-space: nowrap;
+  }
+}
+
 .column-settings-btn {
   display: flex;
   align-items: center;
@@ -1904,6 +2251,37 @@ onMounted(() => {
   gap: 4px;
   justify-content: center;
 }
+.serial-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+.disk-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.copy-btn--sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.15s, background-color 0.15s;
+  flex-shrink: 0;
+}
+.copy-btn--sm:hover {
+  color: #409eff;
+  background-color: #f0f9ff;
+}
 
 .no-data { color: var(--color-text-muted); font-style: italic; }
 
@@ -1927,23 +2305,6 @@ onMounted(() => {
     color: var(--color-primary);
   }
   &:active { transform: scale(0.95); }
-  &.copy-btn-lg { width: 26px; height: 26px; }
-}
-
-.detail-path-cell {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  width: 100%;
-}
-
-.detail-path-text {
-  font-family: 'SF Mono', Monaco, monospace;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  word-break: break-all;
-  flex: 1;
-  line-height: 1.6;
 }
 
 .dynamic-field { font-size: 13px; color: var(--color-text-primary); font-weight: 500; }
@@ -1959,17 +2320,6 @@ onMounted(() => {
   &--warning { background: rgba(245,158,11,0.1); color: var(--color-warning); }
   &--danger { background: rgba(239,68,68,0.08); color: var(--color-danger); }
   &--info { background: rgba(59,130,246,0.1); color: var(--chart-blue); }
-}
-
-.serial-no {
-  font-family: 'SF Mono', Monaco, monospace;
-  font-size: 12px;
-  background: var(--color-primary-light-9);
-  padding: 3px 8px;
-  border-radius: var(--radius-sm);
-  color: var(--color-primary);
-  font-weight: 600;
-  border: 1px solid rgba(0,94,235,0.12);
 }
 
 /* ==================== 分页 ==================== */
@@ -2013,6 +2363,22 @@ onMounted(() => {
     margin-bottom: 0;
     border-bottom: 1px solid var(--color-border-light);
     background: var(--color-surface);
+  }
+
+  .el-drawer__body {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+}
+
+:deep(.create-drawer) {
+  .el-drawer__header {
+    padding: 16px 20px;
+    margin-bottom: 0;
+    border-bottom: 1px solid #f0f0f0;
+    background: #ffffff;
   }
 
   .el-drawer__body {
@@ -2115,6 +2481,63 @@ onMounted(() => {
   .el-icon { font-size: 14px; }
 }
 
+.preview-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preview-filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.preview-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: #15803d;
+  background: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.25);
+  border-radius: 4px;
+  padding: 1px 5px;
+  line-height: 1.4;
+}
+
+.preview-refresh-btn {
+  align-self: flex-start;
+  font-size: 11px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 5px;
+  border-color: #86efac;
+  color: #15803d;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+
+  &:hover {
+    background: rgba(22, 163, 74, 0.06);
+    border-color: #22c55e;
+    color: #16a34a;
+  }
+
+  .el-icon {
+    font-size: 12px;
+    transition: transform 0.3s;
+  }
+
+  &:hover .el-icon {
+    transform: rotate(180deg);
+  }
+}
+
+.export-preview-card.is-loading .preview-num {
+  opacity: 0.5;
+}
+
 /* 同步筛选区域 */
 .export-sync-section {
   background: #fff;
@@ -2214,7 +2637,7 @@ onMounted(() => {
 .import-body {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 /* 弹窗头部 */
@@ -2253,90 +2676,501 @@ onMounted(() => {
   color: #9ca3af;
 }
 
-/* 三步骤卡片 */
-.step-row {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr auto 1fr;
-  gap: 0;
-  align-items: stretch;
-}
-.step-card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 14px 14px 12px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-light);
-  border-radius: 10px;
-  position: relative;
-}
-.step-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 2px;
-}
-.step-num {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+/* 横向步骤条 */
+.stepper {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  font-family: 'Manrope', sans-serif;
-  background: var(--color-primary-light-9);
-  color: var(--color-primary);
-  flex-shrink: 0;
+  gap: 0;
+  padding: 0 20px;
 }
-.step-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  line-height: 1.3;
+.step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
 }
-.step-desc {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  line-height: 1.4;
-  flex: 1;
-}
-.step-btn {
-  width: 100%;
-  margin-top: 4px;
-}
-.step-upload {
-  width: 100%;
-  margin-top: 4px;
-}
-.step-upload :deep(.el-upload) {
-  width: 100%;
-}
-.step-upload :deep(.el-upload__trigger) {
-  width: 100%;
-}
-.preview-hint {
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--color-primary);
-  font-weight: 500;
-  padding: 4px 8px;
-  background: var(--color-primary-light-9);
-  border-radius: 4px;
-}
-.preview-hint.loading {
-  color: var(--color-text-muted);
-  background: var(--color-surface-3);
-}
-
-.step-arrow {
+.step-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  border: 2px solid #d1d5db;
   display: flex;
   align-items: center;
-  padding: 0 8px;
-  color: var(--color-text-muted);
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #9ca3af;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-family: 'Manrope', sans-serif;
+}
+.step-item--active .step-dot {
+  background: #eff6ff;
+  border-color: #005eeb;
+  color: #005eeb;
+  box-shadow: 0 0 0 4px rgba(0, 94, 235, 0.12);
+  transform: scale(1.1);
+}
+.step-item--done .step-dot {
+  background: #dcfce7;
+  border-color: #16a34a;
+  color: #16a34a;
+}
+.step-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-align: center;
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+.step-item--active .step-label { color: #005eeb; }
+.step-item--done .step-label { color: #16a34a; }
+
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: #e5e7eb;
+  margin: 0 4px;
+  margin-bottom: 22px;
+  transition: background 0.4s;
+  max-width: 80px;
+}
+.step-line--active {
+  background: #16a34a;
+}
+
+/* 步骤内容区 */
+.step-content {
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  animation: content-in 0.25s ease-out;
+}
+@keyframes content-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 步骤面板 */
+.step-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 32px 20px;
+  gap: 8px;
+}
+.step-panel__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #005eeb;
+  margin-bottom: 4px;
+}
+.step-panel__icon--confirm {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #16a34a;
+}
+.step-panel__desc {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+  text-align: center;
+}
+.step-panel__file-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #005eeb;
+  font-family: 'SF Mono', monospace;
+  background: #eff6ff;
+  padding: 4px 10px;
+  border-radius: 5px;
+  margin: 0;
+}
+.step-panel__btn {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+}
+.step-panel__next {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: #005eeb;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+  margin-top: 4px;
+  &:hover { background: #eff6ff; }
+  &:disabled { color: #d1d5db; cursor: not-allowed; &:hover { background: transparent; } }
+}
+.step-panel__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+  &:hover { background: #f3f4f6; color: #6b7280; }
+}
+.step-panel__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 4px;
+}
+.step-panel__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 拖拽上传区 */
+.drop-zone {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.drop-zone :deep(.el-upload) {
+  width: 100%;
+}
+.drop-zone :deep(.el-upload-drag) {
+  width: 100%;
+  height: 110px;
+  border: 1.5px dashed #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s, background 0.2s;
+  &:hover {
+    border-color: #005eeb;
+    background: #f0f7ff;
+  }
+}
+.drop-zone__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.drop-zone__icon {
+  color: #9ca3af;
+  transition: color 0.2s;
+}
+.drop-zone :deep(.el-upload-drag:hover) .drop-zone__icon {
+  color: #005eeb;
+}
+.drop-zone__text {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+.drop-zone__link {
+  font-size: 13px;
+  color: #005eeb;
+  font-weight: 600;
+  pointer-events: auto;
+  &:hover { text-decoration: underline; }
+}
+
+/* 替换文件按钮 */
+.drop-zone--replace {
+  margin-top: 6px;
+  display: flex;
+  justify-content: center;
+}
+.drop-zone--replace :deep(.el-upload) {
+  display: flex;
+  justify-content: center;
+}
+.replace-btn {
+  font-size: 12px;
+  color: #9ca3af;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 5px;
+  transition: color 0.15s, background 0.15s;
+  &:hover { color: #005eeb; background: #eff6ff; }
+}
+
+/* 文件药片 */
+.file-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
+  width: 100%;
+  animation: chip-in 0.2s ease-out;
+}
+@keyframes chip-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.file-chip__icon {
+  color: #005eeb;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  background: #eff6ff;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.file-chip__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+.file-chip__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+  font-family: 'SF Mono', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-chip__size {
+  font-size: 11px;
+  color: #9ca3af;
+}
+.file-chip__remove {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: #f9fafb;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+  &:hover { background: #fef2f2; color: #dc2626; }
+}
+
+/* 预览药片 */
+.preview-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.preview-pill--loading {
+  background: #f9fafb;
+  color: #9ca3af;
+}
+.preview-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9ca3af;
+  animation: dot-pulse 1.2s ease-in-out infinite;
+}
+@keyframes dot-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+.preview-pill--ok {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+/* 导入中 — 真实进度条 */
+.importing-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 40px;
+}
+.progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 380px;
+}
+.progress-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #005eeb;
+  flex-shrink: 0;
+  animation: icon-pulse 1.5s ease-in-out infinite;
+}
+@keyframes icon-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1); }
+}
+.progress-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.progress-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+.progress-pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: #005eeb;
+  font-family: 'Manrope', monospace;
+  min-width: 36px;
+  text-align: right;
+}
+.progress-bar {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-bar__fill {
+  height: 100%;
+  background: #005eeb;
+  border-radius: 3px;
+  transition: width 0.3s ease-out;
+  min-width: 4px;
+}
+.progress-sub {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+/* 导入按钮 */
+.import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 导入结果 */
+.import-result {
+  padding: 0 4px 4px;
+  animation: result-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes result-in {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.res-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid;
+}
+.res-banner--ok {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+.res-banner--warn {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+.res-icon { flex-shrink: 0; display: flex; align-items: center; }
+.res-info { display: flex; flex-direction: column; gap: 2px; }
+.res-title { font-size: 14px; font-weight: 700; color: #1f2937; font-family: 'Manrope', sans-serif; }
+.res-detail { font-size: 12px; color: #6b7280; display: flex; gap: 12px; }
+.res-ok { color: #16a34a; font-weight: 600; }
+.res-fail { color: #d97706; font-weight: 600; }
+
+.fail-list { }
+.fail-list-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 10px 14px 6px;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 4px;
+}
+.fail-list-body { padding: 0 14px 12px; display: flex; flex-direction: column; gap: 4px; }
+.fail-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: #fff;
+  border: 1px solid #f3f4f6;
+  border-radius: 7px;
+  font-size: 12px;
+  animation: fail-in 0.3s ease-out both;
+}
+.fail-item:nth-child(1) { animation-delay: 0.05s; }
+.fail-item:nth-child(2) { animation-delay: 0.1s; }
+.fail-item:nth-child(3) { animation-delay: 0.15s; }
+.fail-item:nth-child(4) { animation-delay: 0.2s; }
+.fail-item:nth-child(5) { animation-delay: 0.25s; }
+@keyframes fail-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.fail-item-num {
+  color: #dc2626;
+  font-weight: 700;
+  font-family: 'SF Mono', monospace;
+  min-width: 44px;
   flex-shrink: 0;
 }
+.fail-item-msg { color: #6b7280; font-size: 12px; }
+
+.diag-close-btn { }
 
 /* 字段填写说明 */
 .field-guide {
@@ -2418,82 +3252,21 @@ onMounted(() => {
   font-weight: 500;
 }
 
-/* 导入结果 */
-.import-result { }
-.res-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 10px;
-  border: 1px solid;
-}
-.res-banner--ok {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-}
-.res-banner--warn {
-  background: #fffbeb;
-  border-color: #fde68a;
-}
-.res-icon { flex-shrink: 0; display: flex; align-items: center; }
-.res-info { display: flex; flex-direction: column; gap: 2px; }
-.res-title { font-size: 14px; font-weight: 700; color: #1f2937; font-family: 'Manrope', sans-serif; }
-.res-detail { font-size: 12px; color: #6b7280; display: flex; gap: 12px; }
-.res-ok { color: #16a34a; font-weight: 600; }
-.res-fail { color: #d97706; font-weight: 600; }
-
-.fail-list { }
-.fail-list-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: #9ca3af;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  padding: 10px 14px 6px;
-  border-top: 1px solid #e5e7eb;
-  margin-top: 4px;
-}
-.fail-list-body { padding: 0 14px 12px; display: flex; flex-direction: column; gap: 4px; }
-.fail-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
-  background: #fff;
-  border: 1px solid #f3f4f6;
-  border-radius: 7px;
-  font-size: 12px;
-}
-.fail-item-num {
-  color: #dc2626;
-  font-weight: 700;
-  font-family: 'SF Mono', monospace;
-  min-width: 44px;
-  flex-shrink: 0;
-}
-.fail-item-msg { color: #6b7280; font-size: 12px; }
-
-.diag-close-btn { }
-
-/* ==================== 新增抽屉 ==================== */
-/* 抽屉头部 */
+/* ==================== 抽屉头部通用 ==================== */
 .drawer-head {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 20px 24px 0;
 }
 .drawer-head-icon {
   width: 38px;
   height: 38px;
   border-radius: 10px;
   background: rgba(0, 94, 235, 0.08);
-  border: 1px solid rgba(0, 94, 235, 0.18);
+  border: 1px solid rgba(0, 94, 235, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #005eeb;
   flex-shrink: 0;
 }
 .drawer-head-text {
@@ -2515,14 +3288,555 @@ onMounted(() => {
   color: #9ca3af;
 }
 
+/* ==================== 新增弹窗样式 ==================== */
+.create-dialog {
+  max-width: calc(100vw - 40px);
+
+  :deep(.el-dialog__body) {
+    padding: 0;
+  }
+
+  .dialog-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .dialog-head-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #eff6ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #3b82f6;
+  }
+
+  .dialog-head-title {
+    font-family: 'Manrope', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  /* 表单区域 */
+  .create-form {
+    padding: 14px 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* 提示卡片 */
+  .form-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f0fdf4;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #166534;
+
+    svg {
+      color: #22c55e;
+      flex-shrink: 0;
+    }
+
+    em {
+      font-style: normal;
+      color: #dc2626;
+      font-weight: 600;
+    }
+  }
+
+  .form-hint-inline {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 4px;
+  }
+
+  /* 表单分区 */
+  .form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .form-section__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+
+  /* 表单行 */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .form-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    &--full {
+      grid-column: 1 / -1;
+    }
+
+    &--date {
+      margin-bottom: 4px;
+    }
+  }
+
+  .form-item__label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+
+    em {
+      font-style: normal;
+      color: #dc2626;
+    }
+  }
+
+  /* Element Plus 组件样式 */
+  :deep(.el-input__wrapper),
+  :deep(.el-select__wrapper) {
+    border-radius: 6px;
+  }
+
+  :deep(.el-select) {
+    width: 100%;
+  }
+
+  :deep(.el-date-editor) {
+    width: 100% !important;
+
+    .el-input__wrapper {
+      width: 100%;
+    }
+  }
+
+  /* 文件大小输入 */
+  .size-input {
+    display: flex;
+    gap: 6px;
+
+    :deep(.el-input-number) {
+      flex: 1;
+    }
+
+    :deep(.el-select) {
+      width: 80px;
+      flex-shrink: 0;
+    }
+  }
+
+  /* 底部按钮 */
+  :deep(.el-dialog__footer) {
+    padding: 12px 0 0;
+    border: none;
+  }
+
+  :deep(.dialog-footer) {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+
+    .el-button {
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-weight: 500;
+    }
+  }
+}
+
+/* ==================== 详情弹窗 ==================== */
+.detail-dialog {
+  max-width: calc(100vw - 40px);
+
+  :deep(.el-dialog__header) {
+    padding: 0 !important;
+    margin: 0 !important;
+    border-bottom: none !important;
+  }
+
+  :deep(.el-dialog__body) {
+    padding: 0 !important;
+  }
+
+  :deep(.el-dialog__headerbtn) {
+    top: 12px !important;
+    right: 12px !important;
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  :deep(.el-dialog__headerbtn .el-icon) {
+    font-size: 14px !important;
+    color: #9ca3af;
+  }
+
+  :deep(.el-dialog__headerbtn:hover .el-icon) {
+    color: #ef4444 !important;
+    background: #fee2e2 !important;
+    border-radius: 6px;
+  }
+
+  .detail-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 52px 10px 20px;
+
+    &__icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: #eff6ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #3b82f6;
+      flex-shrink: 0;
+    }
+
+    &__title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+    }
+  }
+
+  .detail-body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .detail-row {
+    display: flex;
+    align-items: center;
+    padding: 6px 20px;
+    gap: 20px;
+    border-bottom: 1px solid #f3f4f6;
+    min-height: 32px;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &--path, &--serial {
+      background: #fafafa;
+    }
+
+    &--remark {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      padding: 8px 20px;
+    }
+  }
+
+  .detail-row__label {
+    width: 84px;
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: #9ca3af;
+    white-space: nowrap;
+  }
+
+  .detail-row__value {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+
+    &--copy {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    &--path {
+      flex: 1;
+      background: #f1f5f9;
+      padding: 5px 10px;
+      border-radius: 4px;
+      border: 1px solid #e5e7eb;
+      overflow: hidden;
+      white-space: nowrap !important;
+    }
+  }
+
+  .detail-row__text {
+    font-size: 13px;
+    color: #374151;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &--path {
+      white-space: normal !important;
+      word-break: break-all;
+      overflow: visible;
+      text-overflow: unset;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      line-height: 1.5;
+    }
+  }
+
+  .detail-row__code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    color: #1f2937;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .detail-row__remark {
+    width: 100%;
+    background: #f8fafc;
+    padding: 8px 10px;
+    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #374151;
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+
+    &--pending { background: #fffbeb; color: #d97706; }
+    &--processing { background: #eff6ff; color: #2563eb; }
+    &--completed { background: #f0fdf4; color: #16a34a; }
+    &--failed { background: #fef2f2; color: #dc2626; }
+  }
+
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #9ca3af;
+    transition: all 0.15s;
+    flex-shrink: 0;
+
+    &:hover {
+      background: #f3f4f6;
+      color: #3b82f6;
+    }
+  }
+}
+
+/* ==================== 编辑弹窗 ==================== */
+.edit-dialog {
+  max-width: calc(100vw - 40px);
+
+  :deep(.el-dialog__header) {
+    padding: 0 !important;
+    margin: 0 !important;
+    border-bottom: none !important;
+  }
+
+  :deep(.el-dialog__body) {
+    padding: 0 !important;
+  }
+
+  :deep(.el-dialog__footer) {
+    padding: 12px 16px !important;
+    border-top: 1px solid #f3f4f6;
+  }
+
+  :deep(.el-dialog__headerbtn) {
+    top: 12px !important;
+    right: 12px !important;
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  :deep(.el-dialog__headerbtn .el-icon) {
+    font-size: 14px !important;
+    color: #9ca3af;
+  }
+
+  :deep(.el-dialog__headerbtn:hover .el-icon) {
+    color: #ef4444 !important;
+    background: #fee2e2 !important;
+    border-radius: 6px;
+  }
+
+  .edit-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 52px 10px 20px;
+
+    &__icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: #eff6ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #3b82f6;
+      flex-shrink: 0;
+    }
+
+    &__title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+    }
+  }
+
+  .edit-body {
+    padding: 12px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .edit-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    &--full {
+      flex-direction: column;
+    }
+
+    :deep(.el-select) {
+      width: 100%;
+    }
+  }
+
+  .edit-row__label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #6b7280;
+  }
+
+  .edit-size {
+    display: flex;
+    gap: 8px;
+
+    :deep(.el-input-number) {
+      flex: 1;
+    }
+
+    :deep(.el-select) {
+      width: 80px;
+      flex-shrink: 0;
+    }
+  }
+
+  .edit-hint {
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+  .edit-divider {
+    height: 1px;
+    background: #f0f0f2;
+  }
+}
+
+/* ==================== 通用复制按钮 ==================== */
+.copy-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  color: #9ca3af;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #f3f4f6;
+    color: #3b82f6;
+  }
+}
+
+/* ==================== 通用底部 ==================== */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+
+  :deep(.el-button) {
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 500;
+  }
+}
+
+/* ==================== 抽屉相关（旧样式保留） ==================== */
+.drawer-head-icon--create {
+  background: rgba(0, 94, 235, 0.1) !important;
+  border-color: rgba(0, 94, 235, 0.15) !important;
+  color: #005eeb !important;
+}
+
+/* 填写提示条 */
+.create-tip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 13px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #1e40af;
+  line-height: 1.4;
+
+  em {
+    font-style: normal;
+    color: #dc2626;
+    font-weight: 700;
+  }
+
+  .create-tip__icon {
+    flex-shrink: 0;
+    color: #3b82f6;
+  }
+}
+
 /* 表单主体 */
 .create-body {
-  padding: 20px 24px 0;
+  padding: 18px 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  overflow-y: auto;
-  flex: 1;
+  gap: 14px;
 }
 
 /* 字段分组 */
@@ -2602,13 +3916,80 @@ onMounted(() => {
   margin-left: 1px;
 }
 
+/* ========== 现代字段布局 ========== */
+.create-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.create-section__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 13px;
+    background: #005eeb;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+}
+
+.create-section__label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.create-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.create-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  &--wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.create-field__label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+  line-height: 1;
+
+  em {
+    font-style: normal;
+    color: #dc2626;
+    font-weight: 700;
+    margin-left: 1px;
+  }
+}
+
 /* 表单控件 */
 .dr-input, .dr-select, .dr-textarea {
   width: 100%;
 }
 
 :deep(.dr-input .el-input__wrapper),
-:deep(.dr-select .el-input__wrapper) {
+:deep(.dr-select .el-select__wrapper),
+:deep(.el-date-editor.dr-input .el-input__wrapper) {
   background: #ffffff !important;
   border: 1px solid #d1d5db !important;
   border-radius: 7px !important;
@@ -2617,6 +3998,8 @@ onMounted(() => {
   transition: border-color 0.2s, box-shadow 0.2s !important;
   font-family: 'DM Sans', sans-serif !important;
   font-size: 13px !important;
+  height: 34px !important;
+  box-sizing: border-box !important;
   &:hover {
     border-color: #9ca3af !important;
     box-shadow: 0 0 0 1px #9ca3af inset !important;
@@ -2627,14 +4010,14 @@ onMounted(() => {
   }
 }
 :deep(.dr-input .el-input__inner),
-:deep(.dr-select .el-input__inner) {
+:deep(.dr-select .el-select__inner) {
   color: #1f2329 !important;
   font-size: 13px !important;
   font-weight: 500;
   &::placeholder { color: #c4c9d4 !important; }
 }
 :deep(.dr-input .el-input__prefix .el-icon),
-:deep(.dr-select .el-input__prefix .el-icon) {
+:deep(.dr-select .el-select__prefix .el-icon) {
   color: #9ca3af;
 }
 
@@ -2665,6 +4048,8 @@ onMounted(() => {
   display: flex;
   gap: 6px;
   align-items: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .size-num {
@@ -2677,7 +4062,9 @@ onMounted(() => {
     padding: 5px 8px !important;
     font-family: 'DM Sans', sans-serif !important;
     font-size: 13px !important;
-    &:hover { border-color: #9ca3af !important; }
+    height: 34px !important;
+    box-sizing: border-box !important;
+    &:hover { border-color: #9ca3af !important; box-shadow: 0 0 0 1px #9ca3af inset !important; }
     &.is-focus { border-color: #005eeb !important; box-shadow: 0 0 0 3px rgba(0, 94, 235, 0.1) inset !important; }
   }
   :deep(.el-input__inner) { color: #1f2329 !important; font-size: 13px !important; }
@@ -2692,7 +4079,9 @@ onMounted(() => {
     border-radius: 7px !important;
     box-shadow: 0 0 0 1px #d1d5db inset !important;
     padding: 5px 8px !important;
-    &:hover { border-color: #9ca3af !important; }
+    height: 34px !important;
+    box-sizing: border-box !important;
+    &:hover { border-color: #9ca3af !important; box-shadow: 0 0 0 1px #9ca3af inset !important; }
     &.is-focus { border-color: #005eeb !important; box-shadow: 0 0 0 3px rgba(0, 94, 235, 0.1) inset !important; }
   }
   :deep(.el-input__inner) { color: #1f2329 !important; font-size: 12px !important; }
@@ -2857,144 +4246,286 @@ onMounted(() => {
   .filter-card .el-date-editor { width: 200px !important; }
 }
 
-/* ==================== 对话框头部 ==================== */
-:deep(.el-dialog__header) {
-  padding: 16px 20px;
-  margin-right: 0;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.dialog-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.dialog-mode-tag {
-  font-size: 10px;
-  font-weight: 800;
-  font-family: 'DM Sans', sans-serif;
-  padding: 2px 8px;
-  border-radius: 4px;
-  letter-spacing: 0.5px;
-  background: var(--color-primary-light-9);
-  color: var(--color-primary);
-  border: 1px solid rgba(0, 94, 235, 0.2);
-
-  &--info {
-    background: rgba(0, 176, 80, 0.1);
-    color: #00b050;
-    border-color: rgba(0, 176, 80, 0.2);
+/* ==================== 弹窗通用样式 ==================== */
+:deep(.detail-modal),
+:deep(.edit-modal) {
+  .el-dialog__header {
+    padding: 16px 20px;
+    margin-right: 0;
+    border-bottom: 1px solid var(--color-border-light);
+  }
+  .el-dialog__body {
+    padding: 0;
+  }
+  .el-dialog__footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--color-border-light);
   }
 }
 
-.dialog-title-text {
-  font-family: 'Manrope', 'DM Sans', sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-/* ==================== 编辑弹窗样式 ==================== */
-.edit-dialog-header {
+.modal-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
-
-.edit-dialog-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: #409eff;
+.modal-head__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
   flex-shrink: 0;
+  &--info { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+  &--edit { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
 }
-
-.edit-dialog-head-text {
+.modal-head__text {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-
-.edit-dialog-title {
-  font-size: 16px;
+.modal-head__title {
+  font-family: 'Manrope', 'Inter', sans-serif;
+  font-size: 15px;
   font-weight: 700;
   color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
 }
-
-.edit-dialog-sub {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  font-family: 'SF Mono', Monaco, monospace;
-}
-
-.edit-dialog-body {
-  padding: 8px 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.edit-card {
-  background: var(--color-page-bg);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.edit-card-header {
+.modal-head__sub {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: #fff;
-  border-bottom: 1px solid var(--color-border-light);
-  font-size: 13px;
-  font-weight: 600;
+  gap: 6px;
+}
+.modal-serial {
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 12px;
   color: var(--color-text-secondary);
-
-  .el-icon {
-    color: var(--color-primary);
+  background: var(--color-page-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border-light);
+}
+.modal-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--color-border-light);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-radius: 5px;
+  transition: all 0.15s;
+  &:hover {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: #3b82f6;
   }
 }
 
-.edit-card-body {
-  padding: 16px;
-  background: #fff;
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ==================== 详情弹窗 ==================== */
+.detail-body {
+  padding: 16px 20px;
+}
+.detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--color-border-light);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.detail-row {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  border-bottom: 1px solid var(--color-border-light);
+  &:last-child { border-bottom: none; }
+  &--path,
+  &--full {
+    align-items: flex-start;
+  }
+}
+.detail-row__label {
+  width: 100px;
+  flex-shrink: 0;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-page-bg);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--color-border-light);
+  min-height: 40px;
+}
+.detail-row__value {
+  flex: 1;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  &--path {
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  &--remark {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  &--copy {
+    gap: 6px;
+    display: flex;
+    align-items: center;
+  }
+}
+.detail-status {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  &--completed { background: rgba(34, 197, 94, 0.1); color: #16a34a; }
+  &--pending { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+  &--processing { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+  &--failed { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
+}
+.detail-path {
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  word-break: break-all;
+  line-height: 1.6;
+  background: var(--color-page-bg);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border-light);
+}
+.detail-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--color-border-light);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  &:hover {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: #3b82f6;
+  }
+}
+
+/* ==================== 编辑弹窗 ==================== */
+.edit-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  margin: 0 20px 4px;
+  background: #f0f9ff;
+  border: 1px solid #bae0ff;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #1d7ec7;
+  line-height: 1.5;
+}
+.edit-tip__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #409eff;
+}
+.edit-body {
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-
-.edit-field {
+.edit-divider {
+  height: 1px;
+  background: var(--color-border-light);
+  margin: 2px 0;
+}
+.edit-row {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.edit-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
 
-  label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    letter-spacing: 0.3px;
-  }
+.edit-select {
+  width: 100%;
+}
 
-  .el-select,
-  .el-input,
-  .el-date-editor,
-  .el-input-number,
-  .el-textarea {
-    width: 100%;
+.edit-size-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.edit-size-num {
+  flex: 1;
+  :deep(.el-input__wrapper) {
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 7px !important;
+    box-shadow: 0 0 0 1px #d1d5db inset !important;
+    padding: 5px 8px !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 13px !important;
+    &:hover { border-color: #9ca3af !important; }
+    &.is-focus { border-color: #005eeb !important; box-shadow: 0 0 0 3px rgba(0, 94, 235, 0.1) inset !important; }
   }
+  :deep(.el-input__inner) { color: #1f2329 !important; font-size: 13px !important; }
+}
+
+.edit-size-unit {
+  width: 68px;
+  flex-shrink: 0;
+  :deep(.el-input__wrapper) {
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 7px !important;
+    box-shadow: 0 0 0 1px #d1d5db inset !important;
+    padding: 5px 8px !important;
+    &:hover { border-color: #9ca3af !important; }
+    &.is-focus { border-color: #005eeb !important; box-shadow: 0 0 0 3px rgba(0, 94, 235, 0.1) inset !important; }
+  }
+  :deep(.el-input__inner) { color: #1f2329 !important; font-size: 12px !important; }
+}
+
+.edit-size-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-top: 3px;
 }
 
 .edit-dialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border-light);
 }
 </style>

@@ -5,7 +5,7 @@ import type { PageResult } from './index'
 export interface UploadRecordReq {
   page?: number
   pageSize?: number
-  dataType?: string
+  diskLabel?: string
   projectName?: string
   status?: string
   uploader?: string
@@ -18,7 +18,7 @@ export interface UploadRecordReq {
 export interface UploadRecord {
   id: number
   serialNo: string
-  dataType: string
+  diskLabel: string
   projectName: string
   destPath: string
   fileSize: number
@@ -34,7 +34,7 @@ export interface UploadRecord {
 
 // 创建上传记录请求
 export interface CreateUploadRecordReq {
-  dataType: string
+  diskLabel: string
   projectName?: string
   destPath: string
   fileSize: number
@@ -50,6 +50,7 @@ export interface UpdateUploadRecordReq {
   id: number
   status: 'pending' | 'processing' | 'completed' | 'failed'
   remark?: string
+  fileSize?: number  // 上传完成后补充文件大小（字节）
 }
 
 // 统计数据
@@ -68,7 +69,7 @@ export interface UploadRecordStatistics {
   totalSizeStr: string
   trend: DailyTrend[]
   byStatus: StatusCount[]
-  byDataType: DataTypeCount[]
+  byDiskLabel: DiskLabelCount[]
   byProject: ProjectCount[]
 }
 
@@ -83,8 +84,8 @@ export interface StatusCount {
   count: number
 }
 
-export interface DataTypeCount {
-  dataType: string
+export interface DiskLabelCount {
+  diskLabel: string
   count: number
 }
 
@@ -92,6 +93,13 @@ export interface ProjectCount {
   projectName: string
   count: number
   totalSize: number
+}
+
+// 磁盘标签状态
+export interface DiskLabelStatus {
+  diskLabel: string
+  count: number
+  status: 'completed' | 'failed' | 'mixed' | 'pending'
 }
 
 // ============ 批量导入相关 ============
@@ -161,13 +169,23 @@ export namespace UploadRecordApi {
     return request.post<null>('/upload-records/batch-delete', { ids })
   }
 
+  // 批量更新上传记录状态
+  export const batchUpdateStatus = (ids: number[], status: 'pending' | 'processing' | 'completed' | 'failed') => {
+    return request.post<null>('/upload-records/batch-update-status', { ids, status })
+  }
+
   // 获取统计数据
-  export const statistics = (params?: { startDate?: string; endDate?: string; projectName?: string; dataType?: string; status?: string; uploader?: string }) => {
+  export const statistics = (params?: { startDate?: string; endDate?: string; projectName?: string; diskLabel?: string; status?: string; uploader?: string }) => {
     return request.get<UploadRecordStatistics>('/upload-records/statistics', params)
   }
 
+  // 获取磁盘标签状态列表
+  export const diskLabels = (params?: { startDate?: string; endDate?: string }) => {
+    return request.get<DiskLabelStatus[]>('/upload-records/disk-labels', params)
+  }
+
   // 获取最近上传记录
-  export const recent = (params?: { limit?: number; projectName?: string; dataType?: string; status?: string; uploader?: string }) => {
+  export const recent = (params?: { limit?: number; projectName?: string; diskLabel?: string; status?: string; uploader?: string }) => {
     return request.get<UploadRecord[]>('/upload-records/recent', params)
   }
 
@@ -225,20 +243,34 @@ const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('to
     })
   }
 
-  // 导入上传记录 Excel
-  export const importRecords = (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    const url = getApiBase() + '/upload-records/import'
-    return fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { ...getAuthHeader() },
-      body: formData
-    }).then(res => {
-      if (!res.ok) throw new Error('导入请求失败')
-      return res.json()
-    }) as Promise<{ code: number; message: string; data: ImportResultResp }>
+  // 导入上传记录 Excel（支持进度回调）
+  export const importRecords = (file: File, onProgress?: (pct: number) => void): Promise<{ code: number; message: string; data: ImportResultResp }> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      const formData = new FormData()
+      formData.append('file', file)
+      const url = getApiBase() + '/upload-records/import'
+      xhr.open('POST', url, true)
+      xhr.withCredentials = true
+      const authHeader = getAuthHeader()
+      for (const key in authHeader) {
+        xhr.setRequestHeader(key, (authHeader as any)[key])
+      }
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(Math.round((e.loaded / e.total) * 100))
+        }
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText))
+        } else {
+          reject(new Error('导入请求失败'))
+        }
+      }
+      xhr.onerror = () => reject(new Error('导入请求失败'))
+      xhr.send(formData)
+    })
   }
 
   // 预览上传文件行数

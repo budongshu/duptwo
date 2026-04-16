@@ -23,6 +23,10 @@ type Project struct {
 	ProjectPerson string          `json:"projectPerson" gorm:"size:128"`                 // 项目人员
 	OpsPerson     string          `json:"opsPerson" gorm:"size:128"`                    // 运维人员
 	OpsStaffPerson string         `json:"opsStaffPerson" gorm:"size:128"`               // 运营人员
+	DeveloperPerson string        `json:"developerPerson" gorm:"size:128"`              // 开发人员
+	TesterPerson    string        `json:"testerPerson" gorm:"size:128"`               // 测试人员
+	BusinessPerson  string        `json:"businessPerson" gorm:"size:128"`             // 商务人员
+	CompliancePerson string        `json:"compliancePerson" gorm:"size:128"`            // 合规专员
 	Solution      string          `json:"solution" gorm:"size:1024"`                    // 解决方案描述
 	SolutionPerson string         `json:"solutionPerson" gorm:"size:128"`               // 解决方案人员
 	CompanyAddr   string          `json:"companyAddr" gorm:"size:256"`                  // 公司地点

@@ -11,6 +11,7 @@ base:
   language: zh
   install_dir: ./data
   serve_web: true
+  web_root: /app/web
 
 database:
   type: postgres

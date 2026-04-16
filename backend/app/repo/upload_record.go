@@ -34,6 +34,17 @@ func (r *UploadRecordRepo) BatchDelete(ids []uint) error {
 	return global.DB.Model(&model.UploadRecord{}).Where("id IN ?", ids).Update("is_deleted", true).Error
 }
 
+// BatchUpdateStatus 批量更新状态
+func (r *UploadRecordRepo) BatchUpdateStatus(ids []uint, status string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return global.DB.Model(&model.UploadRecord{}).Where("id IN ?", ids).Updates(map[string]interface{}{
+		"status":     status,
+		"updated_at": time.Now(),
+	}).Error
+}
+
 func (r *UploadRecordRepo) GetByID(id uint) (*model.UploadRecord, error) {
 	var record model.UploadRecord
 	err := global.DB.Where("id = ? AND is_deleted = ?", id, false).First(&record).Error
@@ -64,7 +75,7 @@ func (r *UploadRecordRepo) ExistsBySerialNo(serialNo string) (bool, error) {
 // StatisticsFilter 统计筛选条件
 type StatisticsFilter struct {
 	ProjectName string
-	DataType    string
+	DiskLabel    string
 	StartDate   string
 	EndDate     string
 	Status      string
@@ -80,8 +91,8 @@ func (r *UploadRecordRepo) buildFilteredDB(filters ...StatisticsFilter) *gorm.DB
 		if f.ProjectName != "" {
 			db = db.Where("project_name = ?", f.ProjectName)
 		}
-		if f.DataType != "" {
-			db = db.Where("data_type = ?", f.DataType)
+		if f.DiskLabel != "" {
+			db = db.Where("disk_label = ?", f.DiskLabel)
 		}
 		if f.Status != "" {
 			db = db.Where("status = ?", f.Status)
@@ -117,8 +128,8 @@ func (r *UploadRecordRepo) List(req dto.UploadRecordListReq) ([]model.UploadReco
 
 	db := global.DB.Model(&model.UploadRecord{}).Where("is_deleted = ?", false)
 
-	if req.DataType != "" {
-		db = db.Where("data_type = ?", req.DataType)
+	if req.DiskLabel != "" {
+		db = db.Where("disk_label = ?", req.DiskLabel)
 	}
 
 	if req.Status != "" {
@@ -168,8 +179,8 @@ func (r *UploadRecordRepo) CountByDate(date string, filters ...StatisticsFilter)
 		if f.ProjectName != "" {
 			db = db.Where("project_name = ?", f.ProjectName)
 		}
-		if f.DataType != "" {
-			db = db.Where("data_type = ?", f.DataType)
+		if f.DiskLabel != "" {
+			db = db.Where("disk_label = ?", f.DiskLabel)
 		}
 		if f.Status != "" {
 			db = db.Where("status = ?", f.Status)
@@ -192,8 +203,8 @@ func (r *UploadRecordRepo) CountTotal(filters ...StatisticsFilter) (int64, error
 		if f.ProjectName != "" {
 			db = db.Where("project_name = ?", f.ProjectName)
 		}
-		if f.DataType != "" {
-			db = db.Where("data_type = ?", f.DataType)
+		if f.DiskLabel != "" {
+			db = db.Where("disk_label = ?", f.DiskLabel)
 		}
 		if f.Status != "" {
 			db = db.Where("status = ?", f.Status)
@@ -217,8 +228,8 @@ func (r *UploadRecordRepo) CountByDateRange(startDate, endDate string, filters .
 		if f.ProjectName != "" {
 			db = db.Where("project_name = ?", f.ProjectName)
 		}
-		if f.DataType != "" {
-			db = db.Where("data_type = ?", f.DataType)
+		if f.DiskLabel != "" {
+			db = db.Where("disk_label = ?", f.DiskLabel)
 		}
 		if f.Status != "" {
 			db = db.Where("status = ?", f.Status)
@@ -264,14 +275,61 @@ func (r *UploadRecordRepo) CountByStatus(filters ...StatisticsFilter) ([]dto.Sta
 	return results, err
 }
 
-// CountByDataType 统计各数据标签的记录数和数据量
-func (r *UploadRecordRepo) CountByDataType(filters ...StatisticsFilter) ([]dto.DataTypeCount, error) {
-	var results []dto.DataTypeCount
+// CountByDiskLabel 统计各磁盘标签的记录数和数据量
+func (r *UploadRecordRepo) CountByDiskLabel(filters ...StatisticsFilter) ([]dto.DiskLabelCount, error) {
+	var results []dto.DiskLabelCount
 	err := r.buildFilteredDB(filters...).
-		Select("data_type, COUNT(*) as count, COALESCE(SUM(file_size), 0) as total_size").
-		Group("data_type").
+		Select("disk_label, COUNT(*) as count, COALESCE(SUM(file_size), 0) as total_size").
+		Group("disk_label").
 		Scan(&results).Error
 	return results, err
+}
+
+// GetDiskLabelStatusAll 获取所有磁盘标签及其状态（支持日期范围）
+func (r *UploadRecordRepo) GetDiskLabelStatusAll(startDate, endDate string) ([]dto.DiskLabelStatus, error) {
+	var results []dto.DiskLabelStatus
+	db := global.DB.Model(&model.UploadRecord{}).
+		Select("disk_label, COUNT(*) as count").
+		Where("is_deleted = 0 AND disk_label != '' AND disk_label IS NOT NULL")
+	if startDate != "" {
+		db = db.Where("created_at >= ?", startDate+" 00:00:00")
+	}
+	if endDate != "" {
+		db = db.Where("created_at <= ?", endDate+" 23:59:59")
+	}
+	err := db.Group("disk_label").Order("count DESC").Scan(&results).Error
+	return results, err
+}
+
+// GetDiskLabelStatusDetail 获取每个磁盘标签下各状态的详细数量（支持日期范围）
+func (r *UploadRecordRepo) GetDiskLabelStatusDetail(startDate, endDate string) (map[string]map[string]int64, error) {
+	type result struct {
+		DiskLabel string `gorm:"column:disk_label"`
+		Status    string `gorm:"column:status"`
+		Count     int64  `gorm:"column:count"`
+	}
+	var rows []result
+	db := global.DB.Model(&model.UploadRecord{}).
+		Select("disk_label, status, COUNT(*) as count").
+		Where("is_deleted = 0 AND disk_label != '' AND disk_label IS NOT NULL")
+	if startDate != "" {
+		db = db.Where("created_at >= ?", startDate+" 00:00:00")
+	}
+	if endDate != "" {
+		db = db.Where("created_at <= ?", endDate+" 23:59:59")
+	}
+	err := db.Group("disk_label, status").Order("disk_label").Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	detail := make(map[string]map[string]int64)
+	for _, row := range rows {
+		if detail[row.DiskLabel] == nil {
+			detail[row.DiskLabel] = make(map[string]int64)
+		}
+		detail[row.DiskLabel][row.Status] = row.Count
+	}
+	return detail, nil
 }
 
 // CountByProject 统计各项目的记录数和数据量（应用日期范围等全部筛选条件）
@@ -294,9 +352,9 @@ func (r *UploadRecordRepo) CountByProject(filters ...StatisticsFilter) ([]dto.Pr
 			query += " AND project_name = ?"
 			args = append(args, f.ProjectName)
 		}
-		if f.DataType != "" {
-			query += " AND data_type = ?"
-			args = append(args, f.DataType)
+		if f.DiskLabel != "" {
+			query += " AND disk_label = ?"
+			args = append(args, f.DiskLabel)
 		}
 		if f.Status != "" {
 			query += " AND status = ?"
@@ -347,9 +405,9 @@ func (r *UploadRecordRepo) GetTrend(startDate, endDate string, filters ...Statis
 			filterSQL += " AND project_name = ?"
 			filterArgs = append(filterArgs, f.ProjectName)
 		}
-		if f.DataType != "" {
-			filterSQL += " AND data_type = ?"
-			filterArgs = append(filterArgs, f.DataType)
+		if f.DiskLabel != "" {
+			filterSQL += " AND disk_label = ?"
+			filterArgs = append(filterArgs, f.DiskLabel)
 		}
 	}
 
@@ -411,8 +469,8 @@ func (r *UploadRecordRepo) ListAllForExport(req dto.UploadRecordListReq) ([]mode
 
 	db := global.DB.Model(&model.UploadRecord{}).Where("is_deleted = ?", false)
 
-	if req.DataType != "" {
-		db = db.Where("data_type = ?", req.DataType)
+	if req.DiskLabel != "" {
+		db = db.Where("disk_label = ?", req.DiskLabel)
 	}
 	if req.Status != "" {
 		db = db.Where("status = ?", req.Status)

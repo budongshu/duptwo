@@ -294,25 +294,16 @@ const buildGraph = (projects: Project[]) => {
 
   // Filter person nodes by role
   if (filterRole.value) {
+    const filtered = new Map<string, GraphNode>()
     for (const p of projects) {
       if (filterStage.value && p.stage !== filterStage.value) continue
       const name = p[filterRole.value as keyof Project] as string
       if (name && nodeMap.has(name)) {
-        // keep only this person
+        filtered.set(name, nodeMap.get(name)!)
       }
     }
-    if (filterRole.value) {
-      const filtered = new Map<string, GraphNode>()
-      for (const p of projects) {
-        if (filterStage.value && p.stage !== filterStage.value) continue
-        const name = p[filterRole.value as keyof Project] as string
-        if (name && nodeMap.has(name)) {
-          filtered.set(name, nodeMap.get(name)!)
-        }
-      }
-      nodeMap.clear()
-      filtered.forEach((v, k) => nodeMap.set(k, v))
-    }
+    nodeMap.clear()
+    filtered.forEach((v, k) => nodeMap.set(k, v))
   }
 
   // Build project nodes and links

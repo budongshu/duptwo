@@ -5,10 +5,11 @@
 
 base:
   mode: prod
-  port: 18422
+  port: 18421
   version: v1.0.0
   language: zh
   serve_web: true
+  web_root: /app/web
 
 database:
   type: sqlite

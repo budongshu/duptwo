@@ -13,6 +13,8 @@ import (
 	"datauptwo/app/api/v1/user_group"
 	"datauptwo/global"
 	"datauptwo/middleware"
+	"os"
+	"path/filepath"
 
 	_ "datauptwo/docs"
 	"github.com/swaggo/gin-swagger"
@@ -85,8 +87,32 @@ func InitRouter() *gin.Engine {
 		c.Next()
 	})
 
-	// 静态文件服务（前端）- 根据配置动态决定是否启用
-	r.Use(static.Serve("/", static.LocalFile("./cmd/server/web", false)))
+	// 静态文件服务（前端）
+	// web_root 可以是绝对路径，或相对于"配置文件所在目录/../"的路径（即项目根目录）
+	// 配置示例: ./cmd/server/web (dev) 或 ./web (release) 或 /etc/duptwo/web (prod)
+	if global.CONF.Base.ServeWeb {
+		webRoot := global.CONF.Base.WebRoot
+		if webRoot == "" {
+			// 未配置时自动推导：优先尝试 ./cmd/server/web（开发），再尝试 ./web（release）
+			for _, candidate := range []string{"./cmd/server/web", "./web"} {
+				if _, err := os.Stat(candidate); err == nil {
+					webRoot = candidate
+					break
+				}
+			}
+		}
+		if !filepath.IsAbs(webRoot) {
+			// 相对路径：相对于配置文件所在目录的父目录（即项目根目录）
+			if global.CONF.Base.ConfigFile != "" {
+				confDir := filepath.Dir(global.CONF.Base.ConfigFile)
+				projectRoot := filepath.Dir(confDir) // conf/ → 项目根目录
+				webRoot = filepath.Join(projectRoot, webRoot)
+			}
+		}
+		if webRoot != "" {
+			r.Use(static.Serve("/", static.LocalFile(webRoot, false)))
+		}
+	}
 
 	// 公开上传记录接口（无需认证）
 	r.POST("/public/upload-records", RouterGroupApp.PublicUploadRecordApi.Create)
@@ -116,6 +142,7 @@ func InitRouter() *gin.Engine {
 		authGroup.POST("/upload-records", middleware.RequirePermission("upload:create"), RouterGroupApp.UploadRecordApi.Create)
 		authGroup.GET("/upload-records/export", middleware.RequirePermission("upload:export"), RouterGroupApp.UploadRecordApi.Export)
 		authGroup.GET("/upload-records/statistics", middleware.RequirePermission("upload:read"), RouterGroupApp.UploadRecordApi.GetStatistics)
+		authGroup.GET("/upload-records/disk-labels", middleware.RequirePermission("upload:read"), RouterGroupApp.UploadRecordApi.GetDiskLabelStatuses)
 		authGroup.GET("/upload-records/recent", middleware.RequirePermission("upload:read"), RouterGroupApp.UploadRecordApi.GetRecent)
 		authGroup.GET("/upload-records/template", middleware.RequirePermission("upload:read"), RouterGroupApp.UploadRecordApi.GetTemplate)
 		authGroup.POST("/upload-records/preview", middleware.RequirePermission("upload:read"), RouterGroupApp.UploadRecordApi.Preview)
@@ -124,6 +151,7 @@ func InitRouter() *gin.Engine {
 		authGroup.PUT("/upload-records", middleware.RequirePermission("upload:update"), RouterGroupApp.UploadRecordApi.Update)
 		authGroup.DELETE("/upload-records/:id", middleware.RequirePermission("upload:delete"), RouterGroupApp.UploadRecordApi.Delete)
 		authGroup.POST("/upload-records/batch-delete", middleware.RequirePermission("upload:delete"), RouterGroupApp.UploadRecordApi.BatchDelete)
+		authGroup.POST("/upload-records/batch-update-status", middleware.RequirePermission("upload:update"), RouterGroupApp.UploadRecordApi.BatchUpdateStatus)
 		authGroup.POST("/upload-records/import", middleware.RequirePermission("upload:create"), RouterGroupApp.UploadRecordApi.Import)
 
 		// 字段配置接口
@@ -190,7 +218,7 @@ func InitRouter() *gin.Engine {
 		authGroup.GET("/audit/operation-logs", middleware.RequirePermission("audit:operation:read"), RouterGroupApp.AuditApi.ListOperationLogs)
 		authGroup.GET("/audit/operation-logs/export", middleware.RequirePermission("audit:operation:read"), RouterGroupApp.AuditApi.ExportOperationLogs)
 		authGroup.GET("/audit/login-logs", middleware.RequirePermission("audit:login:read"), RouterGroupApp.AuditApi.ListLoginLogs)
-		authGroup.GET("/audit/login-logs/export", middleware.RequirePermission("audit:login:read"), RouterGroupApp.AuditApi.ExportLoginLogs)
+		authGroup.GET("/audit/login-logs/export", middleware.RequirePermission("audit:login:read"), RouterGroupApp.AuditApi.ExportOperationLogs)
 
 		// 系统配置接口
 		authGroup.GET("/admin/config", middleware.RequirePermission("config:read"), RouterGroupApp.AdminApi.GetConfig)
@@ -212,7 +240,21 @@ func InitRouter() *gin.Engine {
 	// SPA 路由兜底
 	r.NoRoute(func(c *gin.Context) {
 		if global.CONF.Base.ServeWeb {
-			c.File("./cmd/server/web/index.html")
+			webRoot := global.CONF.Base.WebRoot
+			if webRoot == "" {
+				for _, candidate := range []string{"./cmd/server/web", "./web"} {
+					if _, err := os.Stat(candidate); err == nil {
+						webRoot = candidate
+						break
+					}
+				}
+			}
+			if !filepath.IsAbs(webRoot) && global.CONF.Base.ConfigFile != "" {
+				confDir := filepath.Dir(global.CONF.Base.ConfigFile)
+				projectRoot := filepath.Dir(confDir)
+				webRoot = filepath.Join(projectRoot, webRoot)
+			}
+			c.File(filepath.Join(webRoot, "index.html"))
 		} else {
 			c.AbortWithStatusJSON(404, gin.H{"code": 404, "message": "Web frontend is disabled"})
 		}

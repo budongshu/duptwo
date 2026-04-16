@@ -41,18 +41,22 @@ func (s *ProjectService) Create(req dto.ProjectCreateReq) (*model.Project, error
 
 	project := &model.Project{
 		Name:           req.Name,
-		Code:          req.Code,
-		Description:   req.Description,
-		Status:        req.Status,
-		Stage:         req.Stage,
-		Sort:          req.Sort,
-		ProjectPerson: req.ProjectPerson,
-		OpsPerson:     req.OpsPerson,
-		OpsStaffPerson: req.OpsStaffPerson,
-		Solution:      req.Solution,
-		SolutionPerson: req.SolutionPerson,
-		CompanyAddr:   req.CompanyAddr,
-		ProjectPeriod: req.ProjectPeriod,
+		Code:           req.Code,
+		Description:    req.Description,
+		Status:         req.Status,
+		Stage:          req.Stage,
+		Sort:           req.Sort,
+		ProjectPerson:  req.ProjectPerson,
+		OpsPerson:      req.OpsPerson,
+		OpsStaffPerson:  req.OpsStaffPerson,
+		DeveloperPerson: req.DeveloperPerson,
+		TesterPerson:    req.TesterPerson,
+		BusinessPerson:  req.BusinessPerson,
+		CompliancePerson: req.CompliancePerson,
+		Solution:       req.Solution,
+		SolutionPerson:  req.SolutionPerson,
+		CompanyAddr:    req.CompanyAddr,
+		ProjectPeriod:  req.ProjectPeriod,
 		OnsiteStations: onsiteJSON,
 	}
 
@@ -109,6 +113,10 @@ func (s *ProjectService) Update(req dto.ProjectUpdateReq) error {
 	project.ProjectPerson = req.ProjectPerson
 	project.OpsPerson = req.OpsPerson
 	project.OpsStaffPerson = req.OpsStaffPerson
+	project.DeveloperPerson = req.DeveloperPerson
+	project.TesterPerson = req.TesterPerson
+	project.BusinessPerson = req.BusinessPerson
+	project.CompliancePerson = req.CompliancePerson
 	project.Solution = req.Solution
 	project.SolutionPerson = req.SolutionPerson
 	project.CompanyAddr = req.CompanyAddr
@@ -225,9 +233,13 @@ func (s *ProjectService) toProjectResp(p *model.Project, stats *repo.ProjectStat
 		Status:        p.Status,
 		Stage:         stage,
 		Sort:          p.Sort,
-		ProjectPerson: p.ProjectPerson,
+		ProjectPerson:  p.ProjectPerson,
 		OpsPerson:     p.OpsPerson,
 		OpsStaffPerson: p.OpsStaffPerson,
+		DeveloperPerson: p.DeveloperPerson,
+		TesterPerson:  p.TesterPerson,
+		BusinessPerson: p.BusinessPerson,
+		CompliancePerson: p.CompliancePerson,
 		Solution:      p.Solution,
 		SolutionPerson: p.SolutionPerson,
 		CompanyAddr:   p.CompanyAddr,
@@ -258,9 +270,13 @@ func (s *ProjectService) toProjectRespSimple(p *model.Project) *dto.ProjectResp 
 		Status:        p.Status,
 		Stage:         stage,
 		Sort:          p.Sort,
-		ProjectPerson: p.ProjectPerson,
+		ProjectPerson:  p.ProjectPerson,
 		OpsPerson:     p.OpsPerson,
 		OpsStaffPerson: p.OpsStaffPerson,
+		DeveloperPerson: p.DeveloperPerson,
+		TesterPerson:  p.TesterPerson,
+		BusinessPerson: p.BusinessPerson,
+		CompliancePerson: p.CompliancePerson,
 		Solution:      p.Solution,
 		SolutionPerson: p.SolutionPerson,
 		CompanyAddr:   p.CompanyAddr,

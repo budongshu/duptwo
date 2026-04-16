@@ -52,7 +52,7 @@ func (api *UploadRecordApi) Create(c *gin.Context) {
 // @Tags UploadRecord
 // @Param page query int false "页码"
 // @Param pageSize query int false "每页数量"
-// @Param dataType query string false "数据类型"
+// @Param diskLabel query string false "磁盘标签"
 // @Param status query string false "状态"
 // @Param uploader query string false "上传人"
 // @Param startDate query string false "开始日期"
@@ -157,13 +157,43 @@ func (api *UploadRecordApi) BatchDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: fmt.Sprintf("成功删除 %d 条记录", len(req.IDs))})
 }
 
+// BatchUpdateStatus 批量更新上传记录状态
+// @Summary 批量更新上传记录状态
+// @Tags UploadRecord
+// @Security Bearer
+// @Accept json
+// @Param request body dto.BatchUpdateStatusReq true "记录ID列表和新状态"
+// @Success 200 {object} dto.Response
+// @Router /api/upload-records/batch-update-status [post]
+func (api *UploadRecordApi) BatchUpdateStatus(c *gin.Context) {
+	var req dto.BatchUpdateStatusReq
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "请选择要更新的记录"})
+		return
+	}
+
+	// 验证状态值
+	validStatuses := map[string]bool{"pending": true, "processing": true, "completed": true, "failed": true}
+	if !validStatuses[req.Status] {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "状态值非法，支持值: pending/processing/completed/failed"})
+		return
+	}
+
+	if err := api.uploadRecordService.BatchUpdateStatus(req.IDs, req.Status); err != nil {
+		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: fmt.Sprintf("成功更新 %d 条记录的状态为「%s」", len(req.IDs), req.Status)})
+}
+
 // 获取统计数据
 // @Summary 获取上传记录统计
 // @Tags UploadRecord
 // @Param startDate query string false "开始日期"
 // @Param endDate query string false "结束日期"
 // @Param projectName query string false "项目名称"
-// @Param dataType query string false "数据类型"
+// @Param diskLabel query string false "磁盘标签"
 // @Param status query string false "状态"
 // @Param uploader query string false "上传人"
 // @Success 200 {object} dto.Response
@@ -172,11 +202,11 @@ func (api *UploadRecordApi) GetStatistics(c *gin.Context) {
 	startDate := c.Query("startDate")
 	endDate := c.Query("endDate")
 	projectName := c.Query("projectName")
-	dataType := c.Query("dataType")
+	diskLabel := c.Query("diskLabel")
 	status := c.Query("status")
 	uploader := c.Query("uploader")
 
-	stats, err := api.uploadRecordService.GetStatistics(startDate, endDate, projectName, dataType, status, uploader)
+	stats, err := api.uploadRecordService.GetStatistics(startDate, endDate, projectName, diskLabel, status, uploader)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
@@ -185,12 +215,32 @@ func (api *UploadRecordApi) GetStatistics(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: stats})
 }
 
+// GetDiskLabelStatuses 获取所有磁盘标签及其综合状态
+// @Summary 获取所有磁盘标签及其综合状态
+// @Tags UploadRecord
+// @Description 返回所有磁盘标签及其上传状态：completed全部完成(绿色)，failed全部失败(红色)，mixed部分失败(橙色)，pending处理中(灰色)
+// @Security Bearer
+// @Param startDate query string false "开始日期"
+// @Param endDate query string false "结束日期"
+// @Success 200 {object} dto.Response
+// @Router /api/v1/upload-records/disk-labels [get]
+func (api *UploadRecordApi) GetDiskLabelStatuses(c *gin.Context) {
+	startDate := c.Query("startDate")
+	endDate := c.Query("endDate")
+	labels, err := api.uploadRecordService.GetDiskLabelStatuses(startDate, endDate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: labels})
+}
+
 // GetRecent 获取最近上传记录
 // @Summary 获取最近上传记录
 // @Tags UploadRecord
 // @Param limit query int false "数量限制"
 // @Param projectName query string false "项目名称"
-// @Param dataType query string false "数据类型"
+// @Param diskLabel query string false "磁盘标签"
 // @Param status query string false "状态"
 // @Param uploader query string false "上传人"
 // @Success 200 {object} dto.Response
@@ -203,11 +253,11 @@ func (api *UploadRecordApi) GetRecent(c *gin.Context) {
 		}
 	}
 	projectName := c.Query("projectName")
-	dataType := c.Query("dataType")
+	diskLabel := c.Query("diskLabel")
 	status := c.Query("status")
 	uploader := c.Query("uploader")
 
-	records, err := api.uploadRecordService.GetRecent(limit, projectName, dataType, status, uploader)
+	records, err := api.uploadRecordService.GetRecent(limit, projectName, diskLabel, status, uploader)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
@@ -283,7 +333,7 @@ func (api *UploadRecordApi) Preview(c *gin.Context) {
 	}
 
 	colNameToCode := map[string]string{
-		"数据类型":        "dataType",
+		"磁盘标签":         "diskLabel",
 		"项目名称":        "projectName",
 		"目标路径":        "destPath",
 		"文件大小(字节)":   "fileSize",
@@ -293,13 +343,13 @@ func (api *UploadRecordApi) Preview(c *gin.Context) {
 		"创建时间":        "createdAt",
 	}
 
-	// 查找表头行（包含"数据类型"的行）
+	// 查找表头行（包含"磁盘标签"的行）
 	headerRowIndex := -1
 	var headerRow []string
 	for i, row := range rows {
 		for _, cell := range row {
 			cellClean := strings.TrimSuffix(strings.TrimSpace(cell), " *")
-			if cellClean == "数据类型" {
+			if cellClean == "磁盘标签" {
 				headerRowIndex = i
 				headerRow = row
 				break
@@ -336,7 +386,7 @@ func (api *UploadRecordApi) Preview(c *gin.Context) {
 			}
 		}
 		// 跳过空行
-		if rowMap["dataType"] == "" && rowMap["destPath"] == "" && rowMap["uploader"] == "" {
+		if rowMap["diskLabel"] == "" && rowMap["destPath"] == "" && rowMap["uploader"] == "" {
 			continue
 		}
 		dataRows++
@@ -396,7 +446,7 @@ func (api *UploadRecordApi) Import(c *gin.Context) {
 
 	// 中文列名 → 字段代码映射（与模板生成顺序一致）
 	colNameToCode := map[string]string{
-		"数据类型":        "dataType",
+		"磁盘标签":         "diskLabel",
 		"项目名称":        "projectName",
 		"目标路径":        "destPath",
 		"文件大小(字节)":   "fileSize",
@@ -406,14 +456,14 @@ func (api *UploadRecordApi) Import(c *gin.Context) {
 		"创建时间":        "createdAt",
 	}
 
-	// 查找表头行（包含"数据类型"的行，可能是"数据类型"或"数据类型 *"）
+	// 查找表头行（包含"磁盘标签"的行，可能是"磁盘标签"或"磁盘标签 *"）
 	headerRowIndex := -1
 	var headerRow []string
 	for i, row := range rows {
 		for _, cell := range row {
 			// 去掉可能的 " *" 后缀
 			cellClean := strings.TrimSuffix(strings.TrimSpace(cell), " *")
-			if cellClean == "数据类型" {
+			if cellClean == "磁盘标签" {
 				headerRowIndex = i
 				headerRow = row
 				break
@@ -425,7 +475,7 @@ func (api *UploadRecordApi) Import(c *gin.Context) {
 	}
 
 	if headerRowIndex < 0 {
-		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "未找到有效的表头行（需包含「数据类型」列）"})
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "未找到有效的表头行（需包含「磁盘标签」列）"})
 		return
 	}
 
@@ -438,22 +488,46 @@ func (api *UploadRecordApi) Import(c *gin.Context) {
 		colIndex[colNameClean] = idx
 	}
 
+	// 创建时间列索引（用于处理Excel日期单元格）
+	dateColIdx, dateColExists := colIndex["创建时间"]
+
 	dataRows := []map[string]string{}
 	for i := headerRowIndex + 1; i < len(rows); i++ {
 		row := rows[i]
 		rowMap := make(map[string]string)
 		for colName, idx := range colIndex {
+			// 特殊处理"创建时间"列：必须优先处理并跳过，避免被 general mapping 覆盖
+			if dateColExists && idx == dateColIdx {
+				// 日期列：即使该行没有这列数据，也跳过 general mapping
+				if idx < len(row) {
+					dateVal := row[idx]
+					if dateVal != "" {
+						// 优先：当 Excel 数字日期序列号解析
+						if serialNum, err := strconv.ParseFloat(dateVal, 64); err == nil {
+							if t, err := excelize.ExcelDateToTime(serialNum, false); err == nil {
+								rowMap["createdAt"] = t.Format("2006-01-02 15:04:05")
+							} else {
+								rowMap["createdAt"] = dateVal // 服务层会再次解析
+							}
+						} else {
+							// 非数字 → 当格式化日期字符串直接用
+							rowMap["createdAt"] = dateVal
+						}
+					}
+				}
+				continue // ← 关键：日期列无论数据是否存在，都必须跳过 general mapping
+			}
+			// general mapping
 			if idx < len(row) {
-				// 将中文列名映射为英文字段代码
 				code := colNameToCode[colName]
 				if code == "" {
-					code = colName // 未识别的列名保留原值（兼容自定义列）
+					code = colName
 				}
 				rowMap[code] = row[idx]
 			}
 		}
 		// 跳过空行
-		if rowMap["dataType"] == "" && rowMap["destPath"] == "" && rowMap["uploader"] == "" {
+		if rowMap["diskLabel"] == "" && rowMap["destPath"] == "" && rowMap["uploader"] == "" {
 			continue
 		}
 		dataRows = append(dataRows, rowMap)
@@ -468,7 +542,7 @@ func (api *UploadRecordApi) Import(c *gin.Context) {
 // Export 导出上传记录为 Excel
 // @Summary 导出上传记录
 // @Tags UploadRecord
-// @Param dataType query string false "数据类型"
+// @Param diskLabel query string false "磁盘标签"
 // @Param status query string false "状态"
 // @Param uploader query string false "上传人"
 // @Param startDate query string false "开始日期"

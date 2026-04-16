@@ -25,9 +25,9 @@
         <span class="person-stat-label">全部人员</span>
       </div>
       <div class="stat-divider"></div>
-      <div class="person-stat" v-for="s in positionStats" :key="s.position" @click="filterByPosition(s.position)">
-        <span class="person-stat-num">{{ s.count }}</span>
-        <span class="person-stat-label">{{ s.position }}</span>
+      <div class="person-stat" v-for="s in positionStats" :key="s.position" @click="filterByPosition(s.position)" :style="{ background: s.color.bg }">
+        <span class="person-stat-num" :style="{ color: s.color.text }">{{ s.count }}</span>
+        <span class="person-stat-label" :style="{ color: s.color.text }">{{ s.position }}</span>
       </div>
     </div>
 
@@ -101,10 +101,52 @@
         style="width: 100%"
       >
         <el-table-column type="selection" width="38" fixed="left" />
-        <el-table-column prop="name" :label="t('personnel.list.form.nameLabel')" min-width="80" show-overflow-tooltip />
-        <el-table-column prop="phone" :label="t('personnel.list.form.phone')" min-width="110" />
-        <el-table-column prop="company" :label="t('personnel.list.form.company')" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="position" :label="t('personnel.list.form.position')" min-width="90" show-overflow-tooltip />
+        <el-table-column :label="t('personnel.list.form.nameLabel')" min-width="100" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="cell-name">{{ row.name }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('personnel.list.form.phone')" min-width="130">
+          <template #default="{ row }">
+            <span class="cell-with-copy">
+              <span>{{ row.phone || '—' }}</span>
+              <el-tooltip v-if="row.phone" content="复制手机号" placement="top">
+                <button class="copy-btn copy-btn--sm" @click.stop="copyText(row.phone)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+              </el-tooltip>
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('personnel.list.form.email')" min-width="180">
+          <template #default="{ row }">
+            <span class="cell-with-copy">
+              <span class="email-cell">{{ row.email || '—' }}</span>
+              <el-tooltip v-if="row.email" content="复制邮箱" placement="top">
+                <button class="copy-btn copy-btn--sm" @click.stop="copyText(row.email)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+              </el-tooltip>
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="company" :label="t('personnel.list.form.company')" min-width="140" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="cell-company">{{ row.company || '—' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="position" :label="t('personnel.list.form.position')" min-width="90" align="center">
+          <template #default="{ row }">
+            <span v-if="row.position" class="cell-position" :style="{ background: positionColors[row.position]?.bg, color: positionColors[row.position]?.text }">{{ row.position }}</span>
+            <span v-else class="cell-position cell-position--none">—</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="workExperience" :label="t('personnel.list.form.workExperience')" min-width="80" align="center" />
         <el-table-column prop="entryDate" :label="t('personnel.list.form.entryDate')" min-width="100" align="center" />
         <el-table-column prop="projectStartDate" :label="t('personnel.list.form.projectStartDate')" min-width="100" align="center" />
@@ -153,7 +195,7 @@
     <el-drawer
       v-model="drawerVisible"
       direction="rtl"
-      size="440px"
+      size="520px"
       :with-header="true"
       :destroy-on-close="true"
       class="personnel-drawer"
@@ -261,8 +303,8 @@
           <div class="form-row-2">
             <el-form-item :label="t('common.status')" prop="status">
               <el-radio-group v-model="form.status">
-                <el-radio label="active">{{ t('common.enabled') }}</el-radio>
-                <el-radio label="inactive">{{ t('common.disabled') }}</el-radio>
+                <el-radio value="active">{{ t('common.enabled') }}</el-radio>
+                <el-radio value="inactive">{{ t('common.disabled') }}</el-radio>
               </el-radio-group>
             </el-form-item>
             <el-form-item :label="t('common.sort')" prop="sort">
@@ -321,11 +363,40 @@ const searchOnProject = ref('')
 const searchPosition = ref('')
 const pagination = reactive({ page: 1, pageSize: 20, total: 0 })
 
+// 获取职位的 CSS class 名（用于颜色标签）
+const getPositionClass = (position: string) => {
+  return position.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '-').toLowerCase()
+}
+
+// 职位颜色配置（16种，足够区分所有岗位）
+const positionColors: Record<string, { bg: string; text: string }> = {
+  '测试工程师':   { bg: '#e6f7ff', text: '#1890ff' },
+  '网络工程师':   { bg: '#f6ffed', text: '#52c41a' },
+  '安全工程师':   { bg: '#fff7e6', text: '#fa8c16' },
+  '开发工程师':   { bg: '#f9f0ff', text: '#722ed1' },
+  '运维工程师':   { bg: '#fff1f0', text: '#f5222d' },
+  '运营人员':     { bg: '#e6fffb', text: '#13c2c2' },
+  '合规专家':     { bg: '#f0f5ff', text: '#597ef7' },
+  '解决方案':     { bg: '#fff0f6', text: '#eb2f96' },
+  '商务人员':     { bg: '#fcffe6', text: '#d4b106' },
+  '成本人员':     { bg: '#e6f7ff', text: '#096dd9' },
+  '驻场人员':     { bg: '#f6ffed', text: '#389e0d' },
+  '驻场人员-ODC': { bg: '#fff7e6', text: '#d46b08' },
+  '项目管理':     { bg: '#f9f0ff', text: '#531dab' },
+  '合规负责人':   { bg: '#fcffe6', text: '#ad8b00' },
+  '产品人员':     { bg: '#e6fffb', text: '#08979c' },
+  '其他人员':     { bg: '#f5f5f5', text: '#595959' },
+}
+
 // 职位统计
 const positionStats = computed(() => {
   const positions = ['测试工程师', '网络工程师', '安全工程师', '开发工程师', '运维工程师', '运营人员', '合规专家', '解决方案', '商务人员', '成本人员', '驻场人员', '驻场人员-ODC', '项目管理', '合规负责人', '产品人员', '其他人员']
   return positions
-    .map(p => ({ position: p, count: tableData.value.filter(r => r.position === p).length }))
+    .map(p => ({
+      position: p,
+      count: tableData.value.filter(r => r.position === p).length,
+      color: positionColors[p] || { bg: '#f0f0f0', text: '#666' }
+    }))
     .filter(s => s.count > 0)
 })
 
@@ -338,13 +409,29 @@ const filterByPosition = (position: string) => {
 const form = reactive<CreatePersonnelReq & { id?: number }>({
   name: '', phone: '', email: '', company: '', position: '',
   workExperience: '', entryDate: '', projectStartDate: '',
-  onProjectStatus: '离项', salary: '', location: '',
+  onProjectStatus: '在项', salary: '', location: '',
   remark: '', status: 'active', sort: 0,
 })
 
-const formRules = {
-  name: [{ required: true, message: t('personnel.list.form.nameRequired'), trigger: 'blur' }],
-}
+const formRules = computed(() => ({
+  name: [{
+    validator: (_rule: any, value: string, callback: Function) => {
+      // 如果 name 有值，直接通过
+      if (value && value.trim()) {
+        callback()
+        return
+      }
+      // 如果没有值，但选择了关联用户，等 watch 自动填充，暂时通过
+      if (selectedUserId.value) {
+        callback()
+        return
+      }
+      // 都没有才报错
+      callback(new Error(t('personnel.list.form.nameRequired')))
+    },
+    trigger: 'blur'
+  }],
+}))
 
 // 加载可选用户列表（用于关联选择）
 const loadUsers = async () => {
@@ -417,7 +504,7 @@ const handleCreate = async () => {
   isEdit.value = false
   selectedUserId.value = undefined
   await loadUsers()
-  Object.assign(form, { id: undefined, name: '', phone: '', email: '', company: '', position: '', workExperience: '', entryDate: '', projectStartDate: '', onProjectStatus: '离项', salary: '', location: '', remark: '', status: 'active', sort: 0 })
+  Object.assign(form, { id: undefined, name: '', phone: '', email: '', company: '', position: '', workExperience: '', entryDate: '', projectStartDate: '', onProjectStatus: '在项', salary: '', location: '', remark: '', status: 'active', sort: 0 })
   drawerVisible.value = true
 }
 
@@ -426,7 +513,7 @@ const handleEdit = async (row: Personnel) => {
   await loadUsers()
   // 尝试根据邮箱匹配已有用户
   selectedUserId.value = allUsers.value.find(u => u.email === row.email)?.id
-  Object.assign(form, { id: row.id, name: row.name, phone: row.phone || '', email: row.email || '', company: row.company || '', position: row.position || '', workExperience: row.workExperience || '', entryDate: row.entryDate || '', projectStartDate: row.projectStartDate || '', onProjectStatus: row.onProjectStatus || '离项', salary: row.salary || '', location: row.location || '', remark: row.remark || '', status: row.status, sort: row.sort || 0 })
+  Object.assign(form, { id: row.id, name: row.name, phone: row.phone || '', email: row.email || '', company: row.company || '', position: row.position || '', workExperience: row.workExperience || '', entryDate: row.entryDate || '', projectStartDate: row.projectStartDate || '', onProjectStatus: row.onProjectStatus || '在项', salary: row.salary || '', location: row.location || '', remark: row.remark || '', status: row.status, sort: row.sort || 0 })
   drawerVisible.value = true
 }
 
@@ -463,6 +550,37 @@ const confirmSubmit = async () => {
     drawerVisible.value = false; loadData()
   } catch (e: any) { ElMessage.error(e.message || t('common.operationError')) }
   finally { submitting.value = false }
+}
+
+// 复制到剪贴板
+const copyText = async (text: string) => {
+  if (!text) {
+    ElMessage.warning('无可复制内容')
+    return
+  }
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+      ElMessage.success('已复制到剪贴板')
+      return
+    }
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    textarea.style.left = '-9999px'
+    document.body.appendChild(textarea)
+    textarea.select()
+    const success = document.execCommand('copy')
+    document.body.removeChild(textarea)
+    if (success) {
+      ElMessage.success('已复制到剪贴板')
+    } else {
+      ElMessage.error('复制失败')
+    }
+  } catch {
+    ElMessage.error('复制失败')
+  }
 }
 
 watch(() => pagination.page, () => loadData())
@@ -546,26 +664,28 @@ export default { name: 'PersonnelList' }
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 0 16px;
+  padding: 8px 14px;
   cursor: pointer;
-  border-radius: 6px;
-  transition: background 0.2s;
+  border-radius: 8px;
+  transition: all 0.2s;
   flex-shrink: 0;
-  min-width: 56px;
+  min-width: 60px;
 
-  &:hover { background: #f5f7fa; }
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
 }
 
 .person-stat-num {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  color: #409eff;
   line-height: 1;
 }
 
 .person-stat-label {
   font-size: 11px;
-  color: #909399;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -829,5 +949,84 @@ export default { name: 'PersonnelList' }
 @media (max-width: 1024px) {
   .form-grid { grid-template-columns: 1fr; }
   .form-row-2 { grid-template-columns: 1fr; }
+}
+
+/* ==================== 单元格美化 ==================== */
+.cell-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.cell-company {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.cell-position {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+
+  &--none {
+    background: var(--color-surface-2);
+    color: var(--color-text-muted);
+  }
+}
+
+/* ==================== 复制按钮样式 ==================== */
+.cell-with-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.email-cell {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  &:hover {
+    background: var(--color-primary-light-9);
+    color: var(--color-primary);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.copy-btn--sm {
+  width: 20px;
+  height: 20px;
+
+  svg {
+    width: 11px;
+    height: 11px;
+  }
 }
 </style>
