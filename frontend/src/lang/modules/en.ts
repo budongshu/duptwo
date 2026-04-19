@@ -356,6 +356,8 @@ export default {
         email: 'Email',
         role: 'Role',
         group: 'User Group',
+        locked: 'Locked',
+        lockedStatus: 'Locked',
         mfa: 'MFA',
         mfaOn: 'On',
         mfaOff: 'Off',
@@ -665,7 +667,7 @@ export default {
       totalDataSize: 'Total Upload Size',
       size: 'Size',
       uploadRecords: 'Upload Records',
-      onsiteStations: 'Onsite Stations',
+      onsiteStations: 'Onsite Locations',
       records: 'records',
       recordsUnit: '',
       dataVolume: 'data'
@@ -738,6 +740,7 @@ export default {
       onProject: 'On-Project',
       offProject: 'Off-Project',
       exportFileName: 'Personnel List',
+      detailTitle: 'Personnel Details',
       form: {
         person: 'Personnel',
         newPerson: 'New Personnel',
@@ -772,7 +775,9 @@ export default {
         deleteConfirmTitle: 'Delete Confirmation',
         batchDeleteConfirm: 'Are you sure you want to delete {count} selected personnel?',
         batchDeleteTitle: 'Batch Delete',
-        batchDeleteSuccess: '{count} personnel deleted'
+        batchDeleteSuccess: '{count} personnel deleted',
+        basicInfo: 'Basic Info',
+        workInfo: 'Work Info'
       }
     }
   },

@@ -2,6 +2,9 @@
 # duptwo Docker Compose（SQLite 轻量版）
 # 适用于开发、小规模使用或简单部署
 # 数据存储在 Docker 卷中
+#
+# 使用方式（从项目根目录运行）：
+#   nerdctl compose -f deploy/docker/docker-compose.sqlite.yml up -d
 # ============================================================
 
 services:
@@ -16,6 +19,7 @@ services:
     environment:
       - TZ=Asia/Shanghai
     volumes:
+      - ./conf/app.sqlite.yaml:/app/conf/app.yaml:ro
       - app-data:/app/data
       - app-logs:/app/logs
     healthcheck:

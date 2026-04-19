@@ -158,13 +158,27 @@ const handleRegister = async () => {
       nickname: form.nickname || undefined
     })
     if (res.code === 200) {
-      ElMessage.success(t('register.registerSuccess'))
+      // 注册成功，友好提示
+      ElMessage({
+        type: 'success',
+        message: res.data?.message || t('register.registerSuccess'),
+        duration: 4000,
+        showClose: true
+      })
+      // 跳转到登录页
       router.push('/login')
     } else {
       ElMessage.error(res.message || t('register.registerFailed'))
     }
   } catch (error: any) {
-    ElMessage.error(error.message || t('register.registerFailed'))
+    // 统一错误处理
+    let msg = t('register.registerFailed')
+    if (error?.response?.data?.message) {
+      msg = error.response.data.message
+    } else if (error?.message) {
+      msg = error.message
+    }
+    ElMessage.error(msg)
   } finally {
     loading.value = false
   }

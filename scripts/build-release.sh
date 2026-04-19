@@ -57,7 +57,7 @@ mkdir -p ${BUILD_DIR}
 build_binary() {
     echo -e "${YELLOW}[1/2] 构建二进制包...${NC}"
 
-    cd backend
+    cd ../backend
 
     if [ "$STATIC" = true ]; then
         echo "使用静态编译（兼容旧系统）..."
@@ -74,10 +74,16 @@ build_binary() {
     fi
 
     mkdir -p ../${BUILD_DIR}/web
-    cp -r cmd/server/web ../${BUILD_DIR}/web/
+    cp -r ../backend/cmd/server/web/* ../${BUILD_DIR}/web/
 
     mkdir -p ../${BUILD_DIR}/conf
     cp conf/app.yaml ../${BUILD_DIR}/conf/app.yaml 2>/dev/null || true
+    # release 包的 web_root 应为 ./web（相对于配置文件所在目录）
+    if [ -f ../${BUILD_DIR}/conf/app.yaml ]; then
+        if ! grep -q "^[[:space:]]*web_root:" ../${BUILD_DIR}/conf/app.yaml; then
+            sed -i "/serve_web: true/a\  web_root: ./web" ../${BUILD_DIR}/conf/app.yaml
+        fi
+    fi
 
     cd ..
 

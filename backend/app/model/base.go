@@ -9,8 +9,8 @@ import (
 // BaseModel 基础模型
 type BaseModel struct {
 	ID        uint      `gorm:"primarykey;AUTO_INCREMENT" json:"id"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	CreatedAt time.Time `gorm:"<-:create" json:"createdAt"`
+	UpdatedAt time.Time `gorm:"<-:update" json:"updatedAt"`
 }
 
 // BaseModelWithUUID 使用UUID作为主键

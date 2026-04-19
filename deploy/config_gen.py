@@ -69,6 +69,7 @@ def gen_backend_config(cfg):
         f"  language: zh",
         f"  install_dir: ./data",
         f"  serve_web: {str(app['serve_web']).lower()}",
+        f"  web_root: ./web",
         f"",
         f"database:",
         f"  type: {db_type}",
@@ -469,6 +470,7 @@ data:
       language: zh
       install_dir: ./data
       serve_web: {str(app['serve_web']).lower()}
+      web_root: ./web
 
     database:
       type: {enabled_db}

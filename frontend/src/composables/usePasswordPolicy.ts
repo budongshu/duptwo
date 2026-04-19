@@ -46,10 +46,20 @@ export function usePasswordPolicy() {
     passwordRequireLowercase: false,
     passwordRequireDigit: false,
     passwordRequireSpecial: false,
-    sessionTimeoutHours: 24
+    sessionTimeoutHours: 24,
+    registrationEnabled: true
   }
 
   const policy = computed(() => cachedPolicy.value || defaultPolicy)
+
+  // 特殊字符检测：直接列出常用特殊字符，明确覆盖 %
+  const hasSpecialChar = (pwd: string): boolean => {
+    const specialChars = '!@#$%^&*()_+-=[]{}|;:\'",.<>?/`~\\'
+    for (const c of pwd) {
+      if (specialChars.includes(c)) return true
+    }
+    return false
+  }
 
   // 密码强度检查（实时）
   const checkPassword = (password: string) => {
@@ -59,7 +69,7 @@ export function usePasswordPolicy() {
       upper: !p.passwordRequireUppercase || /[A-Z]/.test(password),
       lower: !p.passwordRequireLowercase || /[a-z]/.test(password),
       number: !p.passwordRequireDigit || /[0-9]/.test(password),
-      special: !p.passwordRequireSpecial || /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+      special: !p.passwordRequireSpecial || hasSpecialChar(password)
     }
   }
 
@@ -92,7 +102,10 @@ export function usePasswordPolicy() {
       rules.push({ pattern: /[0-9]/, message: t('profile.passwordRequireDigit'), trigger: 'blur' })
     }
     if (p.passwordRequireSpecial) {
-      rules.push({ pattern: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, message: t('profile.passwordRequireSpecial'), trigger: 'blur' })
+      rules.push({ validator: (_: any, val: string, cb: any) => {
+        if (!hasSpecialChar(val)) cb(new Error(t('profile.passwordRequireSpecial')))
+        else cb()
+      }, trigger: 'blur' })
     }
     return rules
   }

@@ -1,276 +1,145 @@
 <template>
   <div class="login-page">
-    <!-- Layered grid background -->
-    <div class="bg-grid" aria-hidden="true"></div>
-    <div class="bg-fade" aria-hidden="true"></div>
+    <!-- 背景 -->
+    <div class="bg-pattern"></div>
 
-    <!-- Top bar -->
-    <header class="topbar">
-      <div class="topbar-brand">
-        <div class="brand-mark">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <rect x="2" y="2" width="9" height="9" rx="2" fill="#3b82f6"/>
-            <rect x="13" y="2" width="9" height="9" rx="2" fill="#93c5fd"/>
-            <rect x="2" y="13" width="9" height="9" rx="2" fill="#93c5fd"/>
-            <rect x="13" y="13" width="9" height="9" rx="2" fill="#dbeafe"/>
-          </svg>
-        </div>
-        <div class="brand-text">
-          <span class="brand-name">数据登记平台</span>
-          <span class="brand-sub">duptwo</span>
-        </div>
-      </div>
-      <div class="topbar-version">v2.0</div>
-    </header>
-
-    <!-- Centered card -->
-    <main class="login-center">
-      <!-- Ambient glow behind card -->
-      <div class="card-glow" aria-hidden="true"></div>
-
-      <div class="login-card" :class="{ 'is-loading': loading }">
-
-        <!-- Heavy top accent bar -->
-        <div class="card-accent-bar" aria-hidden="true"></div>
-
-        <!-- Card header with logo -->
-        <div class="card-header-block">
-          <div class="card-logo-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+    <!-- 登录卡片 -->
+    <div class="login-wrapper">
+      <div class="login-card">
+        <!-- Logo 区域 -->
+        <div class="card-head">
+          <div class="logo">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
               <rect x="2" y="2" width="9" height="9" rx="2" fill="#3b82f6"/>
-              <rect x="13" y="2" width="9" height="9" rx="2" fill="#3b82f6" opacity="0.55"/>
-              <rect x="2" y="13" width="9" height="9" rx="2" fill="#3b82f6" opacity="0.55"/>
-              <rect x="13" y="13" width="9" height="9" rx="2" fill="#3b82f6" opacity="0.3"/>
+              <rect x="13" y="2" width="9" height="9" rx="2" fill="#60a5fa"/>
+              <rect x="2" y="13" width="9" height="9" rx="2" fill="#60a5fa"/>
+              <rect x="13" y="13" width="9" height="9" rx="2" fill="#93c5fd"/>
             </svg>
           </div>
-          <div class="card-header-text">
-            <h1 class="card-title">欢迎回来</h1>
-            <p class="card-subtitle">登录到数据登记平台</p>
-          </div>
+          <h1 class="title">数据登记平台</h1>
+          <p class="subtitle">duptwo</p>
         </div>
 
-        <!-- Divider -->
-        <div class="card-divider" aria-hidden="true"></div>
-
-        <transition name="step-fade" mode="out-in">
-
-          <!-- ===== Login Step ===== -->
-          <div v-if="!mfaStep" key="login" class="card-body">
-
-            <!-- Auth type tabs -->
-            <div class="auth-tabs" v-if="adEnabled">
-              <button :class="['auth-tab', { active: loginType === 'local' }]" @click="loginType = 'local'">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                本地账号
-              </button>
-              <button :class="['auth-tab', { active: loginType === 'ad' }]" @click="loginType = 'ad'">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                AD 域账号
-              </button>
-            </div>
-
-            <!-- Friendly Error Alert -->
-            <transition name="error-fade">
-              <div v-if="loginError" class="error-alert" :class="`error-alert--${loginError.type}`">
-                <div class="error-icon">
-                  <svg v-if="loginError.type === 'username'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  <svg v-else-if="loginError.type === 'password'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                  <svg v-else-if="loginError.type === 'captcha'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h.01M7 12h10M7 17h6"/></svg>
-                  <svg v-else-if="loginError.type === 'lockout'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                  <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-                </div>
-                <div class="error-content">
-                  <div class="error-title">{{ loginError.title }}</div>
-                  <div class="error-desc">{{ loginError.desc }}</div>
-                  <div v-if="loginError.type === 'lockout'" class="error-countdown">
-                    {{ formatCountdown(lockoutRemaining) }} 后自动解锁
-                  </div>
-                </div>
-                <button class="error-close" @click="loginError = null">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>
-              </div>
-            </transition>
-
-            <!-- Local form -->
-            <el-form v-if="loginType === 'local'" ref="formRef" :model="form" :rules="rules" class="auth-form" @submit.prevent="handleLogin">
-              <div class="field-group">
-                <label class="field-label">
-                  <span class="label-dot"></span>
-                  用户名
-                </label>
-                <el-input
-                  v-model="form.username"
-                  placeholder="输入用户名"
-                  size="large"
-                  :prefix-icon="User"
-                  class="form-input"
-                  @keyup.enter="handleLogin"
-                />
-              </div>
-              <div class="field-group">
-                <label class="field-label">
-                  <span class="label-dot"></span>
-                  密码
-                </label>
-                <el-input
-                  v-model="form.password"
-                  type="password"
-                  placeholder="输入密码"
-                  size="large"
-                  :prefix-icon="Lock"
-                  show-password
-                  class="form-input"
-                  @keyup.enter="handleLogin"
-                />
-              </div>
-              <div class="field-group" v-if="captchaEnabled">
-                <label class="field-label">验证码</label>
-                <div class="captcha-row">
-                  <el-input v-model="form.captcha" placeholder="图形验证码" size="large" class="form-input capt-input" @keyup.enter="handleLogin" />
-                  <div class="captcha-img-box" @click="refreshCaptcha" title="点击刷新">
-                    <img v-if="captchaImage" :src="captchaImage" alt="验证码" class="captcha-img" />
-                    <span v-else class="captcha-loading">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <button type="submit" class="submit-btn" :disabled="loading">
-                <span v-if="!loading" class="btn-content">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-                  登 录 系 统
-                </span>
-                <span v-else class="btn-content">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                  验证中...
-                </span>
-              </button>
-            </el-form>
-
-            <!-- AD form -->
-            <el-form v-else ref="adFormRef" :model="adForm" :rules="adRules" class="auth-form" @submit.prevent="handleADLogin">
-              <div class="ad-notice">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-                AD 域账号，密码为您的网络密码
-              </div>
-              <div class="field-group">
-                <label class="field-label">域用户名</label>
-                <el-input v-model="adForm.username" placeholder="如 zhangsan" size="large" :prefix-icon="User" class="form-input" @keyup.enter="handleADLogin" />
-              </div>
-              <div class="field-group">
-                <label class="field-label">密码</label>
-                <el-input v-model="adForm.password" type="password" placeholder="AD 网络密码" size="large" :prefix-icon="Lock" show-password class="form-input" @keyup.enter="handleADLogin" />
-              </div>
-              <div class="field-group" v-if="captchaEnabled">
-                <label class="field-label">验证码</label>
-                <div class="captcha-row">
-                  <el-input v-model="adForm.captcha" placeholder="图形验证码" size="large" class="form-input capt-input" @keyup.enter="handleADLogin" />
-                  <div class="captcha-img-box" @click="refreshCaptcha" title="点击刷新">
-                    <img v-if="captchaImage" :src="captchaImage" alt="验证码" class="captcha-img" />
-                    <span v-else class="captcha-loading">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <button type="submit" class="submit-btn" :disabled="loading">
-                <span v-if="!loading" class="btn-content">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-                  登 录 系 统
-                </span>
-                <span v-else class="btn-content">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                  验证中...
-                </span>
-              </button>
-            </el-form>
-
-            <div class="card-footer-row">
-              <router-link to="/register" class="footer-link">没有账户？立即注册</router-link>
-            </div>
+        <!-- 表单区域 -->
+        <div class="card-body">
+          <div class="greet">
+            <span v-if="!loginError">欢迎登录</span>
+            <span v-else class="greet-error">{{ loginError.title }}</span>
           </div>
 
-          <!-- ===== MFA Step ===== -->
-          <div v-else key="mfa" class="card-body">
-            <div class="card-header-block">
-              <div class="mfa-icon-wrap">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <!-- 错误提示 -->
+          <transition name="error-slide">
+            <div v-if="loginError" class="error-box" :class="`error-box--${loginError.type}`">
+              <div class="error-icon">
+                <svg v-if="loginError.type === 'password'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <svg v-else-if="loginError.type === 'lockout'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  <line x1="12" y1="16" x2="12" y2="18"/>
+                </svg>
+                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 8v4M12 16h.01"/>
+                </svg>
               </div>
-              <div class="card-header-text">
-                <h1 class="card-title">身份验证</h1>
-                <p class="card-subtitle">双因素认证已启用，请输入动态码</p>
+              <div class="error-text">
+                <div class="error-main">{{ loginError.desc }}</div>
+                <div v-if="loginError.remainingAttempts !== undefined && loginError.remainingAttempts > 0 && loginError.type !== 'lockout'" class="error-remaining">
+                  剩余 {{ loginError.remainingAttempts }} / {{ loginError.maxAttempts }} 次尝试机会
+                </div>
+                <div v-if="loginError.type === 'lockout'" class="error-countdown">
+                  {{ formatCountdown(lockoutRemaining) }} 后自动解锁
+                </div>
+              </div>
+              <button class="error-close" @click="loginError = null">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          </transition>
+
+          <!-- 登录表单 -->
+          <el-form ref="formRef" :model="form" :rules="rules" class="login-form" @submit.prevent="handleLogin">
+            <div class="field">
+              <label>用户名</label>
+              <el-input
+                v-model="form.username"
+                placeholder="输入用户名"
+                size="large"
+                :prefix-icon="User"
+                @keyup.enter="handleLogin"
+              />
+            </div>
+            <div class="field">
+              <label>密码</label>
+              <el-input
+                v-model="form.password"
+                type="password"
+                placeholder="输入密码"
+                size="large"
+                :prefix-icon="Lock"
+                show-password
+                @keyup.enter="handleLogin"
+              />
+            </div>
+            <div class="field" v-if="captchaEnabled">
+              <label>验证码</label>
+              <div class="captcha-row">
+                <el-input
+                  v-model="form.captcha"
+                  placeholder="输入验证码"
+                  size="large"
+                  @keyup.enter="handleLogin"
+                />
+                <div class="captcha-img" @click="refreshCaptcha">
+                  <img v-if="captchaImage" :src="captchaImage" alt="验证码" />
+                  <span v-else class="captcha-loading">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                  </span>
+                </div>
               </div>
             </div>
 
-            <el-form ref="mfaFormRef" :model="mfaForm" :rules="mfaRules" class="auth-form" @submit.prevent="handleMFAVerify">
-              <div class="mfa-user-row">
-                <div class="mfa-avatar">{{ form.username ? form.username.slice(0, 1).toUpperCase() : 'U' }}</div>
-                <div class="mfa-user-info">
-                  <span class="mfa-user-name">{{ form.username }}</span>
-                  <span class="mfa-user-label">待验证身份</span>
-                </div>
-              </div>
+            <button type="submit" class="login-btn" :disabled="loading">
+              <span v-if="loading" class="btn-loading">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+                验证中...
+              </span>
+              <span v-else>登 录</span>
+            </button>
+          </el-form>
 
-              <div class="field-group">
-                <label class="field-label">
-                  <span class="label-dot label-dot--amber"></span>
-                  动态验证码
-                </label>
-                <el-input
-                  v-model="mfaForm.code"
-                  placeholder="6 位数字验证码"
-                  size="large"
-                  maxlength="6"
-                  :prefix-icon="Key"
-                  class="form-input"
-                  @keyup.enter="handleMFAVerify"
-                />
-              </div>
-
-              <button type="submit" class="submit-btn submit-btn--amber" :disabled="loading" @click="handleMFAVerify">
-                <span v-if="!loading" class="btn-content">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  验证并进入
-                </span>
-                <span v-else class="btn-content">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                  验证中...
-                </span>
-              </button>
-
-              <button type="button" class="back-btn" @click="mfaStep = false; mfaForm.code = ''">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-                返回重新登录
-              </button>
-            </el-form>
+          <div class="card-footer">
+            <router-link v-if="registrationEnabled" to="/register">没有账号？立即注册</router-link>
           </div>
-
-        </transition>
+        </div>
       </div>
 
-      <!-- Footer -->
-      <footer class="login-footer">
-        <span>数据登记平台</span>
-        <span class="footer-sep">·</span>
+      <!-- 底部 -->
+      <div class="login-footer">
         <span>duptwo · {{ new Date().getFullYear() }}</span>
-      </footer>
-    </main>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { User, Lock, Key } from '@element-plus/icons-vue'
+import { User, Lock } from '@element-plus/icons-vue'
 import { AuthApi } from '@/api/auth'
 
 const router = useRouter()
 const formRef = ref()
-const adFormRef = ref()
-const mfaFormRef = ref()
 const loading = ref(false)
 const mfaStep = ref(false)
 const currentUserId = ref<number>(0)
@@ -280,33 +149,24 @@ const captchaEnabled = ref(true)
 const captchaId = ref('')
 const captchaImage = ref('')
 const lockoutRemaining = ref(0)
+const registrationEnabled = ref(true)
 let lockoutTimer: ReturnType<typeof setInterval> | null = null
 
 interface LoginError {
   type: 'username' | 'password' | 'captcha' | 'lockout' | 'general'
   title: string
   desc: string
+  remainingAttempts?: number  // 剩余尝试次数
+  maxAttempts?: number       // 最大尝试次数
 }
 
 const loginError = ref<LoginError | null>(null)
 
 const form = reactive({ username: '', password: '', captcha: '' })
-const adForm = reactive({ username: '', password: '', captcha: '' })
-const mfaForm = reactive({ code: '' })
 
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
-}
-const adRules = {
-  username: [{ required: true, message: '请输入域用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
-}
-const mfaRules = {
-  code: [
-    { required: true, message: '请输入验证码', trigger: 'blur' },
-    { len: 6, message: '验证码为6位数字', trigger: 'blur' }
-  ]
 }
 
 const refreshCaptcha = async () => {
@@ -326,16 +186,30 @@ const clearLockout = () => {
 }
 
 const showLockout = (minutes: number) => {
+  // 如果已经有定时器在运行，先清除
+  if (lockoutTimer) {
+    clearInterval(lockoutTimer)
+    lockoutTimer = null
+  }
+
+  // 设置初始值（分钟转为秒）
+  lockoutRemaining.value = minutes * 60
+
+  // 锁定结束时间 = 现在 + 分钟数
+  const lockoutEndTime = Date.now() + minutes * 60 * 1000
+
   loginError.value = {
     type: 'lockout',
-    title: minutes > 0 ? '账号已被锁定' : '登录被拒绝',
-    desc: minutes > 0 ? `登录失败次数过多，账号已临时锁定` : '请稍后再试'
+    title: '账号已被锁定',
+    desc: `由于连续登录失败，为了保护您的账户安全，系统已临时锁定。请等待 ${minutes} 分钟后自动解锁，或联系管理员协助。`,
+    lockoutEndTime: lockoutEndTime  // 保存结束时间用于精确计算
   }
-  lockoutRemaining.value = minutes * 60
-  if (lockoutTimer) clearInterval(lockoutTimer)
+
   lockoutTimer = setInterval(() => {
-    if (lockoutRemaining.value > 0) lockoutRemaining.value--
-    else {
+    // 实时计算剩余秒数，确保和后端同步
+    const remaining = Math.max(0, Math.ceil((lockoutEndTime - Date.now()) / 1000))
+    lockoutRemaining.value = remaining
+    if (remaining <= 0) {
       clearInterval(lockoutTimer!)
       lockoutTimer = null
       loginError.value = null
@@ -349,531 +223,314 @@ const formatCountdown = (seconds: number) => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-// 分析错误类型并显示友好提示
+// 解析登录错误
 const parseLoginError = (msg: string): LoginError => {
   if (msg.includes('锁定')) {
-    const minutes = parseInt(msg.match(/(\d+)\s*分钟/)?.[1] || '0')
+    const minutes = parseInt(msg.match(/(\d+)\s*分钟/)?.[1] || '5')
     return {
       type: 'lockout',
       title: '账号已被锁定',
-      desc: `登录失败次数过多，为保护账户安全已临时锁定，请 ${minutes} 分钟后再试`
+      desc: `由于连续登录失败，为了保护您的账户安全，系统已临时锁定。请等待 ${minutes} 分钟后自动解锁，或联系管理员协助。`
     }
   }
-  if (msg.includes('验证码已过期') || msg.includes('验证码错误')) {
+  if (msg.includes('验证码')) {
     return {
       type: 'captcha',
       title: '验证码错误',
-      desc: '验证码填写错误或已过期，请重新获取并填写'
+      desc: '验证码填写错误或已过期，请点击图片刷新后重新输入'
     }
   }
-  if (msg.includes('密码')) {
+  if (msg.includes('请填写验证码')) {
+    return {
+      type: 'captcha',
+      title: '请填写验证码',
+      desc: '请先获取并填写图形验证码后再点击登录'
+    }
+  }
+  if (msg.includes('用户不存在') || msg.includes('不存在')) {
+    return {
+      type: 'username',
+      title: '用户不存在',
+      desc: '该用户名不存在，请检查输入是否有误'
+    }
+  }
+  if (msg.includes('密码错误') || msg.includes('密码不正确')) {
     return {
       type: 'password',
-      title: '密码错误',
-      desc: '您输入的密码不正确，请检查后重新输入'
+      title: '密码输入错误',
+      desc: '您输入的密码不正确，请检查大小写是否正确'
     }
   }
-  if (msg.includes('用户') || msg.includes('账号') || msg.includes('用户名')) {
-    if (msg.includes('不存在') || msg.includes('未找到')) {
-      return {
-        type: 'username',
-        title: '用户不存在',
-        desc: '该用户名不存在，请检查或联系管理员'
-      }
+  if (msg.includes('用户名或密码错误') || msg.includes('不正确')) {
+    return {
+      type: 'password',
+      title: '密码输入错误',
+      desc: '用户名或密码不正确，请仔细核对后重新输入'
     }
-    if (msg.includes('禁用')) {
-      return {
-        type: 'general',
-        title: '账号已被禁用',
-        desc: '您的账号已被禁用，请联系系统管理员'
-      }
+  }
+  if (msg.includes('禁用') || msg.includes('停用')) {
+    return {
+      type: 'general',
+      title: '账号已被停用',
+      desc: '您的账号已被管理员停用，如需恢复使用，请联系系统管理员'
+    }
+  }
+  if (msg.includes('未激活') || msg.includes('待审核')) {
+    return {
+      type: 'general',
+      title: '账号待审核',
+      desc: '您的账号正在等待管理员审核，审核通过后即可正常登录'
     }
   }
   return {
     type: 'general',
     title: '登录失败',
-    desc: msg || '登录失败，请稍后重试'
+    desc: msg ? `提示：${msg}` : '登录遇到问题，请稍后重试'
   }
 }
 
 const handleLogin = async () => {
-  const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
-  loading.value = true
-  loginError.value = null
-  clearLockout()
-  try {
-    const res = await AuthApi.login({ username: form.username, password: form.password, captchaId: captchaId.value, captcha: form.captcha })
-    if (res.code === 200) {
-      if (res.data.mfaRequired) {
-        currentUserId.value = res.data.user.id
-        mfaStep.value = true
-      } else {
-        localStorage.setItem('token', res.data.token)
-        localStorage.setItem('user', JSON.stringify(res.data.user))
-        router.push('/')
-      }
-    } else {
-      const msg = res.message || '登录失败'
-      if (msg.includes('锁定')) {
-        const minutes = parseInt(msg.match(/(\d+)\s*分钟/)?.[1] || '5')
-        showLockout(minutes)
-      } else {
-        loginError.value = parseLoginError(msg)
-      }
-      if (captchaEnabled.value) refreshCaptcha()
-    }
-  } catch (e: any) {
-    const msg = e?.message || '登录失败'
-    if (msg.includes('锁定')) {
-      const minutes = parseInt(msg.match(/(\d+)\s*分钟/)?.[1] || '5')
-      showLockout(minutes)
-    } else {
-      loginError.value = parseLoginError(msg)
-    }
-    if (captchaEnabled.value) refreshCaptcha()
+  // 1. 前端基础验证（不清空任何数据）
+  if (!form.username.trim()) {
+    loginError.value = { type: 'username', title: '请输入用户名', desc: '用户名不能为空' }
+    return
   }
-  finally { loading.value = false }
-}
-
-const handleADLogin = async () => {
-  const valid = await adFormRef.value?.validate().catch(() => false)
-  if (!valid) return
-  loading.value = true
-  loginError.value = null
-  clearLockout()
-  try {
-    const res = await AuthApi.adLogin({ username: adForm.username, password: adForm.password, captchaId: captchaId.value, captcha: adForm.captcha })
-    if (res.code === 200) {
-      if (res.data.mfaRequired) {
-        currentUserId.value = res.data.user.id
-        form.username = adForm.username
-        mfaStep.value = true
-      } else {
-        localStorage.setItem('token', res.data.token)
-        localStorage.setItem('user', JSON.stringify(res.data.user))
-        router.push('/')
-      }
-    } else {
-      const msg = res.message || '登录失败'
-      if (msg.includes('锁定')) {
-        const minutes = parseInt(msg.match(/(\d+)\s*分钟/)?.[1] || '5')
-        showLockout(minutes)
-      } else {
-        loginError.value = parseLoginError(msg)
-      }
-      if (captchaEnabled.value) refreshCaptcha()
-    }
-  } catch (e: any) {
-    const msg = e?.message || '登录失败'
-    if (msg.includes('锁定')) {
-      const minutes = parseInt(msg.match(/(\d+)\s*分钟/)?.[1] || '5')
-      showLockout(minutes)
-    } else {
-      loginError.value = parseLoginError(msg)
-    }
-    if (captchaEnabled.value) refreshCaptcha()
+  if (!form.password) {
+    loginError.value = { type: 'password', title: '请输入密码', desc: '密码不能为空' }
+    return
   }
-  finally { loading.value = false }
-}
+  if (captchaEnabled.value && !form.captcha.trim()) {
+    loginError.value = { type: 'captcha', title: '请输入验证码', desc: '请输入图片中的验证码' }
+    return
+  }
 
-const handleMFAVerify = async () => {
-  const valid = await mfaFormRef.value?.validate().catch(() => false)
-  if (!valid) return
+  // 2. 开始登录请求
+  loginError.value = null
   loading.value = true
+
   try {
-    const res = await AuthApi.mfaVerify({ userId: currentUserId.value, code: mfaForm.code })
-    if (res.code === 200) {
+    const res = await AuthApi.login({
+      username: form.username,
+      password: form.password,
+      captchaId: captchaId.value,
+      captcha: form.captcha
+    })
+
+    // 3. 登录成功
+    if (res.data.mfaRequired) {
+      currentUserId.value = res.data.user.id
+      mfaStep.value = true
+    } else {
       localStorage.setItem('token', res.data.token)
       localStorage.setItem('user', JSON.stringify(res.data.user))
       router.push('/')
-    } else {
-      loginError.value = {
-        type: 'captcha',
-        title: '验证码错误',
-        desc: res.message || '动态验证码不正确，请重新输入'
+    }
+  } catch (err: any) {
+    // 4. 登录失败 - 只显示错误，不清空任何输入
+    let msg = ''
+    let remainingAttempts = 0
+    let maxAttempts = 5
+
+    // 拦截器 reject 的格式: { code, message, data }
+    if (err && err.message) {
+      msg = err.message
+      // 尝试从 err.data 中提取剩余尝试次数
+      if (err.data?.remainingAttempts !== undefined) {
+        remainingAttempts = err.data.remainingAttempts
+        maxAttempts = err.data.maxAttempts || 5
       }
+    } else if (err?.response?.data) {
+      const respData = err.response.data
+      msg = respData.message || '登录失败'
+      if (respData.data?.remainingAttempts !== undefined) {
+        remainingAttempts = respData.data.remainingAttempts
+        maxAttempts = respData.data.maxAttempts || 5
+      }
+    } else {
+      msg = '登录失败，请稍后重试'
     }
-  } catch {
+
+    // 解析错误类型，并带上剩余尝试次数
+    const errorInfo = parseLoginError(msg)
     loginError.value = {
-      type: 'general',
-      title: '验证失败',
-      desc: '验证过程出错，请稍后重试'
+      ...errorInfo,
+      remainingAttempts,
+      maxAttempts
     }
+  } finally {
+    loading.value = false
   }
-  finally { loading.value = false }
 }
 
-onMounted(() => { refreshCaptcha() })
+onMounted(async () => {
+  refreshCaptcha()
+  // 获取注册功能状态
+  try {
+    const res = await AuthApi.getRegistrationStatus()
+    if (res.code === 200 && res.data) {
+      registrationEnabled.value = res.data.registrationEnabled
+    }
+  } catch {}
+})
 </script>
 
 <style scoped lang="scss">
-/* ==================== Page ==================== */
 .login-page {
   min-height: 100vh;
   display: flex;
-  flex-direction: column;
-  background-color: #f1f5f9;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Subtle dot texture on white-ish bg */
-.bg-grid {
-  position: fixed;
-  inset: 0;
-  background-image: radial-gradient(circle, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
-  background-size: 28px 28px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.bg-fade {
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(ellipse 70% 60% at 50% 40%, transparent 50%, rgba(15, 23, 42, 0.05) 100%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* ==================== Topbar ==================== */
-.topbar {
-  position: relative;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 56px;
-  height: 52px;
-  border-bottom: 1px solid #e2e8f0;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-  flex-shrink: 0;
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
-}
-
-.topbar-brand {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-}
-
-.brand-mark {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(37, 99, 235, 0.2);
-  background: rgba(37, 99, 235, 0.05);
-  display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);
-}
-
-.brand-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.brand-name {
-  font-family: 'Manrope', 'DM Sans', sans-serif;
-  font-size: 15px;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.3px;
-  line-height: 1;
-}
-
-.brand-sub {
-  font-family: 'DM Sans', 'Courier New', monospace;
-  font-size: 10px;
-  color: rgba(37, 99, 235, 0.6);
-  letter-spacing: 2.5px;
-  font-weight: 600;
-}
-
-.topbar-version {
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  color: #cbd5e1;
-  letter-spacing: 1px;
-}
-
-/* ==================== Center layout ==================== */
-.login-center {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 28px 20px;
+  background: #f8fafc;
   position: relative;
-  z-index: 1;
-  gap: 28px;
 }
 
-/* Ambient shadow under card */
-.card-glow {
-  position: absolute;
-  width: 580px;
-  height: 280px;
-  background: radial-gradient(ellipse, rgba(15, 23, 42, 0.07) 0%, transparent 70%);
-  border-radius: 50%;
+.bg-pattern {
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, #e2e8f0 1px, transparent 0);
+  background-size: 24px 24px;
   pointer-events: none;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
 }
 
-/* ==================== Card ==================== */
-.login-card {
+.login-wrapper {
   width: 100%;
   max-width: 480px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 0;
+  padding: 20px;
   position: relative;
-  box-shadow:
-    0 0 0 1px rgba(37, 99, 235, 0.04),
-    0 1px 2px rgba(15, 23, 42, 0.04),
-    0 4px 8px -2px rgba(15, 23, 42, 0.06),
-    0 12px 32px -8px rgba(15, 23, 42, 0.12);
+  z-index: 1;
+}
+
+.login-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
   overflow: hidden;
-  animation: cardIn 0.55s cubic-bezier(0.4, 0, 0.2, 1) both;
-
-  &.is-loading {
-    pointer-events: none;
-    opacity: 0.92;
-  }
 }
 
-@keyframes cardIn {
-  from { opacity: 0; transform: translateY(22px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+.card-head {
+  padding: 36px 40px 28px;
+  text-align: center;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-/* Thick top accent bar */
-.card-accent-bar {
-  height: 3px;
-  background: linear-gradient(90deg, #1e3a8a 0%, #1d4ed8 30%, #3b82f6 60%, #1d4ed8 100%);
-  border-radius: 16px 16px 0 0;
-}
-
-/* Card header block */
-.card-header-block {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 20px 28px 0;
-}
-
-.card-logo-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 11px;
-  background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
-  border: 1px solid #bfdbfe;
+.logo {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  background: #eff6ff;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.12);
 }
 
-.card-header-text {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.card-title {
-  font-family: 'Manrope', 'DM Sans', sans-serif;
-  font-size: 21px;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0;
-  letter-spacing: -0.4px;
-  line-height: 1.2;
-}
-
-.card-subtitle {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 12.5px;
-  color: #64748b;
-  margin: 0;
-  line-height: 1.5;
-}
-
-/* Heavy divider */
-.card-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, #e2e8f0 15%, #e2e8f0 85%, transparent);
-  margin: 18px 28px;
-}
-
-/* ==================== Card content ==================== */
-.card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: 0 28px 24px;
-}
-
-/* ==================== Auth tabs ==================== */
-.auth-tabs {
-  display: flex;
-  gap: 0;
-  margin-bottom: 20px;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #f8fafc;
-  width: fit-content;
-}
-
-.auth-tab {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 22px;
-  background: none;
-  border: none;
-  color: #94a3b8;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
+.title {
+  font-size: 20px;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-right: 1.5px solid #e2e8f0;
+  color: #1e293b;
+  margin: 0 0 4px;
+}
 
-  &:last-child { border-right: none; }
-  svg { opacity: 0.45; transition: opacity 0.2s; }
+.subtitle {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+  font-family: 'SF Mono', monospace;
+}
 
-  &.active {
-    background: #ffffff;
-    color: #1d4ed8;
-    box-shadow: inset 0 -2.5px 0 #1d4ed8;
-    svg { opacity: 1; stroke: #1d4ed8; }
-  }
+.card-body {
+  padding: 28px 40px 36px;
+}
 
-  &:hover:not(.active) {
-    color: #475569;
-    svg { opacity: 0.7; }
+.greet {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 20px;
+
+  &-error {
+    color: #ef4444;
   }
 }
 
-/* ==================== Friendly Error Alert ==================== */
-.error-alert {
+/* 错误提示框 */
+.error-box {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  margin-bottom: 18px;
-  animation: errorIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 20px;
   position: relative;
 
+  &--password,
   &--username {
-    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-    border: 1.5px solid #fed7aa;
-    .error-icon { background: rgba(249, 115, 22, 0.12); svg { stroke: #ea580c; } }
-    .error-title { color: #9a3412; }
-    .error-desc { color: #c2410c; }
-  }
+    background: #fef2f2;
+    border: 1px solid #fecaca;
 
-  &--password {
-    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-    border: 1.5px solid #fecaca;
-    .error-icon { background: rgba(220, 38, 38, 0.12); svg { stroke: #dc2626; } }
-    .error-title { color: #991b1b; }
-    .error-desc { color: #b91c1c; }
+    .error-icon { color: #ef4444; }
+    .error-main { color: #b91c1c; }
   }
 
   &--captcha {
-    background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
-    border: 1.5px solid #fef08a;
-    .error-icon { background: rgba(234, 179, 8, 0.12); svg { stroke: #ca8a04; } }
-    .error-title { color: #854d0e; }
-    .error-desc { color: #a16207; }
+    background: #fefce8;
+    border: 1px solid #fef08a;
+
+    .error-icon { color: #ca8a04; }
+    .error-main { color: #854d0e; }
   }
 
   &--lockout {
-    background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
-    border: 1.5px solid #fecdd3;
-    .error-icon { background: rgba(220, 38, 38, 0.12); svg { stroke: #dc2626; } }
-    .error-title { color: #991b1b; }
-    .error-desc { color: #b91c1c; }
-    .error-countdown {
-      color: #dc2626;
-      font-weight: 700;
-      font-size: 16px;
-      margin-top: 8px;
-      font-family: 'SF Mono', monospace;
-    }
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+
+    .error-icon { color: #e11d48; }
+    .error-main { color: #9f1239; }
   }
 
   &--general {
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    border: 1.5px solid #e2e8f0;
-    .error-icon { background: rgba(100, 116, 139, 0.12); svg { stroke: #64748b; } }
-    .error-title { color: #475569; }
-    .error-desc { color: #64748b; }
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+
+    .error-icon { color: #64748b; }
+    .error-main { color: #475569; }
   }
 }
 
-@keyframes errorIn {
-  from { opacity: 0; transform: scale(0.95) translateY(-6px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.error-fade-enter-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-.error-fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-.error-fade-enter-from {
-  opacity: 0;
-  transform: scale(0.95) translateY(-6px);
-}
-.error-fade-leave-to {
-  opacity: 0;
-}
-
 .error-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
-.error-content {
+.error-text {
   flex: 1;
   min-width: 0;
 }
 
-.error-title {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 4px;
+.error-main {
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-.error-desc {
-  font-family: 'DM Sans', sans-serif;
+.error-countdown {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'SF Mono', monospace;
+  color: #e11d48;
+  margin-top: 6px;
+}
+
+.error-remaining {
   font-size: 12px;
-  line-height: 1.5;
-  opacity: 0.9;
+  color: #94a3b8;
+  margin-top: 4px;
+  font-weight: 500;
 }
 
 .error-close {
-  width: 28px;
-  height: 28px;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
   border: none;
   background: transparent;
   border-radius: 6px;
@@ -881,359 +538,171 @@ onMounted(() => { refreshCaptcha() })
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.5;
+  color: #94a3b8;
   transition: all 0.2s;
-  flex-shrink: 0;
-
-  svg { stroke: #64748b; }
 
   &:hover {
-    opacity: 1;
     background: rgba(0, 0, 0, 0.05);
+    color: #64748b;
   }
 }
 
-/* ==================== Form ==================== */
-.auth-form {
+.error-slide-enter-active,
+.error-slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.error-slide-enter-from,
+.error-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* 表单 */
+.login-form {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 16px;
 }
 
-.field-group {
-  margin-bottom: 14px;
-}
-
-.field-label {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-family: 'DM Sans', 'PingFang SC', sans-serif;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #334155;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.label-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #1d4ed8;
-  flex-shrink: 0;
-  box-shadow: 0 0 6px rgba(29, 78, 216, 0.4);
-}
-
-.label-dot--amber {
-  background: #d97706;
-  box-shadow: 0 0 6px rgba(217, 119, 6, 0.4);
-}
-
-.ad-notice {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 13px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-radius: 9px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 12px;
-  color: #92400e;
-  margin-bottom: 16px;
-
-  svg { flex-shrink: 0; stroke: #d97706; }
-}
-
-/* Input styling */
-:deep(.form-input) {
-  .el-input__wrapper {
-    background: #ffffff !important;
-    border-radius: 10px !important;
-    border: 1.5px solid #cbd5e1 !important;
-    box-shadow: 0 0 0 1px #cbd5e1 inset !important;
-    padding: 5px 14px !important;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
-    width: 100%;
-
-    &:hover {
-      border-color: #94a3b8 !important;
-      box-shadow: 0 0 0 1px #94a3b8 inset !important;
-    }
-    &.is-focus {
-      border-color: #1d4ed8 !important;
-      background: #f8faff !important;
-      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.08) inset, 0 0 0 1px #1d4ed8 inset !important;
-    }
-  }
-
-  .el-input__inner {
-    color: #0f172a !important;
-    font-size: 14px;
-    font-family: 'DM Sans', 'PingFang SC', sans-serif;
+.field {
+  label {
+    display: block;
+    font-size: 13px;
     font-weight: 500;
-    &::placeholder { color: #94a3b8 !important; }
+    color: #374151;
+    margin-bottom: 8px;
   }
-
-  .el-input__prefix .el-icon { color: #94a3b8; margin-right: 10px; }
 }
 
-/* Captcha */
-.captcha-row {
-  display: flex;
-  gap: 12px;
-  align-items: stretch;
-}
-
-.capt-input { flex: 1; }
-
-.captcha-img-box {
-  width: 126px;
-  height: 42px;
-  border-radius: 10px;
-  background: #ffffff;
-  border: 1.5px solid #cbd5e1;
-  cursor: pointer;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  flex-shrink: 0;
-  box-shadow: 0 0 0 1px #cbd5e1 inset;
+:deep(.el-input__wrapper) {
+  border-radius: 10px !important;
+  box-shadow: 0 0 0 1px #e2e8f0 !important;
+  padding: 4px 12px !important;
 
   &:hover {
-    border-color: #1d4ed8;
-    box-shadow: 0 0 0 1px #1d4ed8 inset, 0 0 10px rgba(29, 78, 216, 0.1);
+    box-shadow: 0 0 0 1px #cbd5e1 !important;
+  }
+
+  &.is-focus {
+    box-shadow: 0 0 0 2px #3b82f6 !important;
+  }
+}
+
+:deep(.el-input__inner) {
+  font-size: 14px !important;
+  color: #1e293b !important;
+
+  &::placeholder {
+    color: #94a3b8 !important;
+  }
+}
+
+/* 验证码 */
+.captcha-row {
+  display: flex;
+  gap: 10px;
+
+  .el-input {
+    flex: 1;
   }
 }
 
 .captcha-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-  image-rendering: crisp-edges;
-}
-.captcha-loading { color: #94a3b8; }
-.spin { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ==================== Submit button ==================== */
-.submit-btn {
-  width: 100%;
-  height: 46px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 45%, #2563eb 100%);
-  border: none;
-  color: #ffffff;
-  font-family: 'DM Sans', 'PingFang SC', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 2.5px;
+  width: 100px;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
   cursor: pointer;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin-top: 6px;
-  transition: all 0.25s ease;
-  box-shadow:
-    0 1px 2px rgba(29, 78, 216, 0.3),
-    0 4px 12px rgba(29, 78, 216, 0.25),
-    inset 0 1px 0 rgba(255,255,255,0.1);
-  position: relative;
-  overflow: hidden;
+  transition: border-color 0.2s;
 
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0; left: -100%;
-    width: 60%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-    transition: left 0.5s ease;
+  &:hover {
+    border-color: #3b82f6;
   }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+}
+
+.captcha-loading {
+  color: #94a3b8;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 登录按钮 */
+.login-btn {
+  width: 100%;
+  height: 48px;
+  border: none;
+  border-radius: 10px;
+  background: #3b82f6;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
 
   &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow:
-      0 4px 6px rgba(29, 78, 216, 0.3),
-      0 10px 24px rgba(29, 78, 216, 0.3),
-      inset 0 1px 0 rgba(255,255,255,0.15);
-    &::after { left: 150%; }
+    background: #2563eb;
   }
 
-  &:active:not(:disabled) { transform: scale(0.985); }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
 
-  &--amber {
-    background: linear-gradient(135deg, #b45309 0%, #d97706 50%, #f59e0b 100%);
-    box-shadow:
-      0 1px 2px rgba(217, 119, 6, 0.3),
-      0 4px 12px rgba(217, 119, 6, 0.25),
-      inset 0 1px 0 rgba(255,255,255,0.1);
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
 
-    &:hover:not(:disabled) {
-      box-shadow:
-        0 4px 6px rgba(217, 119, 6, 0.3),
-        0 10px 24px rgba(217, 119, 6, 0.3),
-        inset 0 1px 0 rgba(255,255,255,0.15);
+.btn-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* 底部 */
+.card-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+  text-align: center;
+  font-size: 13px;
+  color: #64748b;
+
+  a {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+
+    &:hover {
+      text-decoration: underline;
     }
   }
 }
 
-.btn-content {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  position: relative;
-  z-index: 1;
-}
-
-/* MFA user row */
-.mfa-user-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 13px 17px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-radius: 12px;
-  margin-bottom: 18px;
-}
-
-.mfa-icon-wrap {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  svg { stroke: #d97706; }
-}
-
-.mfa-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Manrope', sans-serif;
-  font-size: 15px;
-  font-weight: 800;
-  color: #d97706;
-  flex-shrink: 0;
-}
-
-.mfa-user-info {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.mfa-user-name {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.mfa-user-label {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 11px;
-  color: #92400e;
-  opacity: 0.85;
-}
-
-/* Back button */
-.back-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  margin-top: 12px;
-  padding: 10px;
-  background: none;
-  border: 1.5px solid #e2e8f0;
-  color: #64748b;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 10px;
-  transition: all 0.2s;
-
-  &:hover {
-    color: #1d4ed8;
-    border-color: #93c5fd;
-    background: #eff6ff;
-  }
-}
-
-/* Card footer */
-.card-footer-row {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid #f1f5f9;
-  text-align: center;
-}
-
-.footer-link {
-  font-family: 'DM Sans', 'PingFang SC', sans-serif;
-  font-size: 13px;
-  color: #1d4ed8;
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s;
-
-  &:hover { color: #1e3a8a; text-decoration: underline; }
-}
-
-/* ==================== Footer ==================== */
 .login-footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: 'DM Sans', 'PingFang SC', sans-serif;
+  text-align: center;
+  margin-top: 24px;
   font-size: 12px;
   color: #94a3b8;
-  letter-spacing: 0.5px;
-
-  .footer-sep { opacity: 0.5; }
-}
-
-/* ==================== Transitions ==================== */
-.step-fade-enter-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-.step-fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-.step-fade-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-.step-fade-leave-to {
-  opacity: 0;
-}
-
-/* ==================== Responsive ==================== */
-@media (max-width: 520px) {
-  .topbar { padding: 0 20px; }
-  .login-card { max-width: 360px; border-radius: 16px; }
-  .card-header-block, .card-body { padding-left: 24px; padding-right: 24px; }
-  .card-divider { margin-left: 24px; margin-right: 24px; }
-  .card-title { font-size: 19px; }
-  .auth-tab { padding: 9px 16px; font-size: 12px; }
 }
 </style>

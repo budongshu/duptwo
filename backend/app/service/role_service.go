@@ -6,6 +6,7 @@ import (
 	"datauptwo/app/repo"
 	"encoding/json"
 	"errors"
+	"strings"
 )
 
 type RoleService struct {
@@ -29,13 +30,13 @@ func (s *RoleService) Create(req dto.RoleCreateReq) (*dto.RoleResp, error) {
 	// 处理权限
 	permissionsJSON := ""
 	if len(req.Permissions) > 0 {
-		b, _ := json.Marshal(req.Permissions)
+		b, _ := json.Marshal(uniqueStrings(req.Permissions))
 		permissionsJSON = string(b)
 	}
 
 	role := &model.Role{
 		Name:        req.Name,
-		Code:        req.Code,
+		Code:       req.Code,
 		Description: req.Description,
 		Permissions: permissionsJSON,
 		Sort:        req.Sort,
@@ -66,7 +67,7 @@ func (s *RoleService) Update(req dto.RoleUpdateReq) (*dto.RoleResp, error) {
 	// 处理权限
 	permissionsJSON := ""
 	if len(req.Permissions) > 0 {
-		b, _ := json.Marshal(req.Permissions)
+		b, _ := json.Marshal(uniqueStrings(req.Permissions))
 		permissionsJSON = string(b)
 	}
 
@@ -158,13 +159,38 @@ func (s *RoleService) toRoleResp(role *model.Role) *dto.RoleResp {
 		UpdatedAt:   role.UpdatedAt,
 	}
 
-	// 解析权限
-	if role.Permissions != "" {
-		var permissions []string
-		if err := json.Unmarshal([]byte(role.Permissions), &permissions); err == nil {
-			resp.Permissions = permissions
+	// 解析权限（防御性处理：去重）
+	resp.Permissions = parsePermissions(role.Permissions)
+	return resp
+}
+
+// parsePermissions 解析权限字段，返回去重后的权限列表
+func parsePermissions(permField string) []string {
+	if permField == "" {
+		return []string{}
+	}
+	permStr := strings.TrimSpace(permField)
+	if !strings.HasPrefix(permStr, "[") {
+		// 不是 JSON 数组，跳过
+		return []string{}
+	}
+	var permissions []string
+	if err := json.Unmarshal([]byte(permStr), &permissions); err != nil {
+		// JSON 解析失败
+		return []string{}
+	}
+	return uniqueStrings(permissions)
+}
+
+// uniqueStrings 去重工具函数
+func uniqueStrings(input []string) []string {
+	seen := make(map[string]bool)
+	result := []string{}
+	for _, s := range input {
+		if !seen[s] {
+			seen[s] = true
+			result = append(result, s)
 		}
 	}
-
-	return resp
+	return result
 }

@@ -73,7 +73,7 @@ func (s *UserService) Create(req dto.UserCreateReq) (*dto.UserResp, error) {
 		return nil, err
 	}
 
-	return s.toUserResp(user), nil
+	return s.toUserResp(user, false), nil
 }
 
 // Update 更新用户
@@ -97,7 +97,7 @@ func (s *UserService) Update(req dto.UserUpdateReq) (*dto.UserResp, error) {
 		return nil, err
 	}
 
-	return s.toUserResp(user), nil
+	return s.toUserResp(user, false), nil
 }
 
 // Delete 删除用户
@@ -123,7 +123,7 @@ func (s *UserService) GetByID(id uint) (*dto.UserResp, error) {
 	if err != nil {
 		return nil, errors.New("用户不存在")
 	}
-	return s.toUserResp(user), nil
+	return s.toUserResp(user, false), nil
 }
 
 // List 分页列表
@@ -140,9 +140,16 @@ func (s *UserService) List(req dto.UserListReq) (*dto.PageResult, error) {
 		return nil, err
 	}
 
+	// 批量获取锁定状态
+	lockedUsers, _ := repo.NewLoginLockoutRepo().ListLockedUsers(1000)
+	lockedMap := make(map[string]bool)
+	for _, lu := range lockedUsers {
+		lockedMap[lu.Target] = true
+	}
+
 	items := make([]dto.UserResp, len(users))
 	for i, user := range users {
-		items[i] = *s.toUserResp(&user)
+		items[i] = *s.toUserResp(&user, lockedMap[user.Username])
 	}
 
 	return &dto.PageResult{Total: total, Items: items}, nil
@@ -156,16 +163,22 @@ func (s *UserService) GetAll() ([]dto.UserResp, error) {
 		return nil, err
 	}
 
+	lockedUsers, _ := repo.NewLoginLockoutRepo().ListLockedUsers(1000)
+	lockedMap := make(map[string]bool)
+	for _, lu := range lockedUsers {
+		lockedMap[lu.Target] = true
+	}
+
 	items := make([]dto.UserResp, len(users))
 	for i, user := range users {
-		items[i] = *s.toUserResp(&user)
+		items[i] = *s.toUserResp(&user, lockedMap[user.Username])
 	}
 
 	return items, nil
 }
 
 // toUserResp 转换为用户响应
-func (s *UserService) toUserResp(user *model.User) *dto.UserResp {
+func (s *UserService) toUserResp(user *model.User, locked bool) *dto.UserResp {
 	resp := &dto.UserResp{
 		ID:          user.ID,
 		Username:    user.Username,
@@ -175,6 +188,7 @@ func (s *UserService) toUserResp(user *model.User) *dto.UserResp {
 		Avatar:      user.Avatar,
 		Status:      user.Status,
 		StatusText:  "正常",
+		Locked:      locked,
 		RoleID:      user.RoleID,
 		GroupID:     user.GroupID,
 		MFAEnabled:  user.MFAEnabled,

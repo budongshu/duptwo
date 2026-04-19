@@ -357,6 +357,8 @@ export default {
         email: '邮箱',
         role: '角色',
         group: '用户组',
+        locked: '锁定',
+        lockedStatus: '已锁定',
         mfa: 'MFA',
         mfaOn: '已启用',
         mfaOff: '未启用',
@@ -661,7 +663,7 @@ export default {
       totalDataSize: '上传数据总量',
       size: '数据大小',
       uploadRecords: '上传记录',
-      onsiteStations: '驻场点',
+      onsiteStations: '驻场地点',
       records: '条记录',
       recordsUnit: '条',
       dataVolume: '数据量',
@@ -735,6 +737,7 @@ export default {
       onProject: '在项',
       offProject: '离项',
       exportFileName: '人员列表',
+      detailTitle: '人员详情',
       form: {
         person: '人员',
         newPerson: '新增人员',
@@ -769,7 +772,9 @@ export default {
         deleteConfirmTitle: '删除确认',
         batchDeleteConfirm: '确定要删除选中的 {count} 个人员吗？',
         batchDeleteTitle: '批量删除',
-        batchDeleteSuccess: '成功删除 {count} 个人员'
+        batchDeleteSuccess: '成功删除 {count} 个人员',
+        basicInfo: '基本信息',
+        workInfo: '工作信息'
       }
     }
   },

@@ -10,6 +10,9 @@ type SecuritySettings struct {
 	CaptchaEnabled bool `json:"captchaEnabled" gorm:"default:true"`     // 是否启用登录验证码
 	CaptchaMinLen  int  `json:"captchaMinLen" gorm:"default:3"`         // 验证码最少错误次数后启用
 
+	// 注册功能开关
+	RegistrationEnabled bool `json:"registrationEnabled" gorm:"default:true"` // 是否允许用户自主注册
+
 	// 不活跃用户自动禁用
 	InactiveAutoDisable     bool `json:"inactiveAutoDisable" gorm:"default:false"`     // 是否启用不活跃自动禁用
 	InactiveDaysThreshold   int  `json:"inactiveDaysThreshold" gorm:"default:90"`      // 不活跃天数阈值

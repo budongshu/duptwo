@@ -1,0 +1,67 @@
+# Default values for duptwo
+# 可通过 helm upgrade --install 时覆盖
+
+replicaCount: 2
+
+image:
+  repository: duptwo
+  tag: v1.0.0
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+# 示例（需要提前创建 Secret）:
+# - name: aliyun-registry
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 18421
+
+ingress:
+  enabled: true
+  className: nginx
+  # TODO: 替换为你的域名
+  host: duptwo.your-domain.com
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
+
+# PVC 配置
+persistence:
+  enabled: true
+  storageClass: ""  # 空表示使用默认 StorageClass，或指定 "nfs-csi"
+  size: 10Gi
+
+# 资源配置
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# 安全配置
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+# 探针配置
+livenessProbe:
+  initialDelaySeconds: 15
+  periodSeconds: 15
+
+readinessProbe:
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+# 敏感配置（通过 --set 传入或使用 Secret）
+secret:
+  sessionSecret: "REPLACE_WITH_SESSION_SECRET_32CHARS"
+  jwtSecret: "REPLACE_WITH_JWT_SECRET_32CHARS"
+  # 或使用已有的 Secret
+  existingSecret: ""

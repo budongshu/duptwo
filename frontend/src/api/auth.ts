@@ -55,6 +55,18 @@ export interface LoginResp {
   mfaRequired: boolean
 }
 
+// 登录失败响应
+export interface LoginErrorResp {
+  message: string
+  remainingAttempts: number
+  maxAttempts: number
+}
+
+// 注册响应（注册后需管理员审核，不返回token）
+export interface RegisterResp {
+  message: string
+}
+
 // MFA验证请求
 export interface MFAVerifyReq {
   userId: number
@@ -110,7 +122,12 @@ export namespace AuthApi {
 
   // 用户注册
   export const register = (data: RegisterReq) => {
-    return request.post<LoginResp>('/auth/register', data)
+    return request.post<RegisterResp>('/auth/register', data)
+  }
+
+  // 获取注册功能状态
+  export const getRegistrationStatus = () => {
+    return request.get<{ registrationEnabled: boolean }>('/auth/registration-status')
   }
 
   // 获取当前用户信息

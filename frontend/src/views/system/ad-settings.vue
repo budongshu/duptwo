@@ -8,6 +8,32 @@
       </div>
     </header>
 
+  <!-- 当前AD状态 -->
+    <div class="ad-status-panel">
+      <div class="ad-status-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>{{ t('adSettings.statusTitle') || '当前状态' }}</span>
+      </div>
+      <div class="ad-status-tags">
+        <span class="ad-status-tag" :class="form.enabled ? 'tag--on' : 'tag--off'">
+          <span class="status-dot"></span>
+          {{ form.enabled ? (t('adSettings.enabled') || '已启用') : (t('adSettings.disabled') || '已禁用') }}
+        </span>
+        <span class="ad-status-tag tag--info" v-if="form.server">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          {{ form.server }}:{{ form.port }}
+        </span>
+        <span class="ad-status-tag tag--info" v-if="form.use_ssl">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          SSL
+        </span>
+        <span class="ad-status-tag tag--warn" v-if="form.enabled && form.auto_register">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          {{ t('adSettings.autoReg.autoRegLabel') || '自动注册' }}
+        </span>
+      </div>
+    </div>
+
     <!-- 总开关卡片 -->
     <div class="enable-card" :class="{ 'enable-card--active': form.enabled }">
       <div class="enable-left">
@@ -306,6 +332,86 @@ onMounted(() => {
   overflow: visible;
 }
 
+/* ==================== AD状态面板 ==================== */
+.ad-status-panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: card-rise 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.ad-status-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  svg { color: #9ca3af; }
+}
+
+.ad-status-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ad-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid;
+
+  &.tag--on {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #16a34a;
+    .status-dot { background: #16a34a; }
+  }
+  &.tag--off {
+    background: #f9fafb;
+    border-color: #e5e7eb;
+    color: #9ca3af;
+    .status-dot { background: #9ca3af; }
+  }
+  &.tag--info {
+    background: #f0f9ff;
+    border-color: #bae6fd;
+    color: #0369a1;
+    svg { color: #0369a1; }
+  }
+  &.tag--warn {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+    svg { color: #92400e; }
+  }
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* ==================== 页面标题栏 ==================== */
 .page-header {
   display: flex;
@@ -354,9 +460,8 @@ onMounted(() => {
   animation: card-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 
   &--active {
-    border-color: rgba(0, 94, 235, 0.3);
-    box-shadow: 0 4px 20px rgba(0, 94, 235, 0.1), var(--shadow-xs);
-    background: linear-gradient(135deg, var(--color-surface) 0%, rgba(0, 94, 235, 0.03) 100%);
+    border-color: rgba(0, 94, 235, 0.35);
+    box-shadow: 0 4px 20px rgba(0, 94, 235, 0.08), var(--shadow-xs);
   }
 }
 

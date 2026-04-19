@@ -1,6 +1,9 @@
 # ============================================================
 # duptwo Docker Compose（MySQL 生产版）
 # 适用于生产环境，支持高并发和数据持久化
+#
+# 使用方式（从项目根目录运行）：
+#   nerdctl compose -f deploy/docker/docker-compose.mysql.yml up -d
 # ============================================================
 
 services:
@@ -20,12 +23,13 @@ services:
       - DB_PASSWORD=duptwo_secure_pass
       - DB_NAME=duptwo
     volumes:
+      - ./conf/app.mysql.yaml:/app/conf/app.yaml:ro
       - app-logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:18421/health"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
       start_period: 30s
     networks:
       - duptwo
@@ -47,7 +51,7 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pduptwo_root_pass"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pduptwo_root_pass"]
       interval: 10s
       timeout: 5s
       retries: 5

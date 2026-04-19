@@ -86,6 +86,31 @@
         <el-button v-if="selectedRows.length > 0" type="danger" plain @click="handleBatchDelete">
           {{ t('common.batchDelete') }} ({{ selectedRows.length }})
         </el-button>
+        <!-- 字段显示控制 -->
+        <el-popover placement="bottom-end" :width="220" trigger="click">
+          <template #reference>
+            <el-button>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="8" y2="18"/></svg>
+              字段
+            </el-button>
+          </template>
+          <div class="column-settings">
+            <div class="settings-header">
+              <span class="settings-title">字段显示</span>
+              <el-button type="primary" text size="small" @click="handleResetColumns">重置</el-button>
+            </div>
+            <div class="settings-list">
+              <div v-for="col in visibleColumns" :key="col.key" class="settings-item">
+                <el-checkbox v-model="col.visible" @change="saveColumnVisibility">
+                  {{ col.label }}
+                </el-checkbox>
+              </div>
+            </div>
+            <div class="settings-footer">
+              <span class="settings-hint">提示：拖拽表头可调整列顺序</span>
+            </div>
+          </div>
+        </el-popover>
       </div>
     </div>
 
@@ -101,12 +126,12 @@
         style="width: 100%"
       >
         <el-table-column type="selection" width="38" fixed="left" />
-        <el-table-column :label="t('personnel.list.form.nameLabel')" min-width="100" show-overflow-tooltip>
+        <el-table-column v-if="isColumnVisible('name')" :label="t('personnel.list.form.nameLabel')" min-width="100" show-overflow-tooltip>
           <template #default="{ row }">
             <span class="cell-name">{{ row.name }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('personnel.list.form.phone')" min-width="130">
+        <el-table-column v-if="isColumnVisible('phone')" :label="t('personnel.list.form.phone')" min-width="130">
           <template #default="{ row }">
             <span class="cell-with-copy">
               <span>{{ row.phone || '—' }}</span>
@@ -121,7 +146,7 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('personnel.list.form.email')" min-width="180">
+        <el-table-column v-if="isColumnVisible('email')" :label="t('personnel.list.form.email')" min-width="180">
           <template #default="{ row }">
             <span class="cell-with-copy">
               <span class="email-cell">{{ row.email || '—' }}</span>
@@ -136,40 +161,41 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="company" :label="t('personnel.list.form.company')" min-width="140" show-overflow-tooltip>
+        <el-table-column v-if="isColumnVisible('company')" prop="company" :label="t('personnel.list.form.company')" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">
             <span class="cell-company">{{ row.company || '—' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="position" :label="t('personnel.list.form.position')" min-width="90" align="center">
+        <el-table-column v-if="isColumnVisible('position')" prop="position" :label="t('personnel.list.form.position')" min-width="90" align="center">
           <template #default="{ row }">
             <span v-if="row.position" class="cell-position" :style="{ background: positionColors[row.position]?.bg, color: positionColors[row.position]?.text }">{{ row.position }}</span>
             <span v-else class="cell-position cell-position--none">—</span>
           </template>
         </el-table-column>
-        <el-table-column prop="workExperience" :label="t('personnel.list.form.workExperience')" min-width="80" align="center" />
-        <el-table-column prop="entryDate" :label="t('personnel.list.form.entryDate')" min-width="100" align="center" />
-        <el-table-column prop="projectStartDate" :label="t('personnel.list.form.projectStartDate')" min-width="100" align="center" />
-        <el-table-column prop="onProjectStatus" :label="t('personnel.list.onProjectStatus')" min-width="80" align="center">
+        <el-table-column v-if="isColumnVisible('workExperience')" prop="workExperience" :label="t('personnel.list.form.workExperience')" min-width="80" align="center" />
+        <el-table-column v-if="isColumnVisible('entryDate')" prop="entryDate" :label="t('personnel.list.form.entryDate')" min-width="100" align="center" />
+        <el-table-column v-if="isColumnVisible('projectStartDate')" prop="projectStartDate" :label="t('personnel.list.form.projectStartDate')" min-width="100" align="center" />
+        <el-table-column v-if="isColumnVisible('onProjectStatus')" prop="onProjectStatus" :label="t('personnel.list.onProjectStatus')" min-width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="row.onProjectStatus === '在项' ? 'success' : 'warning'" size="small" effect="light">
               {{ row.onProjectStatus || t('personnel.list.offProject') }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="salary" :label="t('personnel.list.form.salary')" min-width="80" align="center" />
-        <el-table-column prop="location" :label="t('personnel.list.form.location')" min-width="110" show-overflow-tooltip />
-        <el-table-column prop="status" :label="t('common.status')" min-width="68" align="center">
+        <el-table-column v-if="isColumnVisible('salary')" prop="salary" :label="t('personnel.list.form.salary')" min-width="80" align="center" />
+        <el-table-column v-if="isColumnVisible('location')" prop="location" :label="t('personnel.list.form.location')" min-width="110" show-overflow-tooltip />
+        <el-table-column v-if="isColumnVisible('status')" prop="status" :label="t('common.status')" min-width="68" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small" effect="light">
               {{ row.status === 'active' ? t('common.enabled') : t('common.disabled') }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="sort" :label="t('common.sort')" min-width="60" align="center" />
-        <el-table-column :label="t('common.actions')" width="80" fixed="right" align="center">
+        <el-table-column v-if="isColumnVisible('sort')" prop="sort" :label="t('common.sort')" min-width="60" align="center" />
+        <el-table-column :label="t('common.actions')" width="110" fixed="right" align="center">
           <template #default="{ row }">
             <TableActions :actions="[
+              { key: 'view', label: t('common.view'), type: 'default' },
               { key: 'edit', label: t('common.edit'), type: 'primary' },
               { key: 'delete', label: t('common.delete'), type: 'danger' }
             ]" @action="(key) => handleAction(key, row)" />
@@ -190,6 +216,96 @@
         />
       </div>
     </div>
+
+    <!-- 人员详情弹窗 -->
+    <el-dialog
+      v-model="detailVisible"
+      :title="t('personnel.list.detailTitle')"
+      width="480px"
+      :destroy-on-close="true"
+      class="person-detail-dialog"
+    >
+      <div class="detail-content" v-if="currentDetail">
+        <div class="detail-header">
+          <div class="detail-avatar" :style="{ background: getAvatarColor(currentDetail.name) }">
+            {{ currentDetail.name.charAt(0).toUpperCase() }}
+          </div>
+          <div class="detail-info">
+            <div class="detail-name">{{ currentDetail.name }}</div>
+            <div class="detail-position">
+              <el-tag v-if="currentDetail.position" size="small" :style="{ background: positionColors[currentDetail.position]?.bg, color: positionColors[currentDetail.position]?.text }">
+                {{ currentDetail.position }}
+              </el-tag>
+              <el-tag :type="currentDetail.status === 'active' ? 'success' : 'info'" size="small">
+                {{ currentDetail.status === 'active' ? t('common.enabled') : t('common.disabled') }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-section-title">{{ t('personnel.list.form.basicInfo') }}</div>
+          <div class="detail-grid">
+            <div class="detail-item" v-if="currentDetail.phone">
+              <span class="detail-label">{{ t('personnel.list.form.phone') }}</span>
+              <span class="detail-value">{{ currentDetail.phone }}</span>
+            </div>
+            <div class="detail-item" v-if="currentDetail.email">
+              <span class="detail-label">{{ t('personnel.list.form.email') }}</span>
+              <span class="detail-value">{{ currentDetail.email }}</span>
+            </div>
+            <div class="detail-item" v-if="currentDetail.company">
+              <span class="detail-label">{{ t('personnel.list.form.company') }}</span>
+              <span class="detail-value">{{ currentDetail.company }}</span>
+            </div>
+            <div class="detail-item" v-if="currentDetail.location">
+              <span class="detail-label">{{ t('personnel.list.form.location') }}</span>
+              <span class="detail-value">{{ currentDetail.location }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-section-title">{{ t('personnel.list.form.workInfo') }}</div>
+          <div class="detail-grid">
+            <div class="detail-item" v-if="currentDetail.workExperience">
+              <span class="detail-label">{{ t('personnel.list.form.workExperience') }}</span>
+              <span class="detail-value">{{ currentDetail.workExperience }}</span>
+            </div>
+            <div class="detail-item" v-if="currentDetail.entryDate">
+              <span class="detail-label">{{ t('personnel.list.form.entryDate') }}</span>
+              <span class="detail-value">{{ currentDetail.entryDate }}</span>
+            </div>
+            <div class="detail-item" v-if="currentDetail.projectStartDate">
+              <span class="detail-label">{{ t('personnel.list.form.projectStartDate') }}</span>
+              <span class="detail-value">{{ currentDetail.projectStartDate }}</span>
+            </div>
+            <div class="detail-item" v-if="currentDetail.onProjectStatus">
+              <span class="detail-label">{{ t('personnel.list.onProjectStatus') }}</span>
+              <span class="detail-value">
+                <el-tag :type="currentDetail.onProjectStatus === '在项' ? 'success' : 'warning'" size="small">
+                  {{ currentDetail.onProjectStatus }}
+                </el-tag>
+              </span>
+            </div>
+            <div class="detail-item" v-if="currentDetail.salary">
+              <span class="detail-label">{{ t('personnel.list.form.salary') }}</span>
+              <span class="detail-value">{{ currentDetail.salary }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section" v-if="currentDetail.remark">
+          <div class="detail-section-title">{{ t('personnel.list.form.remark') }}</div>
+          <div class="detail-remark">{{ currentDetail.remark }}</div>
+        </div>
+
+        <div class="detail-section detail-meta">
+          <span>{{ t('common.createdAt') }}: {{ currentDetail.createdAt }}</span>
+          <span>{{ t('common.updatedAt') }}: {{ currentDetail.updatedAt }}</span>
+        </div>
+      </div>
+    </el-dialog>
 
     <!-- 编辑/新增侧边栏 -->
     <el-drawer
@@ -352,10 +468,91 @@ const drawerVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
 
+// 详情弹窗
+const detailVisible = ref(false)
+const currentDetail = ref<Personnel | null>(null)
+
 // 用户选择相关
 const allUsers = ref<User[]>([])
 const selectedUserId = ref<number | undefined>()
 const userSelectLoading = ref(false)
+
+// 字段显示配置
+const STORAGE_KEY = 'personnel_columns_visible'
+interface ColumnConfig {
+  key: string
+  label: string
+  visible: boolean
+}
+const visibleColumns = ref<ColumnConfig[]>([
+  { key: 'name', label: '姓名', visible: true },
+  { key: 'phone', label: '手机号', visible: true },
+  { key: 'email', label: '邮箱', visible: true },
+  { key: 'company', label: '公司', visible: false },
+  { key: 'position', label: '职位', visible: true },
+  { key: 'workExperience', label: '工作经验', visible: false },
+  { key: 'entryDate', label: '入职日期', visible: false },
+  { key: 'projectStartDate', label: '项目开始日期', visible: false },
+  { key: 'onProjectStatus', label: '在项状态', visible: false },
+  { key: 'salary', label: '薪资', visible: false },
+  { key: 'location', label: '位置', visible: false },
+  { key: 'status', label: '状态', visible: true },
+  { key: 'sort', label: '排序', visible: false },
+])
+
+// 加载保存的字段显示配置
+const loadColumnVisibility = () => {
+  const saved = localStorage.getItem(STORAGE_KEY)
+  if (saved) {
+    try {
+      const config = JSON.parse(saved)
+      visibleColumns.value.forEach(col => {
+        if (config[col.key] !== undefined) {
+          col.visible = config[col.key]
+        }
+      })
+    } catch {}
+  }
+}
+
+// 保存字段显示配置
+const saveColumnVisibility = () => {
+  const config: Record<string, boolean> = {}
+  visibleColumns.value.forEach(col => { config[col.key] = col.visible })
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
+}
+
+// 重置字段显示为默认配置
+const handleResetColumns = () => {
+  visibleColumns.value.forEach(col => {
+    if (col.key === 'name') col.visible = true
+    else if (col.key === 'phone') col.visible = true
+    else if (col.key === 'email') col.visible = true
+    else if (col.key === 'company') col.visible = false
+    else if (col.key === 'position') col.visible = true
+    else if (col.key === 'workExperience') col.visible = false
+    else if (col.key === 'entryDate') col.visible = false
+    else if (col.key === 'projectStartDate') col.visible = false
+    else if (col.key === 'onProjectStatus') col.visible = false
+    else if (col.key === 'salary') col.visible = false
+    else if (col.key === 'location') col.visible = false
+    else if (col.key === 'status') col.visible = true
+    else if (col.key === 'sort') col.visible = false
+  })
+  saveColumnVisibility()
+  ElMessage.success('已重置为默认配置')
+}
+
+// 检查列是否可见
+const isColumnVisible = (key: string) => {
+  const col = visibleColumns.value.find(c => c.key === key)
+  return col ? col.visible : true
+}
+
+// 监听字段变化，保存配置
+watch(visibleColumns, () => {
+  saveColumnVisibility()
+}, { deep: true })
 
 const searchKeyword = ref('')
 const searchStatus = ref('')
@@ -525,8 +722,15 @@ const handleDelete = async (row: Personnel) => {
   } catch (e: any) { if (e !== 'cancel') ElMessage.error(e.message || t('common.deleteError')) }
 }
 
+// 查看详情
+const handleView = async (row: Personnel) => {
+  detailVisible.value = true
+  currentDetail.value = row
+}
+
 const handleAction = (key: string, row: Personnel) => {
-  if (key === 'edit') handleEdit(row)
+  if (key === 'view') handleView(row)
+  else if (key === 'edit') handleEdit(row)
   else if (key === 'delete') handleDelete(row)
 }
 
@@ -585,7 +789,7 @@ const copyText = async (text: string) => {
 
 watch(() => pagination.page, () => loadData())
 watch(() => pagination.pageSize, () => { pagination.page = 1; loadData() })
-onMounted(() => loadData())
+onMounted(() => { loadColumnVisibility(); loadData() })
 </script>
 
 <script lang="ts">
@@ -856,12 +1060,15 @@ export default { name: 'PersonnelList' }
 }
 
 .edit-form :deep(.el-form-item) {
-  margin-bottom: 0;
+  margin-bottom: 6px;
   .el-form-item__label {
     font-size: 12px;
     font-weight: 600;
     color: var(--color-text-secondary);
     margin-bottom: 4px;
+  }
+  .el-form-item__error {
+    padding-top: 2px;
   }
 }
 
@@ -951,6 +1158,103 @@ export default { name: 'PersonnelList' }
   .form-row-2 { grid-template-columns: 1fr; }
 }
 
+/* ==================== 人员详情弹窗 ==================== */
+.detail-content {
+  padding: 0 8px;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.detail-info {
+  flex: 1;
+}
+
+.detail-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.detail-position {
+  display: flex;
+  gap: 8px;
+}
+
+.detail-section {
+  margin-bottom: 20px;
+}
+
+.detail-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-label {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.detail-value {
+  font-size: 14px;
+  color: #334155;
+  font-weight: 500;
+}
+
+.detail-remark {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.detail-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #94a3b8;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
 /* ==================== 单元格美化 ==================== */
 .cell-name {
   font-weight: 600;
@@ -1028,5 +1332,64 @@ export default { name: 'PersonnelList' }
     width: 11px;
     height: 11px;
   }
+}
+
+/* 字段显示控制 */
+.column-settings {
+  .settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: var(--space-2);
+    margin-bottom: var(--space-2);
+    border-bottom: 1px solid var(--color-border-light);
+  }
+
+  .settings-title {
+    font-family: 'Manrope', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+
+  .settings-list {
+    max-height: 280px;
+    overflow-y: auto;
+    margin: 0 -12px;
+    padding: 0 12px;
+  }
+
+  .settings-item {
+    padding: 4px 10px;
+    margin: 0 -10px;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s ease;
+
+    &:hover { background: var(--color-surface-2); }
+
+    :deep(.el-checkbox) {
+      width: 100%;
+      .el-checkbox__label {
+        font-size: 13px;
+        color: var(--color-text-primary);
+        font-weight: 500;
+      }
+      .el-checkbox__input.is-checked .el-checkbox__inner {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+      }
+      .el-checkbox__input.is-checked + .el-checkbox__label {
+        color: var(--color-primary);
+      }
+    }
+  }
+
+  .settings-footer {
+    margin-top: var(--space-2);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--color-border-light);
+  }
+
+  .settings-hint { font-size: 11px; color: var(--color-text-muted); }
 }
 </style>

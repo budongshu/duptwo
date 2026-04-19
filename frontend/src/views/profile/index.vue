@@ -214,6 +214,10 @@
 
           <el-form-item :label="t('profile.confirmNewPassword')" prop="confirmPassword">
             <el-input v-model="pwdForm.confirmPassword" type="password" :placeholder="t('profile.confirmPasswordPlaceholder')" show-password size="large" />
+            <div class="pwd-mismatch-tip" v-if="pwdForm.confirmPassword && pwdForm.newPassword && pwdForm.confirmPassword !== pwdForm.newPassword">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {{ t('profile.passwordMismatch') }}
+            </div>
           </el-form-item>
         </el-form>
       </div>
@@ -315,19 +319,52 @@ const formRules: FormRules = {
 }
 
 const validateConfirm = (rule: any, value: string, callback: any) => {
-  if (value !== pwdForm.newPassword) callback(new Error(t('profile.passwordMismatch')))
+  if (value && value !== pwdForm.newPassword) callback(new Error(t('profile.passwordMismatch')))
   else callback()
 }
 
-// 密码验证规则（使用全局密码策略）
-const pwdRules = computed<FormRules>(() => ({
-  oldPassword: [{ required: true, message: t('profile.currentPasswordRequired'), trigger: 'blur' }],
-  newPassword: [
-    { required: true, message: t('profile.newPasswordRequired'), trigger: 'blur' },
-    { min: policy.value.passwordMinLength, message: t('profile.passwordMinLength', { min: policy.value.passwordMinLength }), trigger: 'blur' }
-  ],
-  confirmPassword: [{ required: true, message: t('profile.confirmPasswordRequired'), trigger: 'blur' }, { validator: validateConfirm, trigger: 'blur' }]
-}))
+// 特殊字符检测
+const hasSpecialChar = (pwd: string): boolean => {
+  const specialChars = '!@#$%^&*()_+-=[]{}|;:\'",.<>?/`~\\'
+  for (const c of pwd) { if (specialChars.includes(c)) return true }
+  return false
+}
+
+// 密码验证规则（使用全局密码策略 + 实时反馈）
+const pwdRules = computed<FormRules>(() => {
+  const p = policy.value
+  return {
+    oldPassword: [
+      { required: true, message: '请输入当前密码', trigger: 'blur' },
+      {
+        validator: (_: any, val: string, cb: any) => {
+          if (val && val === pwdForm.newPassword) cb(new Error('新密码不能与当前密码相同'))
+          else cb()
+        },
+        trigger: 'change'
+      }
+    ],
+    newPassword: [
+      { required: true, message: t('profile.newPasswordRequired'), trigger: 'blur' },
+      { validator: (_: any, val: string, cb: any) => {
+        if (!val) { cb(); return }
+        const checks = [
+          val.length >= p.passwordMinLength,
+          !p.passwordRequireUppercase || /[A-Z]/.test(val),
+          !p.passwordRequireLowercase || /[a-z]/.test(val),
+          !p.passwordRequireDigit || /[0-9]/.test(val),
+          !p.passwordRequireSpecial || hasSpecialChar(val)
+        ]
+        if (checks.some(v => !v)) cb(new Error('密码不满足格式要求，请检查是否包含所有必填字符'))
+        else cb()
+      }, trigger: 'change' }
+    ],
+    confirmPassword: [
+      { required: true, message: t('profile.confirmPasswordRequired'), trigger: 'blur' },
+      { validator: validateConfirm, trigger: 'change' }
+    ]
+  }
+})
 
 const mfaRules = {
   code: [{ required: true, message: t('profile.mfaCodeRequired'), trigger: 'blur' }, { len: 6, message: t('profile.mfaCodeLen'), trigger: 'blur' }]
@@ -422,8 +459,50 @@ const handleSave = async () => {
 }
 
 const handleChangePassword = async () => {
-  const valid = await pwdFormRef.value?.validate().catch(() => false)
-  if (!valid) return
+  const p = policy.value
+  const oldPwd = pwdForm.oldPassword
+  const newPwd = pwdForm.newPassword
+
+  // 1. 检查当前密码是否为空
+  if (!oldPwd) {
+    ElMessage.warning('请输入当前密码')
+    return
+  }
+
+  // 2. 检查新密码是否与当前密码相同
+  if (oldPwd === newPwd) {
+    ElMessage.warning('新密码不能与当前密码相同，请设置一个不同的密码')
+    return
+  }
+
+  // 3. 检查密码格式是否满足所有策略要求
+  if (newPwd.length < p.passwordMinLength) {
+    ElMessage.warning(`新密码长度不能少于 ${p.passwordMinLength} 位`)
+    return
+  }
+  if (p.passwordRequireUppercase && !/[A-Z]/.test(newPwd)) {
+    ElMessage.warning('新密码必须包含大写字母 (A-Z)')
+    return
+  }
+  if (p.passwordRequireLowercase && !/[a-z]/.test(newPwd)) {
+    ElMessage.warning('新密码必须包含小写字母 (a-z)')
+    return
+  }
+  if (p.passwordRequireDigit && !/[0-9]/.test(newPwd)) {
+    ElMessage.warning('新密码必须包含数字 (0-9)')
+    return
+  }
+  if (p.passwordRequireSpecial && !hasSpecialChar(newPwd)) {
+    ElMessage.warning('新密码必须包含特殊字符 (!@#$%...)')
+    return
+  }
+
+  // 4. 检查两次输入是否一致
+  if (pwdForm.confirmPassword !== newPwd) {
+    ElMessage.warning('两次输入的密码不一致，请重新确认')
+    return
+  }
+
   pwdLoading.value = true
   try {
     const res = await AuthApi.changePassword({
@@ -815,6 +894,18 @@ onMounted(() => { loadProfile(); loadPolicy() })
 /* 密码弹窗 */
 .pwd-dialog-body {
   padding: 16px 20px;
+}
+
+.pwd-mismatch-tip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-danger, #f56c6c);
+  font-weight: 500;
+
+  svg { flex-shrink: 0; }
 }
 
 /* MFA 弹窗 */

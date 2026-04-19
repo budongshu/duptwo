@@ -117,6 +117,7 @@ func InitRouter() *gin.Engine {
 	// 公开上传记录接口（无需认证）
 	r.POST("/public/upload-records", RouterGroupApp.PublicUploadRecordApi.Create)
 	r.GET("/public/upload-records/:serialNo", RouterGroupApp.PublicUploadRecordApi.GetBySerialNo)
+	r.PUT("/public/upload-records/:serialNo", RouterGroupApp.PublicUploadRecordApi.UpdateBySerialNo)
 
 	// 公开认证接口
 	r.GET("/api/auth/captcha", RouterGroupApp.AuthApi.GetCaptcha)
@@ -124,6 +125,7 @@ func InitRouter() *gin.Engine {
 	r.POST("/api/auth/ad-login", RouterGroupApp.AuthApi.ADLogin)
 	r.POST("/api/auth/register", RouterGroupApp.AuthApi.Register)
 	r.POST("/api/auth/mfa/verify", RouterGroupApp.AuthApi.MFAVerify)
+	r.GET("/api/auth/registration-status", RouterGroupApp.AuthApi.GetRegistrationStatus)
 
 	// 需要认证的接口
 	authGroup := r.Group("/api")

@@ -55,6 +55,10 @@
           <el-icon><Picture /></el-icon>
           验证码 {{ form.captchaEnabled ? '已启用' : '已禁用' }}
         </el-tag>
+        <el-tag :type="form.registrationEnabled ? 'success' : 'danger'" size="small" effect="plain">
+          <el-icon><UserFilled /></el-icon>
+          注册 {{ form.registrationEnabled ? '已启用' : '已禁用' }}
+        </el-tag>
         <el-tag :type="form.inactiveAutoDisable ? 'warning' : 'info'" size="small" effect="plain">
           <el-icon><Timer /></el-icon>
           不活跃 {{ form.inactiveAutoDisable ? form.inactiveDaysThreshold + '天自动禁用' : '未启用' }}
@@ -120,6 +124,20 @@
                 {{ t('security.loginBlock.inactiveDaysDesc') }}
                 <el-input-number v-model="form.inactiveDaysThreshold" :min="1" :max="365" size="small" controls-position="right" />
                 {{ t('common.days') }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 自主注册开关 -->
+          <div class="config-row">
+            <div class="config-label">
+              <el-icon><UserFilled /></el-icon>
+              <span>允许自主注册</span>
+            </div>
+            <div class="config-control">
+              <el-switch v-model="form.registrationEnabled" />
+              <span class="control-hint" v-if="!form.registrationEnabled">
+                <span style="color: #f56c6c; font-size: 12px;">关闭后，用户将无法自主注册账号</span>
               </span>
             </div>
           </div>
@@ -206,11 +224,122 @@
       </el-tab-pane>
 
       <!-- 密码策略 -->
-      <el-tab-pane :label="t('security.passwordBlock.title')" name="password" disabled>
+      <el-tab-pane :label="t('security.passwordBlock.title')" name="password">
         <div class="config-section">
-          <div class="pwd-fixed-notice">
-            <el-icon><InfoFilled /></el-icon>
-            <span>密码要求已固定：至少8位，必须包含大小写字母、数字和特殊字符</span>
+          <!-- 密码有效期 -->
+          <div class="config-row">
+            <div class="config-label">
+              <el-icon><Timer /></el-icon>
+              <span>{{ t('security.passwordBlock.expiryLabel') }}</span>
+            </div>
+            <div class="config-control config-control--inline">
+              <el-switch v-model="form.passwordExpiryDaysEnabled" @change="handleExpiryToggle" />
+              <span class="control-hint" v-if="form.passwordExpiryDaysEnabled">
+                <el-input-number v-model="form.passwordExpiryDays" :min="1" :max="365" size="small" controls-position="right" />
+                <span class="unit">{{ t('common.days') }}</span>
+                <span class="input-hint">{{ t('security.passwordBlock.expiryDesc') }}</span>
+              </span>
+              <span class="control-hint" v-else>
+                <el-tag type="info" size="small">{{ t('security.passwordBlock.noExpiry') }}</el-tag>
+              </span>
+            </div>
+          </div>
+
+          <!-- 密码最小长度 -->
+          <div class="config-row">
+            <div class="config-label">
+              <el-icon><Minus /></el-icon>
+              <span>{{ t('security.passwordBlock.minLengthLabel') }}</span>
+            </div>
+            <div class="config-control config-control--inline">
+              <el-input-number v-model="form.passwordMinLength" :min="6" :max="32" size="default" controls-position="right" />
+              <span class="unit">{{ t('common.characters') }}</span>
+              <span class="input-hint">{{ t('security.passwordBlock.minLengthDesc') }}</span>
+            </div>
+          </div>
+
+          <!-- 密码复杂度要求 -->
+          <div class="config-row config-row--vertical">
+            <div class="config-label">
+              <el-icon><Key /></el-icon>
+              <span>{{ t('security.passwordBlock.complexityLabel') }}</span>
+            </div>
+            <div class="config-control config-control--full">
+              <div class="complexity-grid">
+                <div class="complexity-item" :class="{ active: form.passwordRequireUppercase }" @click="form.passwordRequireUppercase = !form.passwordRequireUppercase">
+                  <div class="complexity-check">
+                    <el-icon v-if="form.passwordRequireUppercase"><Check /></el-icon>
+                  </div>
+                  <div class="complexity-info">
+                    <span class="complexity-title">{{ t('security.passwordBlock.requireUppercase') }}</span>
+                    <span class="complexity-desc">Aa Bb Cc</span>
+                  </div>
+                </div>
+                <div class="complexity-item" :class="{ active: form.passwordRequireLowercase }" @click="form.passwordRequireLowercase = !form.passwordRequireLowercase">
+                  <div class="complexity-check">
+                    <el-icon v-if="form.passwordRequireLowercase"><Check /></el-icon>
+                  </div>
+                  <div class="complexity-info">
+                    <span class="complexity-title">{{ t('security.passwordBlock.requireLowercase') }}</span>
+                    <span class="complexity-desc">aa bb cc</span>
+                  </div>
+                </div>
+                <div class="complexity-item" :class="{ active: form.passwordRequireDigit }" @click="form.passwordRequireDigit = !form.passwordRequireDigit">
+                  <div class="complexity-check">
+                    <el-icon v-if="form.passwordRequireDigit"><Check /></el-icon>
+                  </div>
+                  <div class="complexity-info">
+                    <span class="complexity-title">{{ t('security.passwordBlock.requireDigit') }}</span>
+                    <span class="complexity-desc">0 1 2 3 9</span>
+                  </div>
+                </div>
+                <div class="complexity-item" :class="{ active: form.passwordRequireSpecial }" @click="form.passwordRequireSpecial = !form.passwordRequireSpecial">
+                  <div class="complexity-check">
+                    <el-icon v-if="form.passwordRequireSpecial"><Check /></el-icon>
+                  </div>
+                  <div class="complexity-info">
+                    <span class="complexity-title">{{ t('security.passwordBlock.requireSpecial') }}</span>
+                    <span class="complexity-desc">!@#$%^&*</span>
+                  </div>
+                </div>
+              </div>
+              <span class="input-hint">{{ t('security.passwordBlock.complexityDesc') }}</span>
+            </div>
+          </div>
+
+          <!-- 密码强度预览 -->
+          <div class="config-row config-row--vertical">
+            <div class="config-label">
+              <el-icon><View /></el-icon>
+              <span>{{ t('security.passwordBlock.strengthPreview') }}</span>
+            </div>
+            <div class="config-control config-control--full">
+              <div class="strength-preview">
+                <div class="strength-input-wrapper">
+                  <el-input
+                    v-model="previewPassword"
+                    type="password"
+                    :placeholder="t('security.passwordBlock.previewPlaceholder')"
+                    show-password
+                    clearable
+                  />
+                </div>
+                <div class="strength-meter">
+                  <div class="strength-bar" :style="{ width: strengthScore.width + '%', background: strengthScore.color }"></div>
+                </div>
+                <div class="strength-labels">
+                  <span class="strength-score" :style="{ color: strengthScore.color }">{{ strengthScore.label }}</span>
+                  <span class="strength-rules">
+                    <span v-for="(rule, idx) in strengthRules" :key="idx" :class="{ met: rule.met }">
+                      <el-icon v-if="rule.met"><Check /></el-icon>
+                      <el-icon v-else><Close /></el-icon>
+                      {{ rule.text }}
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <span class="input-hint">{{ t('security.passwordBlock.previewDesc') }}</span>
+            </div>
           </div>
         </div>
       </el-tab-pane>
@@ -261,7 +390,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Lock, Warning, CircleClose, Guide, Picture, Timer, User, Monitor, Key, Connection, Clock, InfoFilled } from '@element-plus/icons-vue'
+import { Lock, Warning, CircleClose, Guide, Picture, Timer, User, UserFilled, Monitor, Key, Connection, Clock, Minus, Check, Close, View } from '@element-plus/icons-vue'
 import { AdminApi, SecuritySettings } from '@/api/admin'
 import { usePasswordPolicy } from '@/composables/usePasswordPolicy'
 
@@ -287,10 +416,11 @@ const overview = reactive({
 })
 
 // 表单数据
-const form = reactive<SecuritySettings>({
+const form = reactive<SecuritySettings & { passwordExpiryDaysEnabled: boolean }>({
   id: 0,
   captchaEnabled: true,
   captchaMinLen: 3,
+  registrationEnabled: true,
   inactiveAutoDisable: false,
   inactiveDaysThreshold: 90,
   userLoginMaxAttempts: 5,
@@ -300,12 +430,69 @@ const form = reactive<SecuritySettings>({
   ipWhitelist: '',
   ipBlacklist: '',
   passwordExpiryDays: 0,
+  passwordExpiryDaysEnabled: false,
   passwordMinLength: 8,
   passwordRequireUppercase: false,
   passwordRequireLowercase: false,
   passwordRequireDigit: false,
   passwordRequireSpecial: false,
   sessionTimeoutHours: 24,
+})
+
+// 密码预览
+const previewPassword = ref('')
+
+// 密码有效期开关
+function handleExpiryToggle(val: boolean) {
+  if (val && form.passwordExpiryDays === 0) {
+    form.passwordExpiryDays = 90
+  }
+}
+
+// 计算密码强度
+const strengthScore = computed(() => {
+  if (!previewPassword.value) {
+    return { label: t('security.passwordBlock.strengthEmpty'), width: 0, color: '#c0c4cc' }
+  }
+  let score = 0
+  const pwd = previewPassword.value
+
+  // 长度得分
+  if (pwd.length >= form.passwordMinLength) score += 20
+  else if (pwd.length >= form.passwordMinLength - 2) score += 10
+
+  // 复杂度得分
+  if (/[A-Z]/.test(pwd) && form.passwordRequireUppercase) score += 20
+  else if (/[A-Z]/.test(pwd)) score += 5
+
+  if (/[a-z]/.test(pwd) && form.passwordRequireLowercase) score += 20
+  else if (/[a-z]/.test(pwd)) score += 5
+
+  if (/[0-9]/.test(pwd) && form.passwordRequireDigit) score += 20
+  else if (/[0-9]/.test(pwd)) score += 5
+
+  if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd) && form.passwordRequireSpecial) score += 20
+  else if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd)) score += 5
+
+  // 长度额外加分
+  if (pwd.length >= 12) score += 10
+  if (pwd.length >= 16) score += 5
+
+  if (score >= 80) return { label: t('security.passwordBlock.strengthStrong'), width: 100, color: '#67c23a' }
+  if (score >= 50) return { label: t('security.passwordBlock.strengthMedium'), width: 60, color: '#e6a23c' }
+  return { label: t('security.passwordBlock.strengthWeak'), width: 30, color: '#f56c6c' }
+})
+
+// 密码规则检查
+const strengthRules = computed(() => {
+  const pwd = previewPassword.value
+  return [
+    { text: t('security.passwordBlock.ruleLength', { n: form.passwordMinLength }), met: pwd.length >= form.passwordMinLength },
+    { text: t('security.passwordBlock.ruleUppercase'), met: form.passwordRequireUppercase ? /[A-Z]/.test(pwd) : true },
+    { text: t('security.passwordBlock.ruleLowercase'), met: form.passwordRequireLowercase ? /[a-z]/.test(pwd) : true },
+    { text: t('security.passwordBlock.ruleDigit'), met: form.passwordRequireDigit ? /[0-9]/.test(pwd) : true },
+    { text: t('security.passwordBlock.ruleSpecial'), met: form.passwordRequireSpecial ? /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd) : true },
+  ]
 })
 
 const lockDrawerTitle = computed(() =>
@@ -316,11 +503,13 @@ const lockDrawerTitle = computed(() =>
 async function loadSettings() {
   loadingSettings.value = true
   try {
-    const data = await AdminApi.getSecuritySettings()
+    const resp = await AdminApi.getSecuritySettings()
+    const data = resp.data as SecuritySettings
     // 使用单独赋值确保 Vue 响应式正确更新
     form.id = data.id ?? 0
     form.captchaEnabled = data.captchaEnabled ?? true
     form.captchaMinLen = data.captchaMinLen ?? 3
+    form.registrationEnabled = data.registrationEnabled ?? true
     form.inactiveAutoDisable = data.inactiveAutoDisable ?? false
     form.inactiveDaysThreshold = data.inactiveDaysThreshold ?? 90
     form.userLoginMaxAttempts = data.userLoginMaxAttempts ?? 5
@@ -330,6 +519,7 @@ async function loadSettings() {
     form.ipWhitelist = data.ipWhitelist ?? ''
     form.ipBlacklist = data.ipBlacklist ?? ''
     form.passwordExpiryDays = data.passwordExpiryDays ?? 0
+    form.passwordExpiryDaysEnabled = (data.passwordExpiryDays ?? 0) > 0
     form.passwordMinLength = data.passwordMinLength ?? 8
     form.passwordRequireUppercase = data.passwordRequireUppercase ?? false
     form.passwordRequireLowercase = data.passwordRequireLowercase ?? false
@@ -347,8 +537,8 @@ async function loadSettings() {
 async function loadOverview() {
   loadingOverview.value = true
   try {
-    const data = await AdminApi.getSecurityOverview()
-    Object.assign(overview, data)
+    const resp = await AdminApi.getSecurityOverview()
+    Object.assign(overview, resp.data)
   } catch {
     // 总览加载失败不影响主功能
   } finally {
@@ -360,7 +550,11 @@ async function loadOverview() {
 async function handleSave() {
   saving.value = true
   try {
-    await AdminApi.updateSecuritySettings(form)
+    const saveData = {
+      ...form,
+      passwordExpiryDays: form.passwordExpiryDaysEnabled ? form.passwordExpiryDays : 0,
+    }
+    await AdminApi.updateSecuritySettings(saveData)
     ElMessage.success(t('security.messages.saveSuccess'))
     loadOverview()
     loadSettings()
@@ -378,9 +572,11 @@ async function showLockDrawer(type: 'users' | 'ips') {
   lockDrawerVisible.value = true
   try {
     if (type === 'users') {
-      lockList.value = await AdminApi.getLockedUsers()
+      const resp = await AdminApi.getLockedUsers()
+      lockList.value = resp.data ?? []
     } else {
-      lockList.value = await AdminApi.getLockedIPs()
+      const resp = await AdminApi.getLockedIPs()
+      lockList.value = resp.data ?? []
     }
   } catch {
     ElMessage.error(type === 'users' ? t('security.messages.loadLockedUsersFailed') : t('security.messages.loadLockedIPsFailed'))
@@ -651,7 +847,139 @@ onMounted(() => {
   margin-top: 2px;
 }
 
-/* 锁定列表 */
+/* 复杂度选择器 */
+.complexity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+.complexity-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #f5f7fa;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+.complexity-item:hover {
+  border-color: #c0c4cc;
+}
+.complexity-item.active {
+  background: #ecf5ff;
+  border-color: #409eff;
+}
+.complexity-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid #dcdfe6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.complexity-item.active .complexity-check {
+  background: #409eff;
+  border-color: #409eff;
+  color: #fff;
+}
+.complexity-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.complexity-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #303133;
+}
+.complexity-desc {
+  font-size: 12px;
+  color: #909399;
+  font-family: monospace;
+}
+
+/* 密码强度预览 */
+.strength-preview {
+  width: 100%;
+  max-width: 480px;
+}
+.strength-input-wrapper {
+  margin-bottom: 12px;
+}
+.strength-meter {
+  height: 6px;
+  background: #e4e7ed;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.strength-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+.strength-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.strength-score {
+  font-size: 13px;
+  font-weight: 600;
+}
+.strength-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.strength-rules span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #c0c4cc;
+  transition: color 0.2s;
+}
+.strength-rules span.met {
+  color: #67c23a;
+}
+.strength-rules .el-icon {
+  font-size: 12px;
+}
+
+/* 响应式 */
+@media (max-width: 1024px) {
+  .overview-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .checkbox-grid {
+    grid-template-columns: 1fr;
+  }
+  .complexity-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 768px) {
+  .overview-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+  .config-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .config-label {
+    min-width: unset;
+  }
+}
 .lock-drawer-body {
   padding: 0 4px;
 }

@@ -1,6 +1,9 @@
 # ============================================================
 # duptwo Docker Compose（PostgreSQL 生产版）
 # 适用于生产环境，高并发和强一致性场景
+#
+# 使用方式（从项目根目录运行）：
+#   nerdctl compose -f deploy/docker/docker-compose.postgres.yml up -d
 # ============================================================
 
 services:
@@ -20,12 +23,13 @@ services:
       - DB_PASSWORD=duptwo_secure_pass
       - DB_NAME=duptwo
     volumes:
+      - ./conf/app.postgres.yaml:/app/conf/app.yaml:ro
       - app-logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:18421/health"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
       start_period: 30s
     networks:
       - duptwo

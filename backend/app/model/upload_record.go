@@ -8,7 +8,7 @@ import (
 type UploadRecord struct {
 	BaseModel
 	SerialNo    string  `json:"serialNo" gorm:"size:64;index"`                    // 流水号
-	DataType    string  `json:"dataType" gorm:"size:64;index"`                    // 磁盘标签
+	DiskLabel   string  `json:"diskLabel" gorm:"column:disk_label;size:64;index"`  // 磁盘标签
 	ProjectID   *uint   `json:"projectId" gorm:"index"`                            // 项目ID（外键， nullable）
 	ProjectName string  `json:"projectName" gorm:"size:128;index"`                 // 项目名称（保留用于显示/兼容性）
 	DestPath    string  `json:"destPath" gorm:"size:512"`                          // 目标路径
@@ -31,7 +31,7 @@ func (UploadRecord) TableName() string {
 type UploadRecordResp struct {
 	ID          uint      `json:"id"`
 	SerialNo    string    `json:"serialNo"`     // 流水号
-	DataType    string    `json:"dataType"`      // 磁盘标签
+	DiskLabel   string    `json:"diskLabel"`    // 磁盘标签
 	ProjectID   *uint     `json:"projectId"`     // 项目ID
 	ProjectName string    `json:"projectName"`  // 项目名称
 	DestPath    string    `json:"destPath"`

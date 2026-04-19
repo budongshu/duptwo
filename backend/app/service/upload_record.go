@@ -169,6 +169,28 @@ func (s *UploadRecordService) Update(req dto.UploadRecordUpdateReq) (*model.Uplo
 	return record, nil
 }
 
+// UpdateBySerialNo 根据流水号更新上传记录（公开接口，无需认证）
+func (s *UploadRecordService) UpdateBySerialNo(serialNo string, req dto.UploadRecordPublicUpdateReq) (*model.UploadRecord, error) {
+	record, err := s.uploadRecordRepo.GetBySerialNo(serialNo)
+	if err != nil {
+		return nil, errors.New("记录不存在")
+	}
+
+	record.Status = req.Status
+	record.Remark = req.Remark
+
+	// 可选：更新文件大小
+	if req.FileSize != nil {
+		record.FileSize = *req.FileSize
+	}
+
+	if err := s.uploadRecordRepo.Update(record); err != nil {
+		return nil, err
+	}
+
+	return record, nil
+}
+
 // Delete 删除记录
 func (s *UploadRecordService) Delete(id uint) error {
 	return s.uploadRecordRepo.Delete(id)

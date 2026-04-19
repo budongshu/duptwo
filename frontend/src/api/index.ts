@@ -52,12 +52,20 @@ class RequestHttp {
         return data
       },
       (error: any) => {
-        // 如果是 401 未授权，跳转到登录页
+        // 如果是 401 未授权
         if (error.response?.status === 401) {
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
-          window.location.href = '/login'
-          return Promise.reject(error)
+          // 登录接口的 401 是认证失败，不应该跳转
+          const isLoginRequest = error.config?.url?.includes('/auth/login') ||
+                                  error.config?.url?.includes('/auth/register')
+          if (!isLoginRequest) {
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
+            // 只在非登录页面才跳转
+            if (window.location.pathname !== '/login') {
+              window.location.href = '/login'
+            }
+          }
+          return Promise.reject(error.response?.data || error)
         }
         // 处理 400/500 等错误，提取后端返回的错误消息
         if (error.response?.data) {

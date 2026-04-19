@@ -50,7 +50,17 @@ func (api *AuthApi) Login(c *gin.Context) {
 	userAgent := c.GetHeader("User-Agent")
 	result, err := api.authService.Login(req, ip, userAgent)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, dto.Response{Code: 401, Message: err.Error()})
+		// 获取剩余尝试次数
+		securitySvc := service.NewSecurityService()
+		remaining, maxAttempts := securitySvc.GetRemainingAttempts(req.Username)
+
+		// 构造错误响应，包含剩余尝试次数
+		errorResp := dto.LoginErrorResp{
+			Message:           err.Error(),
+			RemainingAttempts: remaining,
+			MaxAttempts:       maxAttempts,
+		}
+		c.JSON(http.StatusUnauthorized, dto.Response{Code: 401, Message: err.Error(), Data: errorResp})
 		return
 	}
 
@@ -65,6 +75,13 @@ func (api *AuthApi) Login(c *gin.Context) {
 // @Success 200 {object} dto.Response
 // @Router /api/auth/register [post]
 func (api *AuthApi) Register(c *gin.Context) {
+	// 检查注册功能是否已启用
+	securitySvc := service.NewSecurityService()
+	if !securitySvc.IsRegistrationEnabled() {
+		c.JSON(http.StatusForbidden, dto.Response{Code: 403, Message: "系统已关闭自主注册功能，请联系管理员创建账号"})
+		return
+	}
+
 	var req dto.RegisterReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: err.Error()})
@@ -241,6 +258,17 @@ func (api *AuthApi) EnableMFA(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "MFA启用成功", Data: result})
+}
+
+// GetRegistrationStatus 获取注册功能状态（公开接口）
+// @Summary 获取注册功能状态
+// @Tags Auth
+// @Success 200 {object} dto.Response
+// @Router /api/auth/registration-status [get]
+func (api *AuthApi) GetRegistrationStatus(c *gin.Context) {
+	securitySvc := service.NewSecurityService()
+	enabled := securitySvc.IsRegistrationEnabled()
+	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: map[string]bool{"registrationEnabled": enabled}})
 }
 
 // DisableMFA 禁用MFA

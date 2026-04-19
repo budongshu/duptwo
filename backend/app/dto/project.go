@@ -13,47 +13,51 @@ type OnSiteStation struct {
 
 // ProjectCreateReq 创建项目请求
 type ProjectCreateReq struct {
-	Name           string           `json:"name" validate:"required,max=128"`
-	Code          string           `json:"code" validate:"required,max=64"`
-	Description   string           `json:"description" validate:"max=512"`
-	Status        string           `json:"status"`
-	Stage         string           `json:"stage"`
-	Sort          int              `json:"sort"`
-	ProjectPerson string           `json:"projectPerson"`    // 项目人员
-	OpsPerson     string           `json:"opsPerson"`       // 运维人员
-	OpsStaffPerson string          `json:"opsStaffPerson"`  // 运营人员
-	DeveloperPerson string           `json:"developerPerson"`    // 开发人员
-	TesterPerson    string           `json:"testerPerson"`     // 测试人员
-	BusinessPerson  string           `json:"businessPerson"`   // 商务人员
-	CompliancePerson string          `json:"compliancePerson"`  // 合规专员
-	Solution      string           `json:"solution"`        // 解决方案描述
-	SolutionPerson string          `json:"solutionPerson"`  // 解决方案人员
-	CompanyAddr   string           `json:"companyAddr"`    // 公司地点
-	ProjectPeriod string           `json:"projectPeriod"`  // 项目周期
-	OnsiteStations []OnSiteStation `json:"onsiteStations"` // 驻场点列表
+	Name             string           `json:"name" validate:"required,max=128"`
+	Code            string           `json:"code" validate:"required,max=64"`
+	Description     string           `json:"description" validate:"max=512"`
+	Status          string           `json:"status"`
+	Stage           string           `json:"stage"`
+	Sort            int              `json:"sort"`
+	ProjectPerson   string           `json:"projectPerson"`     // 项目人员（逗号分隔）
+	OpsPerson       string           `json:"opsPerson"`        // 运维人员（逗号分隔）
+	OpsStaffPerson  string           `json:"opsStaffPerson"`   // 运营人员（逗号分隔）
+	DeveloperPerson string           `json:"developerPerson"`   // 开发人员（逗号分隔）
+	TesterPerson    string           `json:"testerPerson"`     // 测试人员（逗号分隔）
+	BusinessPerson  string           `json:"businessPerson"`   // 商务人员（逗号分隔）
+	CompliancePerson string          `json:"compliancePerson"`  // 合规专员（逗号分隔）
+	SecurityPerson  string           `json:"securityPerson"`    // 安全人员（逗号分隔）
+	NetworkPerson   string           `json:"networkPerson"`     // 网络人员（逗号分隔）
+	Solution        string           `json:"solution"`         // 解决方案描述
+	SolutionPerson  string           `json:"solutionPerson"`    // 解决方案人员（逗号分隔）
+	CompanyAddr     string           `json:"companyAddr"`       // 公司地点
+	ProjectPeriod   string           `json:"projectPeriod"`     // 项目周期
+	OnsiteStations  []OnSiteStation `json:"onsiteStations"`    // 驻场点列表
 }
 
 // ProjectUpdateReq 更新项目请求
 type ProjectUpdateReq struct {
-	ID            uint             `json:"id" validate:"required"`
-	Name           string           `json:"name" validate:"required,max=128"`
-	Code          string           `json:"code" validate:"required,max=64"`
-	Description   string           `json:"description" validate:"max=512"`
-	Status        string           `json:"status"`
-	Stage         string           `json:"stage"`
-	Sort          int              `json:"sort"`
-	ProjectPerson string           `json:"projectPerson"`    // 项目人员
-	OpsPerson     string           `json:"opsPerson"`       // 运维人员
-	OpsStaffPerson string          `json:"opsStaffPerson"`  // 运营人员
-	DeveloperPerson string           `json:"developerPerson"`    // 开发人员
-	TesterPerson    string           `json:"testerPerson"`     // 测试人员
-	BusinessPerson  string           `json:"businessPerson"`   // 商务人员
-	CompliancePerson string          `json:"compliancePerson"`  // 合规专员
-	Solution      string           `json:"solution"`        // 解决方案描述
-	SolutionPerson string          `json:"solutionPerson"`  // 解决方案人员
-	CompanyAddr   string           `json:"companyAddr"`    // 公司地点
-	ProjectPeriod string           `json:"projectPeriod"`   // 项目周期
-	OnsiteStations []OnSiteStation `json:"onsiteStations"`  // 驻场点列表
+	ID              uint             `json:"id" validate:"required"`
+	Name             string           `json:"name" validate:"required,max=128"`
+	Code            string           `json:"code" validate:"required,max=64"`
+	Description     string           `json:"description" validate:"max=512"`
+	Status          string           `json:"status"`
+	Stage           string           `json:"stage"`
+	Sort            int              `json:"sort"`
+	ProjectPerson   string           `json:"projectPerson"`     // 项目人员（逗号分隔）
+	OpsPerson       string           `json:"opsPerson"`        // 运维人员（逗号分隔）
+	OpsStaffPerson  string           `json:"opsStaffPerson"`   // 运营人员（逗号分隔）
+	DeveloperPerson string           `json:"developerPerson"`   // 开发人员（逗号分隔）
+	TesterPerson    string           `json:"testerPerson"`     // 测试人员（逗号分隔）
+	BusinessPerson  string           `json:"businessPerson"`   // 商务人员（逗号分隔）
+	CompliancePerson string          `json:"compliancePerson"`  // 合规专员（逗号分隔）
+	SecurityPerson  string           `json:"securityPerson"`    // 安全人员（逗号分隔）
+	NetworkPerson   string           `json:"networkPerson"`     // 网络人员（逗号分隔）
+	Solution        string           `json:"solution"`         // 解决方案描述
+	SolutionPerson  string           `json:"solutionPerson"`    // 解决方案人员（逗号分隔）
+	CompanyAddr     string           `json:"companyAddr"`       // 公司地点
+	ProjectPeriod   string           `json:"projectPeriod"`    // 项目周期
+	OnsiteStations  []OnSiteStation `json:"onsiteStations"`   // 驻场点列表
 }
 
 // ProjectListReq 项目列表请求
@@ -67,29 +71,31 @@ type ProjectListReq struct {
 
 // ProjectResp 项目响应
 type ProjectResp struct {
-	ID            uint             `json:"id"`
-	Name           string           `json:"name"`
-	Code          string           `json:"code"`
-	Description   string           `json:"description"`
-	Status        string           `json:"status"`
-	Stage         string           `json:"stage"`
-	Sort          int              `json:"sort"`
-	ProjectPerson string           `json:"projectPerson"`    // 项目人员
-	OpsPerson     string           `json:"opsPerson"`       // 运维人员
-	OpsStaffPerson string          `json:"opsStaffPerson"`  // 运营人员
-	DeveloperPerson string           `json:"developerPerson"`    // 开发人员
-	TesterPerson    string           `json:"testerPerson"`     // 测试人员
-	BusinessPerson  string           `json:"businessPerson"`   // 商务人员
-	CompliancePerson string          `json:"compliancePerson"`  // 合规专员
-	Solution      string           `json:"solution"`        // 解决方案描述
-	SolutionPerson string          `json:"solutionPerson"`  // 解决方案人员
-	CompanyAddr   string           `json:"companyAddr"`     // 公司地点
-	ProjectPeriod string           `json:"projectPeriod"`   // 项目周期
-	OnsiteStations []OnSiteStation `json:"onsiteStations"`   // 驻场点列表
-	RecordCount   int64            `json:"recordCount"`     // 该项目的上传记录数量
-	TotalDataSize int64            `json:"totalDataSize"`    // 该项目的上传数据总量(字节)
-	CreatedAt     time.Time        `json:"createdAt"`
-	UpdatedAt     time.Time        `json:"updatedAt"`
+	ID               uint             `json:"id"`
+	Name             string           `json:"name"`
+	Code             string           `json:"code"`
+	Description      string           `json:"description"`
+	Status           string           `json:"status"`
+	Stage            string           `json:"stage"`
+	Sort             int              `json:"sort"`
+	ProjectPerson    string           `json:"projectPerson"`     // 项目人员（逗号分隔）
+	OpsPerson        string           `json:"opsPerson"`        // 运维人员（逗号分隔）
+	OpsStaffPerson   string           `json:"opsStaffPerson"`   // 运营人员（逗号分隔）
+	DeveloperPerson  string           `json:"developerPerson"`  // 开发人员（逗号分隔）
+	TesterPerson     string           `json:"testerPerson"`     // 测试人员（逗号分隔）
+	BusinessPerson   string           `json:"businessPerson"`   // 商务人员（逗号分隔）
+	CompliancePerson string           `json:"compliancePerson"` // 合规专员（逗号分隔）
+	SecurityPerson   string           `json:"securityPerson"`   // 安全人员（逗号分隔）
+	NetworkPerson    string           `json:"networkPerson"`    // 网络人员（逗号分隔）
+	Solution         string           `json:"solution"`         // 解决方案描述
+	SolutionPerson   string           `json:"solutionPerson"`   // 解决方案人员（逗号分隔）
+	CompanyAddr      string           `json:"companyAddr"`      // 公司地点
+	ProjectPeriod    string           `json:"projectPeriod"`    // 项目周期
+	OnsiteStations   []OnSiteStation `json:"onsiteStations"`   // 驻场点列表
+	RecordCount      int64            `json:"recordCount"`      // 该项目的上传记录数量
+	TotalDataSize    int64            `json:"totalDataSize"`    // 该项目的上传数据总量(字节)
+	CreatedAt        time.Time        `json:"createdAt"`
+	UpdatedAt        time.Time        `json:"updatedAt"`
 }
 
 // ProjectSimpleResp 简单项目响应（用于下拉选择）

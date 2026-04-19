@@ -37,6 +37,7 @@ type UserResp struct {
 	GroupID     uint       `json:"groupId"`
 	GroupName   string     `json:"groupName"`
 	MFAEnabled  bool       `json:"mfaEnabled"`
+	Locked      bool       `json:"locked"`
 	LastLoginAt *time.Time `json:"lastLoginAt"`
 	LastLoginIP string     `json:"lastLoginIP"`
 	CreatedAt   time.Time  `json:"createdAt"`

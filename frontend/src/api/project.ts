@@ -30,15 +30,17 @@ export interface Project {
   totalDataSize: number
   createdAt: string
   updatedAt: string
-  projectPerson: string   // 项目人员
-  opsPerson: string       // 运维人员
-  developerPerson: string // 开发人员
-  testerPerson: string   // 测试人员
-  businessPerson: string // 商务人员
-  compliancePerson: string // 合规专员
-  opsStaffPerson: string  // 运营人员
+  projectPerson: string   // 项目人员（逗号分隔）
+  opsPerson: string       // 运维人员（逗号分隔）
+  developerPerson: string // 开发人员（逗号分隔）
+  testerPerson: string   // 测试人员（逗号分隔）
+  businessPerson: string // 商务人员（逗号分隔）
+  compliancePerson: string // 合规专员（逗号分隔）
+  securityPerson: string // 安全人员（逗号分隔）
+  networkPerson: string // 网络人员（逗号分隔）
+  opsStaffPerson: string  // 运营人员（逗号分隔）
   solution: string       // 解决方案描述
-  solutionPerson: string // 解决方案人员
+  solutionPerson: string // 解决方案人员（逗号分隔）
   companyAddr: string    // 公司地点
   projectPeriod: string   // 项目周期
   onsiteStations: OnSiteStation[]  // 驻场点列表
@@ -59,15 +61,17 @@ export interface CreateProjectReq {
   status?: string
   stage?: string
   sort?: number
-  projectPerson?: string   // 项目人员
-  opsPerson?: string       // 运维人员
-  developerPerson?: string // 开发人员
-  testerPerson?: string   // 测试人员
-  businessPerson?: string // 商务人员
-  compliancePerson?: string // 合规专员
-  opsStaffPerson?: string  // 运营人员
+  projectPerson?: string   // 项目人员（逗号分隔）
+  opsPerson?: string       // 运维人员（逗号分隔）
+  developerPerson?: string // 开发人员（逗号分隔）
+  testerPerson?: string   // 测试人员（逗号分隔）
+  businessPerson?: string // 商务人员（逗号分隔）
+  compliancePerson?: string // 合规专员（逗号分隔）
+  securityPerson?: string // 安全人员（逗号分隔）
+  networkPerson?: string // 网络人员（逗号分隔）
+  opsStaffPerson?: string  // 运营人员（逗号分隔）
   solution?: string       // 解决方案描述
-  solutionPerson?: string // 解决方案人员
+  solutionPerson?: string // 解决方案人员（逗号分隔）
   companyAddr?: string     // 公司地点
   projectPeriod?: string   // 项目周期
   onsiteStations?: OnSiteStation[]  // 驻场点列表
@@ -82,15 +86,17 @@ export interface UpdateProjectReq {
   status?: string
   stage?: string
   sort?: number
-  projectPerson?: string   // 项目人员
-  opsPerson?: string       // 运维人员
-  developerPerson?: string // 开发人员
-  testerPerson?: string   // 测试人员
-  businessPerson?: string // 商务人员
-  compliancePerson?: string // 合规专员
-  opsStaffPerson?: string  // 运营人员
+  projectPerson?: string   // 项目人员（逗号分隔）
+  opsPerson?: string       // 运维人员（逗号分隔）
+  developerPerson?: string // 开发人员（逗号分隔）
+  testerPerson?: string   // 测试人员（逗号分隔）
+  businessPerson?: string // 商务人员（逗号分隔）
+  compliancePerson?: string // 合规专员（逗号分隔）
+  securityPerson?: string // 安全人员（逗号分隔）
+  networkPerson?: string // 网络人员（逗号分隔）
+  opsStaffPerson?: string  // 运营人员（逗号分隔）
   solution?: string       // 解决方案描述
-  solutionPerson?: string // 解决方案人员
+  solutionPerson?: string // 解决方案人员（逗号分隔）
   companyAddr?: string    // 公司地点
   projectPeriod?: string  // 项目周期
   onsiteStations?: OnSiteStation[]  // 驻场点列表

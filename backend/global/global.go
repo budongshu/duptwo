@@ -41,14 +41,16 @@ type JWTConfig struct {
 }
 
 type BaseConfig struct {
-	Mode       string `mapstructure:"mode"`
-	Port       string `mapstructure:"port"`
-	Username   string `mapstructure:"username"`
-	Password   string `mapstructure:"password"`
-	Version    string `mapstructure:"version"`
-	Language   string `mapstructure:"language"`
-	InstallDir string `mapstructure:"install_dir"`
-	ServeWeb   bool   `mapstructure:"serve_web"`
+	Mode        string `mapstructure:"mode"`
+	Port        string `mapstructure:"port"`
+	Username    string `mapstructure:"username"`
+	Password    string `mapstructure:"password"`
+	Version     string `mapstructure:"version"`
+	Language    string `mapstructure:"language"`
+	InstallDir  string `mapstructure:"install_dir"`
+	ServeWeb    bool   `mapstructure:"serve_web"`
+	WebRoot     string `mapstructure:"web_root"` // 前端静态文件目录（可以是绝对路径或相对于配置文件的路径）
+	ConfigFile  string `mapstructure:"-"`        // 配置文件路径（非配置项，由启动参数设置）
 }
 
 type DatabaseConfig struct {

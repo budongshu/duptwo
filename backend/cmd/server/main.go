@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 
 	_ "datauptwo/docs"
 
@@ -98,6 +99,11 @@ func runServer(cmd *cobra.Command, args []string) {
 }
 
 func initConfig() {
+	// 解析为绝对路径，便于 web_root 等相对路径正确推导
+	absConfigFile, err := filepath.Abs(configFile)
+	if err == nil {
+		configFile = absConfigFile
+	}
 	viper.SetConfigFile(configFile)
 	viper.SetConfigType("yaml")
 
@@ -108,6 +114,9 @@ func initConfig() {
 	if err := viper.Unmarshal(&global.CONF); err != nil {
 		log.Fatalf("Failed to unmarshal config: %v", err)
 	}
+
+	// 存储配置文件路径，供路由层推导相对路径（如 web_root）
+	global.CONF.Base.ConfigFile = configFile
 
 	os.Setenv("TZ", global.CONF.Log.TimeZone)
 }

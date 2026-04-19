@@ -37,6 +37,8 @@ export interface SecuritySettings {
   // 登录验证码
   captchaEnabled: boolean
   captchaMinLen: number
+  // 注册功能开关
+  registrationEnabled: boolean
   // 不活跃自动禁用
   inactiveAutoDisable: boolean
   inactiveDaysThreshold: number

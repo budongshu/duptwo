@@ -59,15 +59,13 @@ func (s *AuthService) Login(req dto.LoginReq, ip, userAgent string) (*dto.LoginR
 		return nil, errors.New("IP已被锁定，请在" + itoa(remaining) + "分钟后重试")
 	}
 
-	// 3. 用户登录失败记录（无论用户是否存在，都记录，用于触发验证码和锁定）
-	security.RecordLoginFailure(req.Username, ip)
-
-	// 4. 用户被锁定检查
+	// 3. 用户被锁定检查
 	if locked, _, msg := security.CheckUserLockout(req.Username); locked {
 		return nil, errors.New(msg)
 	}
 
-	// 5. 验证码检查（仅在用户名存在且失败次数达标时要求）
+	// 4. 验证码检查（仅在用户名存在且失败次数达标时要求）
+	// 验证码错误不算登录失败次数，只提示用户
 	if captchaRequired, _ := security.ShouldRequireCaptcha(req.Username); captchaRequired {
 		if req.CaptchaID == "" || req.Captcha == "" {
 			return nil, errors.New("请填写验证码")
@@ -79,11 +77,8 @@ func (s *AuthService) Login(req dto.LoginReq, ip, userAgent string) (*dto.LoginR
 
 	user, err := s.userRepo.GetByUsername(req.Username)
 	if err != nil {
-		// 用户不存在
-		// 如果AD已启用且允许自动注册，尝试AD认证后创建AD用户
-		if s.adService.IsEnabled() && global.CONF.AD.AutoRegister {
-			return s.ADAutoLogin(req.Username, req.Password, ip, userAgent)
-		}
+		// 用户不存在，记录登录失败
+		security.RecordLoginFailure(req.Username, ip)
 		s.loginLogRepo.Create(&model.LoginLog{
 			Username:   req.Username,
 			Status:     "failed",
@@ -91,7 +86,11 @@ func (s *AuthService) Login(req dto.LoginReq, ip, userAgent string) (*dto.LoginR
 			UserAgent:  userAgent,
 			FailReason: "用户不存在",
 		})
-		return nil, errors.New("用户名或密码错误")
+		// 如果AD已启用且允许自动注册，尝试AD认证后创建AD用户
+		if s.adService.IsEnabled() && global.CONF.AD.AutoRegister {
+			return s.ADAutoLogin(req.Username, req.Password, ip, userAgent)
+		}
+		return nil, errors.New("用户不存在")
 	}
 
 	if user.Status != "active" {
@@ -137,7 +136,7 @@ func (s *AuthService) Login(req dto.LoginReq, ip, userAgent string) (*dto.LoginR
 				UserAgent:  userAgent,
 				FailReason: "密码错误",
 			})
-			return nil, errors.New("用户名或密码错误")
+			return nil, errors.New("密码错误")
 		}
 	}
 
@@ -488,7 +487,7 @@ func (s *AuthService) generateBackupCodes() []string {
 }
 
 // Register 用户注册
-func (s *AuthService) Register(req dto.RegisterReq) (*dto.LoginResp, error) {
+func (s *AuthService) Register(req dto.RegisterReq) (*dto.RegisterResp, error) {
 	// 检查用户名是否存在
 	count, err := s.userRepo.CountByUsername(req.Username)
 	if err != nil {
@@ -510,28 +509,38 @@ func (s *AuthService) Register(req dto.RegisterReq) (*dto.LoginResp, error) {
 		return nil, errors.New("密码加密失败")
 	}
 
+	// 获取默认角色（必须是普通用户角色，不能是管理员）
+	defaultRoleID := uint(0)
+	foundRole := false
+	for _, code := range []string{"auditor", "data_operator", "operator", "user", "viewer"} {
+		if role, err := s.roleRepo.GetByCode(code); err == nil {
+			defaultRoleID = role.ID
+			foundRole = true
+			break
+		}
+	}
+
+	// 如果没有找到任何普通用户角色，禁止注册（安全考虑）
+	if !foundRole {
+		return nil, errors.New("系统暂不支持自主注册，请联系管理员创建账号")
+	}
+
 	user := &model.User{
 		Username: req.Username,
 		Password: hashedPassword,
 		Nickname: req.Nickname,
 		Email:    req.Email,
-		Status:   "active",
+		Status:   "inactive", // 需要管理员审核后才能激活
+		RoleID:   defaultRoleID,
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
 		return nil, errors.New("创建用户失败")
 	}
 
-	// 生成 JWT token
-	token, err := middleware.GenerateToken(user.ID, user.Username, user.RoleID == 0, s.getUserPermissions(user)...)
-	if err != nil {
-		return nil, errors.New("生成令牌失败")
-	}
-
-	return &dto.LoginResp{
-		Token:    token,
-		ExpireAt: time.Now().Add(24 * 7 * time.Hour).Unix(),
-		User:     s.toUserInfo(user),
+	// 注册成功后返回提示信息，不返回 token（用户需等待管理员激活）
+	return &dto.RegisterResp{
+		Message: "注册成功！您的账号正在等待管理员审核，审核通过后将收到通知。",
 	}, nil
 }
 

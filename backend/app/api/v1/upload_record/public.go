@@ -62,3 +62,33 @@ func (api *PublicUploadRecordApi) GetBySerialNo(c *gin.Context) {
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: record})
 }
+
+// UpdateBySerialNo 根据流水号更新上传记录（无需认证）
+// @Summary 根据流水号更新上传记录
+// @Tags PublicUploadRecord
+// @Accept json
+// @Param serialNo path string true "流水号"
+// @Param request body dto.UploadRecordPublicUpdateReq true "更新信息"
+// @Success 200 {object} dto.Response
+// @Router /public/upload-records/{serialNo} [put]
+func (api *PublicUploadRecordApi) UpdateBySerialNo(c *gin.Context) {
+	serialNo := c.Param("serialNo")
+	if serialNo == "" {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "流水号不能为空"})
+		return
+	}
+
+	var req dto.UploadRecordPublicUpdateReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: err.Error()})
+		return
+	}
+
+	record, err := api.uploadRecordService.UpdateBySerialNo(serialNo, req)
+	if err != nil {
+		c.JSON(http.StatusNotFound, dto.Response{Code: 404, Message: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "更新成功", Data: record})
+}

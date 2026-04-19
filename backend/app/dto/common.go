@@ -47,8 +47,20 @@ type LoginResp struct {
 	Token        string    `json:"token"`
 	ExpireAt     int64     `json:"expireAt"`
 	User         UserInfo  `json:"user"`
-	MFARequired  bool      `json:"mfaRequired"` // 是否需要MFA验证
+	MFARequired  bool      `json:"mfaRequired"`   // 是否需要MFA验证
 	CaptchaEnabled bool    `json:"captchaEnabled"` // 是否需要验证码
+}
+
+// LoginErrorResp 登录失败响应
+type LoginErrorResp struct {
+	Message        string `json:"message"`
+	RemainingAttempts int `json:"remainingAttempts"` // 剩余尝试次数
+	MaxAttempts    int    `json:"maxAttempts"`       // 最大尝试次数
+}
+
+// RegisterResp 注册响应（注册后需管理员审核，不返回token）
+type RegisterResp struct {
+	Message string `json:"message"`
 }
 
 // MFAVerifyReq MFA验证请求
@@ -449,6 +461,13 @@ type UploadRecordCreateReq struct {
 	CreatedAt   string                `json:"createdAt"` // 可选，创建时间，格式: 2006-01-02
 }
 
+// UploadRecordPublicUpdateReq 公开更新上传记录请求（无需认证，通过流水号更新）
+type UploadRecordPublicUpdateReq struct {
+	Status   string `json:"status" validate:"required,oneof=pending processing completed failed"`
+	Remark   string `json:"remark" validate:"max=512"`
+	FileSize *int64 `json:"fileSize"` // 可选，更新文件大小
+}
+
 // UploadRecordUpdateReq 更新上传记录请求
 type UploadRecordUpdateReq struct {
 	ID          uint                   `json:"id" validate:"required"`
@@ -591,6 +610,9 @@ type SecuritySettingsUpdateReq struct {
 	// 登录验证码
 	CaptchaEnabled          bool `json:"captchaEnabled"`
 	CaptchaMinLen           int  `json:"captchaMinLen" validate:"min=1,max=10"`
+
+	// 注册功能开关
+	RegistrationEnabled     bool `json:"registrationEnabled"`
 
 	// 不活跃用户自动禁用
 	InactiveAutoDisable    bool `json:"inactiveAutoDisable"`

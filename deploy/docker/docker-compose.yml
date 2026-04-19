@@ -2,6 +2,9 @@
 # duptwo Docker Compose（默认：SQLite 轻量版）
 # 使用 docker-compose.yml 或 docker-compose.sqlite.yml 启动 SQLite 版本
 # 使用 docker-compose.mysql.yml 启动 MySQL 版本
+#
+# 使用方式（从项目根目录运行）：
+#   nerdctl compose -f deploy/docker/docker-compose.yml up -d
 # ============================================================
 
 services:
@@ -16,6 +19,7 @@ services:
     environment:
       - TZ=Asia/Shanghai
     volumes:
+      - ./conf/app.sqlite.yaml:/app/conf/app.yaml:ro
       - app-data:/app/data
       - app-logs:/app/logs
     healthcheck:

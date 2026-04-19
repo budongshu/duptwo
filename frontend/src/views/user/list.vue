@@ -77,6 +77,15 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="locked" :label="t('user.list.table.locked')" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.locked" type="danger" size="small" effect="plain">
+              <el-icon style="vertical-align: middle; margin-right: 2px"><Lock /></el-icon>
+              {{ t('user.list.table.lockedStatus') }}
+            </el-tag>
+            <span v-else class="text-muted" style="font-size: 12px">—</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="mfaEnabled" :label="t('user.list.table.mfa')" width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="row.mfaEnabled ? 'success' : 'info'" size="small" effect="plain">
@@ -91,7 +100,12 @@
         </el-table-column>
         <el-table-column :label="t('common.actions')" width="120" fixed="right" align="center">
           <template #default="{ row }">
-            <TableActions :actions="[
+            <TableActions :actions="row.locked ? [
+              { key: 'unlock', label: t('user.list.actions.unlock'), type: 'danger' },
+              { key: 'edit', label: t('common.edit'), type: 'primary' },
+              { key: 'resetPwd', label: t('user.list.form.resetPwd'), type: 'warning' },
+              { key: 'delete', label: t('common.delete'), type: 'danger' }
+            ] : [
               { key: 'edit', label: t('common.edit'), type: 'primary' },
               { key: 'resetPwd', label: t('user.list.form.resetPwd'), type: 'warning' },
               { key: 'delete', label: t('common.delete'), type: 'danger' }
@@ -157,8 +171,8 @@
           </el-form-item>
           <el-form-item :label="t('common.status')" prop="status">
             <el-radio-group v-model="form.status">
-              <el-radio label="active">{{ t('common.enabled') }}</el-radio>
-              <el-radio label="inactive">{{ t('common.disabled') }}</el-radio>
+              <el-radio value="active">{{ t('common.enabled') }}</el-radio>
+              <el-radio value="inactive">{{ t('common.disabled') }}</el-radio>
             </el-radio-group>
           </el-form-item>
           <el-form-item :label="t('common.sort')" prop="sort">
@@ -197,41 +211,70 @@
     </el-drawer>
 
     <!-- 重置密码弹窗 -->
-    <el-dialog v-model="showResetPwd" width="480px" destroy-on-close class="reset-pwd-dialog">
+    <el-dialog v-model="showResetPwd" width="420px" destroy-on-close append-to-body class="reset-pwd-dialog">
       <template #header>
-        <div class="dialog-head">
-          <div class="dialog-icon dialog-icon--warning">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <div class="pwd-dialog-head">
+          <div class="pwd-dialog-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
-          <div class="dialog-head-text">
-            <span class="dialog-title-text">{{ t('user.list.form.resetPwd') }}</span>
-            <span class="dialog-subtitle">{{ resetPwdTarget ? (resetPwdTarget.nickname || resetPwdTarget.username) : '' }} {{ t('user.list.form.passwordOf') }}</span>
+          <div class="pwd-dialog-text">
+            <span class="pwd-dialog-title">{{ t('user.list.form.resetPwd') }}</span>
+            <span class="pwd-dialog-sub" v-if="resetPwdTarget">{{ resetPwdTarget.nickname || resetPwdTarget.username }}</span>
           </div>
         </div>
       </template>
-      <div class="reset-pwd-body">
-        <el-form ref="resetPwdFormRef" :model="resetPwdForm" :rules="resetPwdRules" label-position="top">
-          <el-form-item :label="t('user.list.form.newPassword')" prop="newPassword">
-            <el-input v-model="resetPwdForm.newPassword" type="password" show-password size="large" :placeholder="t('user.list.form.newPasswordPlaceholder')" />
-          </el-form-item>
 
-          <!-- 密码要求 -->
-          <div class="pwd-reqs" v-if="resetPwdForm.newPassword">
-            <span class="req-tag" :class="{ ok: resetPwdChecks.length }">≥8位</span>
-            <span class="req-tag" :class="{ ok: resetPwdChecks.upper }">大写</span>
-            <span class="req-tag" :class="{ ok: resetPwdChecks.lower }">小写</span>
-            <span class="req-tag" :class="{ ok: resetPwdChecks.number }">数字</span>
-            <span class="req-tag" :class="{ ok: resetPwdChecks.special }">特殊</span>
+      <el-form ref="resetPwdFormRef" :model="resetPwdForm" :rules="resetPwdRules" class="reset-pwd-form">
+      <div class="pwd-dialog-body">
+        <div class="pwd-field">
+          <label class="pwd-label">{{ t('user.list.form.newPassword') }}</label>
+          <el-form-item prop="newPassword" style="margin-bottom: 0">
+            <el-input
+              v-model="resetPwdForm.newPassword"
+              type="password"
+              show-password
+              size="large"
+              :placeholder="t('user.list.form.newPasswordPlaceholder')"
+              class="pwd-input"
+            />
+          </el-form-item>
+        </div>
+
+        <!-- 密码强度条 + 要求标签 -->
+        <div class="pwd-strength" v-if="resetPwdForm.newPassword">
+          <div class="pwd-strength__bar">
+            <div class="pwd-strength__fill" :class="'strength--' + passwordStrength" :style="{ width: passwordStrength === 'none' ? '0' : passwordStrength === 'weak' ? '25' : passwordStrength === 'fair' ? '50' : passwordStrength === 'good' ? '75' : '100' + '%' }"></div>
           </div>
+          <div class="pwd-strength__tags">
+            <span class="req-tag" :class="{ ok: resetPwdChecks.length }">{{ t('user.list.form.pwdLen') || '≥8位' }}</span>
+            <span class="req-tag" :class="{ ok: resetPwdChecks.upper }">{{ t('user.list.form.pwdUpper') || '大写' }}</span>
+            <span class="req-tag" :class="{ ok: resetPwdChecks.lower }">{{ t('user.list.form.pwdLower') || '小写' }}</span>
+            <span class="req-tag" :class="{ ok: resetPwdChecks.number }">{{ t('user.list.form.pwdDigit') || '数字' }}</span>
+            <span class="req-tag" :class="{ ok: resetPwdChecks.special }">{{ t('user.list.form.pwdSpecial') || '特殊' }}</span>
+          </div>
+        </div>
 
-          <el-form-item :label="t('user.list.form.confirmPassword')" prop="confirmPassword">
-            <el-input v-model="resetPwdForm.confirmPassword" type="password" show-password size="large" :placeholder="t('user.list.form.confirmPasswordPlaceholder')" />
+        <div class="pwd-field">
+          <label class="pwd-label">{{ t('user.list.form.confirmPassword') }}</label>
+          <el-form-item prop="confirmPassword" style="margin-bottom: 0">
+            <el-input
+              v-model="resetPwdForm.confirmPassword"
+              type="password"
+              show-password
+              size="large"
+              :placeholder="t('user.list.form.confirmPasswordPlaceholder')"
+              class="pwd-input"
+            />
           </el-form-item>
-        </el-form>
+        </div>
       </div>
+      </el-form>
+
       <template #footer>
-        <el-button size="default" @click="showResetPwd = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="resetPwdLoading" @click="confirmResetPwd">{{ t('common.confirm') }}</el-button>
+        <div class="pwd-dialog-foot">
+          <el-button size="default" @click="showResetPwd = false">{{ t('common.cancel') }}</el-button>
+          <el-button type="primary" :loading="resetPwdLoading" @click="confirmResetPwd">{{ t('common.confirm') }}</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -288,19 +331,28 @@ const resetPwdRules = computed<FormRules>(() => ({
     { validator: (_: any, val: string, cb: any) => {
       if (!isPwdValid(val)) cb(new Error('至少8位，包含大小写字母、数字和特殊字符'))
       else cb()
-    }, trigger: 'blur' }
+    }, trigger: 'change' }
   ],
   confirmPassword: [
     { required: true, message: t('user.list.form.confirmPasswordRequired'), trigger: 'blur' },
     {
       validator: (_rule: any, value: string, callback: any) => {
-        if (value !== resetPwdForm.newPassword) callback(new Error(t('user.list.form.passwordMismatch')))
+        if (value && value !== resetPwdForm.newPassword) callback(new Error(t('user.list.form.passwordMismatch')))
         else callback()
       },
-      trigger: 'blur'
+      trigger: 'change'
     }
   ]
 }))
+
+// 特殊字符检测：直接列出常用特殊字符，明确覆盖 %
+const hasSpecialChar = (pwd: string): boolean => {
+  const specialChars = '!@#$%^&*()_+-=[]{}|;:\'",.<>?/`~\\'
+  for (const c of pwd) {
+    if (specialChars.includes(c)) return true
+  }
+  return false
+}
 
 // 密码检查
 const resetPwdChecks = computed(() => ({
@@ -308,8 +360,20 @@ const resetPwdChecks = computed(() => ({
   upper: /[A-Z]/.test(resetPwdForm.newPassword),
   lower: /[a-z]/.test(resetPwdForm.newPassword),
   number: /[0-9]/.test(resetPwdForm.newPassword),
-  special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(resetPwdForm.newPassword)
+  special: hasSpecialChar(resetPwdForm.newPassword)
 }))
+
+// 密码强度
+const passwordStrength = computed(() => {
+  const p = resetPwdForm.newPassword
+  if (!p) return 'none'
+  const checks = [p.length >= 8, /[A-Z]/.test(p), /[a-z]/.test(p), /[0-9]/.test(p), hasSpecialChar(p)]
+  const satisfied = checks.filter(Boolean).length
+  if (satisfied <= 1) return 'weak'
+  if (satisfied <= 2) return 'fair'
+  if (satisfied <= 3) return 'good'
+  return 'strong'
+})
 
 // 表单密码检查（新增用户）
 const formPwdChecks = computed(() => ({
@@ -317,14 +381,14 @@ const formPwdChecks = computed(() => ({
   upper: /[A-Z]/.test(form.password),
   lower: /[a-z]/.test(form.password),
   number: /[0-9]/.test(form.password),
-  special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(form.password)
+  special: hasSpecialChar(form.password)
 }))
 
 // 所有密码要求是否满足
 const isPwdValid = (pwd: string) => {
   return pwd.length >= PASSWORD_MIN_LENGTH &&
     /[A-Z]/.test(pwd) && /[a-z]/.test(pwd) &&
-    /[0-9]/.test(pwd) && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd)
+    /[0-9]/.test(pwd) && hasSpecialChar(pwd)
 }
 
 const roles = ref<any[]>([])
@@ -494,8 +558,16 @@ const handleResetPwdFromDrawer = async () => {
 }
 
 const confirmResetPwd = async () => {
-  const valid = await resetPwdFormRef.value?.validate().catch(() => false)
-  if (!valid) return
+  // 先检查密码格式是否满足
+  if (!isPwdValid(resetPwdForm.newPassword)) {
+    ElMessage.warning('新密码不满足格式要求，请检查是否包含大小写字母、数字和特殊字符')
+    return
+  }
+  // 再检查两次输入是否一致
+  if (resetPwdForm.confirmPassword !== resetPwdForm.newPassword) {
+    ElMessage.warning('两次输入的密码不一致，请重新确认')
+    return
+  }
   resetPwdLoading.value = true
   try {
     const res = await UserApi.resetPassword({
@@ -509,10 +581,22 @@ const confirmResetPwd = async () => {
       ElMessage.error(res.message || t('user.list.messages.resetPwdFailed'))
     }
   } catch (err: any) {
-    // 处理 axios 拦截器 reject 的错误
-    // 错误可能是 { code, message } 或 Error 对象
-    const msg = err?.message || err?.data?.message || err?.response?.data?.message || t('user.list.messages.resetPwdFailed')
+    // 统一错误消息提取
+    let msg = t('user.list.messages.resetPwdFailed')
+    if (err) {
+      // axios 错误结构: err.response.data.message
+      if (err.response?.data?.message) {
+        msg = err.response.data.message
+      } else if (err.data?.message) {
+        msg = err.data.message
+      } else if (err.message) {
+        msg = err.message
+      } else if (typeof err === 'string') {
+        msg = err
+      }
+    }
     ElMessage.error(msg)
+    console.error('Reset password error:', err)
   } finally {
     resetPwdLoading.value = false
   }
@@ -667,8 +751,9 @@ export default { name: 'UserList' }
 .edit-form { display: flex; flex-direction: column; gap: var(--space-3); animation: form-in 0.3s ease both 0.05s; }
 @keyframes form-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .edit-form :deep(.el-form-item) {
-  margin-bottom: 0;
+  margin-bottom: 6px;
   .el-form-item__label { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 4px; }
+  .el-form-item__error { padding-top: 2px; }
 }
 
 .action-section { margin-top: var(--space-2); }
@@ -677,28 +762,169 @@ export default { name: 'UserList' }
 
 /* 重置密码弹窗 */
 .reset-pwd-dialog {
-  .el-dialog__header { padding: 16px 20px; margin-right: 0; border-bottom: 1px solid var(--color-border-light); }
+  .el-dialog__header {
+    padding: 20px 24px 16px !important;
+    margin-right: 0 !important;
+    border-bottom: none !important;
+  }
+  .el-dialog__body { padding: 0 24px 24px !important; }
+  .el-dialog__footer { padding: 0 24px 20px !important; border-top: 1px solid #f0f0f0 !important; }
 }
 
-.reset-pwd-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+/* 弹窗头部 */
+.pwd-dialog-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pwd-dialog-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ea580c;
+  flex-shrink: 0;
+}
+.pwd-dialog-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pwd-dialog-title {
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+.pwd-dialog-sub {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* 弹窗内容 */
+.pwd-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: pwd-in 0.25s ease both;
+}
+@keyframes pwd-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 字段 */
+.pwd-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pwd-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  font-family: 'Manrope', sans-serif;
+}
+.pwd-input :deep(.el-input__wrapper) {
+  border-radius: 8px !important;
+  background: #fff !important;
+  border: 1.5px solid #e5e7eb !important;
+  box-shadow: none !important;
+  padding: 4px 12px !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+  &:hover { border-color: #d1d5db !important; }
+  &.is-focus {
+    border-color: #005eeb !important;
+    box-shadow: 0 0 0 3px rgba(0, 94, 235, 0.08) !important;
+  }
+}
+.pwd-input :deep(.el-input__inner) {
+  font-size: 14px !important;
+  color: #111827 !important;
+  font-family: 'Manrope', 'DM Sans', sans-serif !important;
+  &::placeholder { color: #d1d5db !important; }
+}
+
+/* 密码强度条 */
+.pwd-strength {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: strength-in 0.2s ease both;
+}
+@keyframes strength-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.pwd-strength__bar {
+  height: 5px;
+  background: #f3f4f6;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.pwd-strength__fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s;
+  min-width: 4px;
+}
+.strength--none, .strength--weak { background: #f87171; }
+.strength--fair  { background: #fbbf24; }
+.strength--good  { background: #34d399; }
+.strength--strong { background: #16a34a; }
+
+.pwd-mismatch-tip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-danger, #f56c6c);
+  font-weight: 500;
+
+  svg { flex-shrink: 0; }
+}
+
+.reset-pwd-form {
+  :deep(.el-input__wrapper) {
+    border-radius: var(--radius-md);
+  }
+}
+
+.pwd-strength__tags {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
 
 /* 密码要求标签 */
-.pwd-reqs { display: flex; gap: 6px; flex-wrap: wrap; }
 .req-tag {
-  padding: 3px 8px;
+  padding: 3px 9px;
   font-size: 11px;
-  font-weight: 500;
-  border-radius: 4px;
-  background: var(--color-surface-3);
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
+  font-weight: 600;
+  border-radius: 5px;
+  background: #f9fafb;
+  color: #d1d5db;
+  border: 1px solid #e5e7eb;
   transition: all 0.2s;
+  font-family: 'Manrope', sans-serif;
 
   &.ok {
-    background: #ecfdf5;
-    color: #059669;
-    border-color: #a7f3d0;
+    background: #f0fdf4;
+    color: #16a34a;
+    border-color: #bbf7d0;
   }
+}
+
+/* 弹窗底部按钮 */
+.pwd-dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .pwd-notice {

@@ -384,8 +384,7 @@ a:hover { color: var(--color-primary-hover); }
    Flat, typographic, zero gradients
    ============================ */
 .el-overlay {
-  background: rgba(15, 23, 42, 0.45) !important;
-  backdrop-filter: blur(2px);
+  background: rgba(15, 23, 42, 0.4) !important;
 }
 .el-dialog {
   border-radius: var(--radius-xl) !important;
@@ -409,28 +408,20 @@ a:hover { color: var(--color-primary-hover); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: relative;
-}
-.el-dialog__header::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 3px;
-  background: var(--color-primary);
 }
 .el-dialog__title {
   font-family: 'Manrope', sans-serif !important;
-  font-weight: 700 !important;
-  font-size: 14px !important;
+  font-weight: 600 !important;
+  font-size: 15px !important;
   color: var(--color-text-primary) !important;
   letter-spacing: 0.2px;
-  padding: 0 0 0 20px !important;
+  padding: 0 !important;
   flex: 1;
 }
 .el-dialog__headerbtn {
   position: static !important;
-  width: 52px !important;
-  height: 52px !important;
+  width: 40px !important;
+  height: 40px !important;
   flex-shrink: 0;
   background: transparent !important;
   border: none !important;
@@ -689,14 +680,470 @@ a:hover { color: var(--color-primary-hover); }
   border-bottom: 1px solid var(--color-border-light) !important;
 }
 
-/* 消息提示 */
-.el-message { border-radius: var(--radius-lg) !important; box-shadow: var(--shadow-lg) !important; }
-.el-message--success { background: var(--color-surface) !important; border-color: var(--color-success) !important; }
-.el-message--error   { background: var(--color-surface) !important; border-color: var(--color-danger) !important; }
-.el-message--warning { background: var(--color-surface) !important; border-color: var(--color-warning) !important; }
+/* 消息提示 — 现代优雅风格 */
+.el-message {
+  --msg-radius: 10px;
+  --msg-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.06);
+  --msg-icon-size: 16px;
+  --msg-bar-width: 4px;
+  --msg-padding: 14px 16px;
+
+  padding: 0 !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--msg-radius) !important;
+  box-shadow: var(--msg-shadow) !important;
+  background: transparent !important;
+  overflow: visible !important;
+  min-width: 280px !important;
+  max-width: 420px !important;
+}
+
+/* 消息内容容器 */
+.el-message__content {
+  font-family: 'Manrope', 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #1f2937 !important;
+  line-height: 1.5 !important;
+}
+
+/* 内部 content 包裹（el-message 自带的 flex 布局） */
+.el-message .el-message__content {
+  padding: 0 !important;
+}
+
+/* 覆盖 Element Plus 原生结构，强制水平布局 */
+.el-message > * {
+  display: flex;
+  align-items: center;
+}
+
+/* 整体背景 + 左侧色条 */
+.el-message--success,
+.el-message--error,
+.el-message--warning,
+.el-message--info {
+  background: #fff !important;
+  border: 1px solid #f0f0f0 !important;
+  box-shadow: var(--msg-shadow) !important;
+}
+
+/* 左侧色条装饰 */
+.el-message--success::before,
+.el-message--error::before,
+.el-message--warning::before,
+.el-message--info::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--msg-bar-width);
+  border-radius: var(--msg-radius) 0 0 var(--msg-radius);
+}
+
+/* 通用内容区 */
+.el-message__content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 12px 12px;
+}
+
+/* ===== success ===== */
+.el-message--success {
+  border-color: #bbf7d0 !important;
+}
+.el-message--success::before {
+  background: #16a34a !important;
+}
+.el-message--success .el-message__content {
+  color: #166534 !important;
+}
+
+/* ===== error ===== */
+.el-message--error {
+  border-color: #fecaca !important;
+}
+.el-message--error::before {
+  background: #dc2626 !important;
+}
+.el-message--error .el-message__content {
+  color: #991b1b !important;
+}
+
+/* ===== warning ===== */
+.el-message--warning {
+  border-color: #fde68a !important;
+}
+.el-message--warning::before {
+  background: #d97706 !important;
+}
+.el-message--warning .el-message__content {
+  color: #92400e !important;
+}
+
+/* ===== info ===== */
+.el-message--info {
+  border-color: #bae6fd !important;
+}
+.el-message--info::before {
+  background: #0ea5e9 !important;
+}
+.el-message--info .el-message__content {
+  color: #0369a1 !important;
+}
+
+/* 入场动画 */
+.el-message {
+  animation: msg-slide-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes msg-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 退场动画 */
+.el-message-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+.el-message-fade-leave-to {
+  opacity: 0 !important;
+  transform: translateY(-8px) scale(0.96) !important;
+}
+
+/* 图标容器 */
+.el-message .el-icon {
+  flex-shrink: 0;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 8px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px !important;
+}
+.el-message--success .el-icon {
+  background: #f0fdf4 !important;
+  color: #16a34a !important;
+}
+.el-message--error .el-icon {
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+.el-message--warning .el-icon {
+  background: #fffbeb !important;
+  color: #d97706 !important;
+}
+.el-message--info .el-icon {
+  background: #f0f9ff !important;
+  color: #0ea5e9 !important;
+}
+
+/* 关闭按钮 */
+.el-message .el-message__closeBtn {
+  color: #9ca3af !important;
+  transition: color 0.15s !important;
+  flex-shrink: 0;
+  font-size: 14px !important;
+  width: 20px !important;
+  height: 20px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.el-message .el-message__closeBtn:hover {
+  color: #6b7280 !important;
+  background: #f3f4f6 !important;
+}
+
+/* ===== MessageBox 确认对话框 ===== */
+.el-message-box {
+  --mb-radius: 14px;
+  border: 1px solid #e5e7eb !important;
+  border-radius: var(--mb-radius) !important;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  font-family: 'Manrope', 'DM Sans', sans-serif !important;
+  background: #fff !important;
+  max-width: 400px !important;
+}
+
+/* ============================
+   Notification — 现代通知卡片
+   ============================ */
+.el-notification {
+  --notif-radius: 12px;
+  --notif-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f0f0 !important;
+  border-radius: var(--notif-radius) !important;
+  box-shadow: var(--notif-shadow) !important;
+  background: #fff !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  font-family: 'Manrope', sans-serif !important;
+  max-width: 380px !important;
+  min-width: 300px !important;
+}
+
+.el-notification__title {
+  font-family: 'Manrope', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  margin: 0 !important;
+}
+
+.el-notification__content {
+  font-size: 13px !important;
+  color: #6b7280 !important;
+  line-height: 1.6 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.el-notification__group {
+  padding: 16px 16px 16px 14px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 左侧色条 */
+.el-notification.is-success {
+  border-left: 4px solid #16a34a !important;
+}
+.el-notification.is-error {
+  border-left: 4px solid #dc2626 !important;
+}
+.el-notification.is-warning {
+  border-left: 4px solid #d97706 !important;
+}
+.el-notification.is-info {
+  border-left: 4px solid #0ea5e9 !important;
+}
+
+/* 成功图标 */
+.el-notification.is-success .el-notification__icon {
+  color: #16a34a !important;
+}
+.el-notification.is-success .el-notification__title {
+  color: #166534 !important;
+}
+
+/* 错误图标 */
+.el-notification.is-error .el-notification__icon {
+  color: #dc2626 !important;
+}
+.el-notification.is-error .el-notification__title {
+  color: #991b1b !important;
+}
+
+/* 警告图标 */
+.el-notification.is-warning .el-notification__icon {
+  color: #d97706 !important;
+}
+.el-notification.is-warning .el-notification__title {
+  color: #92400e !important;
+}
+
+/* 信息图标 */
+.el-notification.is-info .el-notification__icon {
+  color: #0ea5e9 !important;
+}
+.el-notification.is-info .el-notification__title {
+  color: #0369a1 !important;
+}
+
+/* 图标样式 */
+.el-notification__icon {
+  width: 32px !important;
+  height: 32px !important;
+  font-size: 18px !important;
+  margin-right: 0 !important;
+}
+
+/* 关闭按钮 */
+.el-notification__closeBtn {
+  color: #9ca3af !important;
+  transition: all 0.15s !important;
+  font-size: 14px !important;
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 6px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  position: absolute !important;
+  top: 14px !important;
+  right: 14px !important;
+}
+.el-notification__closeBtn:hover {
+  color: #6b7280 !important;
+  background: #f3f4f6 !important;
+}
+
+/* 入场动画 */
+.el-notification {
+  animation: notif-slide-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both !important;
+}
+@keyframes notif-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* 退场动画 */
+.el-notification-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+.el-notification-fade-leave-to {
+  opacity: 0 !important;
+  transform: translateX(40px) scale(0.95) !important;
+}
+
+/* 标题 */
+.el-message-box__header {
+  padding: 20px 24px 0 !important;
+}
+.el-message-box__title {
+  font-family: 'Manrope', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+/* 图标在标题前 */
+.el-message-box__status {
+  position: static !important;
+  transform: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  margin-right: 0 !important;
+  font-size: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  vertical-align: unset !important;
+}
+.el-message-box__status.el-icon {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* 内容区 */
+.el-message-box__content {
+  padding: 12px 24px 20px !important;
+}
+.el-message-box__message {
+  font-size: 13px !important;
+  color: #6b7280 !important;
+  line-height: 1.6 !important;
+  font-weight: 400 !important;
+  margin-left: 0 !important;
+}
+
+/* 按钮区 */
+.el-message-box__btns {
+  padding: 0 24px 20px !important;
+  display: flex !important;
+  gap: 8px !important;
+  justify-content: flex-end !important;
+}
+.el-message-box__btns .el-button {
+  border-radius: 8px !important;
+  font-family: 'Manrope', 'DM Sans', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  padding: 8px 18px !important;
+  height: auto !important;
+  transition: all 0.15s !important;
+}
+.el-message-box__btns .el-button--primary {
+  background: #005eeb !important;
+  border-color: #005eeb !important;
+}
+.el-message-box__btns .el-button--primary:hover {
+  background: #1a73e8 !important;
+  border-color: #1a73e8 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 94, 235, 0.25) !important;
+}
+.el-message-box__btns .el-button--default {
+  background: #f9fafb !important;
+  border-color: #e5e7eb !important;
+  color: #6b7280 !important;
+}
+.el-message-box__btns .el-button--default:hover {
+  background: #f3f4f6 !important;
+  border-color: #d1d5db !important;
+  color: #374151 !important;
+}
+
+/* 按类型设置图标背景 */
+.el-message-box__status + .el-message-box__title::before {
+  display: none !important;
+}
+
+/* warning 类型 */
+.el-message-box--warning .el-message-box__status.el-icon {
+  background: #fffbeb !important;
+  color: #d97706 !important;
+}
+/* error 类型 */
+.el-message-box--error .el-message-box__status.el-icon {
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+/* success 类型 */
+.el-message-box--success .el-message-box__status.el-icon {
+  background: #f0fdf4 !important;
+  color: #16a34a !important;
+}
+/* info 类型 */
+.el-message-box--info .el-message-box__status.el-icon {
+  background: #f0f9ff !important;
+  color: #0ea5e9 !important;
+}
+
+/* MessageBox 遮罩 */
+.el-overlay {
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* MessageBox 入场动画 */
+.el-message-box {
+  animation: mb-pop-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both !important;
+}
+@keyframes mb-pop-in {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
 
 /* Loading 遮罩 */
-.el-loading-mask { background: rgba(255,255,255,0.8) !important; backdrop-filter: blur(2px); }
+.el-loading-mask { background: rgba(255,255,255,0.9) !important; }
 .el-loading-spinner .circular { animation: rotate 1.5s linear infinite; }
 @keyframes rotate { to { transform: rotate(360deg); } }
 
@@ -962,4 +1409,182 @@ a:hover { color: var(--color-primary-hover); }
    ============================ */
 .ta-dropdown-popper {
   z-index: 9999 !important;
+}
+
+/* ============================
+   Tooltip — 现代化提示框
+   ============================ */
+.el-tooltip__popper,
+.el-tooltip__trigger {
+  outline: none !important;
+}
+
+.el-tooltip__popper {
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+.el-tooltip__popper.is-dark {
+  background: linear-gradient(135deg, #1f2937 0%, #111827 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+  padding: 8px 12px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  max-width: 280px !important;
+}
+
+.el-tooltip__popper.is-dark .el-tooltip__arrow::before {
+  background: #111827 !important;
+}
+
+/* ============================
+   Popover — 弹出卡片样式
+   ============================ */
+.el-popover.el-popper {
+  border: 1px solid var(--color-border-light) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+  background: var(--color-surface) !important;
+  font-family: 'Manrope', sans-serif !important;
+  padding: 12px !important;
+}
+
+/* ============================
+   Dropdown — 下拉菜单
+   ============================ */
+.el-dropdown-menu {
+  border: 1px solid var(--color-border-light) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+  background: var(--color-surface) !important;
+  padding: 6px !important;
+  font-family: 'Manrope', sans-serif !important;
+}
+
+.el-dropdown-menu__item {
+  border-radius: var(--radius-md) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 8px 12px !important;
+  color: var(--color-text-primary) !important;
+  transition: all 0.15s ease !important;
+}
+
+.el-dropdown-menu__item:hover {
+  background: var(--gray-50) !important;
+  color: var(--color-primary) !important;
+}
+
+.el-dropdown-menu__item--divided {
+  border-top: 1px solid var(--color-border-light) !important;
+  margin-top: 6px !important;
+}
+
+/* ============================
+   Dropdown Popper
+   ============================ */
+.el-dropdown__popper.el-popper.is-light {
+  border: 1px solid var(--color-border-light) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* ============================
+   Badge / Tag 增强
+   ============================ */
+.el-badge__content {
+  border-radius: var(--radius-full) !important;
+  font-weight: 600 !important;
+  font-size: 10px !important;
+  padding: 0 6px !important;
+  height: 18px !important;
+  line-height: 18px !important;
+}
+
+/* ============================
+   Tabs 标签页
+   ============================ */
+.el-tabs__header {
+  margin-bottom: 16px !important;
+}
+
+.el-tabs__item {
+  font-family: 'Manrope', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  color: var(--color-text-secondary) !important;
+  padding: 0 16px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+  transition: all 0.2s ease !important;
+}
+
+.el-tabs__item:hover {
+  color: var(--color-primary) !important;
+}
+
+.el-tabs__item.is-active {
+  color: var(--color-primary) !important;
+  font-weight: 700 !important;
+}
+
+.el-tabs__active-bar {
+  height: 2px !important;
+  border-radius: 2px !important;
+  background: var(--color-primary) !important;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.el-tabs__nav-wrap::after {
+  height: 1px !important;
+  background: var(--color-border-light) !important;
+}
+
+/* ============================
+   Progress 进度条
+   ============================ */
+.el-progress-bar__outer {
+  border-radius: var(--radius-full) !important;
+  background: var(--gray-100) !important;
+}
+
+.el-progress-bar__inner {
+  border-radius: var(--radius-full) !important;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.el-progress__text {
+  font-family: 'Manrope', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+}
+
+/* ============================
+   Slider 滑块
+   ============================ */
+.el-slider__runway {
+  height: 6px !important;
+  border-radius: var(--radius-full) !important;
+  background: var(--gray-100) !important;
+}
+
+.el-slider__bar {
+  height: 6px !important;
+  border-radius: var(--radius-full) !important;
+  background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary-hover) 100%) !important;
+}
+
+.el-slider__button {
+  width: 18px !important;
+  height: 18px !important;
+  border: 2px solid var(--color-primary) !important;
+  background: #fff !important;
+  box-shadow: 0 2px 8px rgba(0, 94, 235, 0.2) !important;
+  transition: all 0.2s ease !important;
+}
+
+.el-slider__button:hover {
+  transform: scale(1.1) !important;
+  box-shadow: 0 4px 12px rgba(0, 94, 235, 0.3) !important;
 }

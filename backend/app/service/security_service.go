@@ -43,6 +43,7 @@ func (s *SecurityService) UpdateSettings(req dto.SecuritySettingsUpdateReq) erro
 		// 设置默认值
 		settings.CaptchaEnabled = true
 		settings.CaptchaMinLen = 3
+		settings.RegistrationEnabled = true
 		settings.InactiveAutoDisable = false
 		settings.InactiveDaysThreshold = 90
 		settings.UserLoginMaxAttempts = 5
@@ -60,6 +61,7 @@ func (s *SecurityService) UpdateSettings(req dto.SecuritySettingsUpdateReq) erro
 
 	settings.CaptchaEnabled = req.CaptchaEnabled
 	settings.CaptchaMinLen = req.CaptchaMinLen
+	settings.RegistrationEnabled = req.RegistrationEnabled
 	settings.InactiveAutoDisable = req.InactiveAutoDisable
 	settings.InactiveDaysThreshold = req.InactiveDaysThreshold
 	settings.UserLoginMaxAttempts = req.UserLoginMaxAttempts
@@ -185,10 +187,27 @@ func (s *SecurityService) CheckUserLockout(username string) (locked bool, remain
 	return true, int(remaining.Minutes()), "账号已被锁定，请在" + itoa(int(remaining.Minutes())) + "分钟后重试"
 }
 
+// GetRemainingAttempts 获取用户剩余登录尝试次数
+func (s *SecurityService) GetRemainingAttempts(username string) (remaining int, maxAttempts int) {
+	settings := s.getSettingsWithDefault()
+	maxAttempts = settings.UserLoginMaxAttempts
+
+	record, err := s.lockoutRepo.GetByTarget(username, "user")
+	if err != nil || record == nil {
+		return maxAttempts, maxAttempts
+	}
+
+	remaining = maxAttempts - record.FailCount
+	if remaining < 0 {
+		remaining = 0
+	}
+	return remaining, maxAttempts
+}
+
 // RecordLoginFailure 记录登录失败（增加失败计数，可能触发锁定）
 func (s *SecurityService) RecordLoginFailure(username, ip string) (locked bool, lockType string, message string) {
-	settings, err := s.settingsRepo.Get()
-	if err != nil || settings == nil {
+	settings := s.getSettingsWithDefault()
+	if settings == nil {
 		return false, "", ""
 	}
 
@@ -298,6 +317,15 @@ func (s *SecurityService) ShouldRequireCaptcha(username string) (required bool, 
 	return record.FailCount >= settings.CaptchaMinLen, nil
 }
 
+// IsRegistrationEnabled 检查是否允许自主注册
+func (s *SecurityService) IsRegistrationEnabled() bool {
+	settings := s.getSettingsWithDefault()
+	if settings == nil {
+		return true // 出错时默认允许
+	}
+	return settings.RegistrationEnabled
+}
+
 // ValidatePasswordPolicy 验证密码策略
 func (s *SecurityService) ValidatePasswordPolicy(password string) (valid bool, reason string) {
 	settings := s.getSettingsWithDefault()
@@ -348,6 +376,7 @@ func (s *SecurityService) getSettingsWithDefault() *model.SecuritySettings {
 		PasswordRequireDigit:    false,
 		PasswordRequireSpecial:  false,
 		SessionTimeoutHours:     24,
+		RegistrationEnabled:     true,
 	}
 }
 

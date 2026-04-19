@@ -471,12 +471,15 @@ export default { name: 'UserGroupList' }
 }
 
 .edit-form :deep(.el-form-item) {
-  margin-bottom: 0;
+  margin-bottom: 6px;
   .el-form-item__label {
     font-size: 12px;
     font-weight: 600;
     color: var(--color-text-secondary);
     margin-bottom: 4px;
+  }
+  .el-form-item__error {
+    padding-top: 2px;
   }
 }
 
