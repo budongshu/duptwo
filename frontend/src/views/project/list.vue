@@ -2653,12 +2653,12 @@ $danger: #f56c6c;
   }
 }
 
-/* 阶段分布迷你图 */
+/* 阶段分布迷你图 - 日式美学 */
 .stage-distribution {
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 10px;
-  padding: 12px 16px;
+  background: #fafaf9;
+  border: 1px solid #e8e5e1;
+  border-radius: 14px;
+  padding: 14px 18px;
   margin-bottom: 16px;
 }
 
@@ -2666,7 +2666,7 @@ $danger: #f56c6c;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .dist-header-left {
@@ -2678,7 +2678,7 @@ $danger: #f56c6c;
 .stage-dist-title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #44403c;
 }
 
 .dist-stats {
@@ -2695,18 +2695,18 @@ $danger: #f56c6c;
 }
 
 .dist-stat-num {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
-  color: #303133;
+  color: #1c1917;
 }
 
 .dist-stat-label {
   font-size: 11px;
-  color: #909399;
+  color: #a8a29e;
 }
 
 .dist-sep {
-  color: #dcdfe6;
+  color: #d4d0c8;
 }
 
 .dist-header-right {
@@ -2724,7 +2724,7 @@ $danger: #f56c6c;
 .workload-bar {
   width: 60px;
   height: 6px;
-  background: #f0f0f0;
+  background: #f5f5f4;
   border-radius: 3px;
   overflow: hidden;
 }
@@ -2737,12 +2737,12 @@ $danger: #f56c6c;
 
 .workload-text {
   font-size: 11px;
-  color: #909399;
+  color: #a8a29e;
 }
 
-.workload--normal .workload-fill { background: #409eff; }
-.workload--warning .workload-fill { background: #e6a23c; }
-.workload--idle .workload-fill { background: #67c23a; }
+.workload--normal .workload-fill { background: #6b5b95; }
+.workload--warning .workload-fill { background: #b87333; }
+.workload--idle .workload-fill { background: #4a7c59; }
 
 .stage-dist-chart {
   display: flex;
@@ -2752,8 +2752,8 @@ $danger: #f56c6c;
 .stage-dist-bar {
   display: flex;
   align-items: flex-end;
-  gap: 6px;
-  height: 40px;
+  gap: 8px;
+  height: 44px;
   flex: 1;
 }
 
@@ -2762,36 +2762,36 @@ $danger: #f56c6c;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
-  min-width: 36px;
+  gap: 6px;
+  min-width: 40px;
 }
 
 .stage-dist-fill {
   width: 100%;
-  min-height: 3px;
-  border-radius: 3px 3px 0 0;
+  min-height: 4px;
+  border-radius: 4px 4px 0 0;
   transition: height 0.3s;
 }
 
 .stage-dist-count {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: #78716c;
 }
 
 .stage-dist-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 11px;
-  color: var(--color-text-secondary);
+  color: #78716c;
 }
 
 .legend-dot {
@@ -2800,21 +2800,21 @@ $danger: #f56c6c;
   border-radius: 2px;
 }
 
+/* KPI 卡片 - 日式美学 */
 .kpi-cards {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 0;
 }
 
 .kpi-card {
-  background: #fff;
-  border-radius: 10px;
-  padding: 14px 16px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  background: #fafaf9;
+  border-radius: 14px;
+  padding: 16px 14px;
+  border: 1px solid #e8e5e1;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2830,56 +2830,56 @@ $danger: #f56c6c;
     left: 0;
     right: 0;
     height: 3px;
-    background: #cbd5e1;
-    border-radius: 10px 10px 0 0;
+    background: #d4d0c8;
+    border-radius: 14px 14px 0 0;
   }
 
   &:hover {
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
     transform: translateY(-3px);
-    border-color: #94a3b8;
+    border-color: #d4d0c8;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
   }
 
   &--active {
-    border-color: #409eff;
-    background: #f0f7ff;
-    box-shadow: 0 4px 16px rgba(64, 158, 255, 0.15);
+    border-color: #a8a29e;
+    background: #fff;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 
-    &::before { background: #409eff; }
+    &::before { background: #6b5b95; }
 
-    &.kpi-card--running::before { background: #22c55e; }
-    &.kpi-card--deploying::before { background: #f59e0b; }
-    &.kpi-card--planning::before { background: #6366f1; }
-    &.kpi-card--designing::before { background: #8b5cf6; }
-    &.kpi-card--paused::before { background: #ef4444; }
-    &.kpi-card--data::before { background: #409eff; }
-    &.kpi-card--records::before { background: #8b5cf6; }
+    &.kpi-card--running::before { background: #4a7c59; }
+    &.kpi-card--deploying::before { background: #b87333; }
+    &.kpi-card--planning::before { background: #4a6fa5; }
+    &.kpi-card--designing::before { background: #6b5b95; }
+    &.kpi-card--paused::before { background: #a8a29e; }
+    &.kpi-card--data::before { background: #6b5b95; }
+    &.kpi-card--records::before { background: #6b5b95; }
   }
 
-  &--running::before { background: #22c55e; }
-  &--deploying::before { background: #f59e0b; }
-  &--planning::before { background: #6366f1; }
-  &--designing::before { background: #8b5cf6; }
-  &--paused::before { background: #ef4444; }
-  &--data::before { background: #409eff; }
-  &--records::before { background: #8b5cf6; }
+  &--running::before { background: #4a7c59; }
+  &--deploying::before { background: #b87333; }
+  &--planning::before { background: #4a6fa5; }
+  &--designing::before { background: #6b5b95; }
+  &--paused::before { background: #a8a29e; }
+  &--data::before { background: #6b5b95; }
+  &--records::before { background: #6b5b95; }
 }
 
 .kpi-num {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
-  color: #1e293b;
+  color: #1c1917;
   line-height: 1;
   margin-bottom: 6px;
   letter-spacing: -0.5px;
+  font-family: 'Noto Sans SC', 'Manrope', sans-serif;
 }
 
 .kpi-label {
   font-size: 11px;
-  color: #64748b;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: #78716c;
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 
 /* ==================== 人员负荷矩阵视图 ==================== */
@@ -4198,7 +4198,7 @@ $danger: #f56c6c;
   color: #c0c4cc;
 }
 
-/* 看板 */
+/* 看板 - 日式美学 */
 .kanban-board {
   display: flex;
   gap: 14px;
@@ -4209,9 +4209,9 @@ $danger: #f56c6c;
 .kanban-col {
   width: 260px;
   flex-shrink: 0;
-  background: #fff;
-  border-radius: 10px;
-  border: 1px solid #ebeef5;
+  background: #fafaf9;
+  border-radius: 14px;
+  border: 1px solid #e8e5e1;
   transition: all 0.2s;
 
   &--collapsed {
@@ -4221,8 +4221,8 @@ $danger: #f56c6c;
   }
 
   &--dragover {
-    border-color: #409eff;
-    background-color: #ecf5ff;
+    border-color: #a8a29e;
+    background-color: #f5f5f4;
   }
 }
 
@@ -4230,8 +4230,8 @@ $danger: #f56c6c;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 14px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f0ede8;
   cursor: pointer;
   user-select: none;
 }
@@ -4247,7 +4247,7 @@ $danger: #f56c6c;
   flex: 1;
   font-size: 13px;
   font-weight: 600;
-  color: #303133;
+  color: #44403c;
 }
 
 .kanban-stats {
@@ -4258,25 +4258,25 @@ $danger: #f56c6c;
 }
 
 .kanban-count {
-  background: #f0f0f0;
-  padding: 2px 6px;
-  border-radius: 4px;
+  background: #f5f5f4;
+  padding: 2px 8px;
+  border-radius: 6px;
   font-weight: 600;
-  color: #606266;
+  color: #78716c;
 }
 
 .kanban-records {
-  color: #909399;
+  color: #a8a29e;
 }
 
 .kanban-size {
-  color: #a0cfff;
+  color: #a8a29e;
   font-weight: 500;
   font-size: 11px;
 }
 
 .collapse-icon {
-  color: #c0c4cc;
+  color: #d4d0c8;
   transition: transform 0.2s;
 
   &.is-collapsed {
@@ -4285,32 +4285,33 @@ $danger: #f56c6c;
 }
 
 .kanban-col-body {
-  padding: 10px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   max-height: calc(100vh - 380px);
   overflow-y: auto;
 }
 
 .kanban-card {
-  background: #fafafa;
-  border-radius: 8px;
-  border: 1px solid #ebeef5;
-  transition: all 0.2s;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e8e5e1;
+  transition: all 0.2s ease;
   cursor: grab;
 
   &:active { cursor: grabbing; }
 
   &:hover {
-    border-color: #409eff;
-    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
+    border-color: #a8a29e;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
   }
 
   &--dragging {
     opacity: 0.4;
-    border-color: #409eff;
-    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+    border-color: #a8a29e;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 }
 
@@ -4320,29 +4321,30 @@ $danger: #f56c6c;
 
 .kanban-card-content {
   flex: 1;
-  padding: 10px 12px 10px 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .kanban-card-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .kanban-avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 700;
   color: #fff;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .kanban-info {
@@ -4353,7 +4355,7 @@ $danger: #f56c6c;
 .kanban-name {
   font-size: 13px;
   font-weight: 600;
-  color: #303133;
+  color: #1c1917;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4361,13 +4363,13 @@ $danger: #f56c6c;
 
 .kanban-code {
   font-size: 11px;
-  color: #c0c4cc;
+  color: #a8a29e;
 }
 
 .kanban-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
   margin-bottom: 10px;
 }
 
@@ -4376,10 +4378,10 @@ $danger: #f56c6c;
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 10px;
-  padding: 8px;
-  background: #fff;
-  border-radius: 6px;
-  border: 1px solid #f0f0f0;
+  padding: 10px;
+  background: #fafaf9;
+  border-radius: 10px;
+  border: 1px solid #f0ede8;
 }
 
 .kanban-member {
@@ -4403,7 +4405,7 @@ $danger: #f56c6c;
 
 .kanban-member-name {
   font-size: 11px;
-  color: #606266;
+  color: #57534e;
   max-width: 60px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4412,21 +4414,21 @@ $danger: #f56c6c;
 
 .kanban-member-more {
   font-size: 11px;
-  color: #c0c4cc;
-  padding: 2px 6px;
-  background: #f5f5f5;
-  border-radius: 4px;
+  color: #a8a29e;
+  padding: 2px 8px;
+  background: #f5f5f4;
+  border-radius: 8px;
 }
 
 .kanban-stations {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   margin-bottom: 10px;
-  padding: 8px;
-  background: #fff;
-  border-radius: 6px;
-  border: 1px solid #f0f0f0;
+  padding: 10px;
+  background: #fafaf9;
+  border-radius: 10px;
+  border: 1px solid #f0ede8;
 }
 
 .kanban-station {
@@ -4434,21 +4436,21 @@ $danger: #f56c6c;
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  color: #606266;
+  color: #57534e;
 
-  .el-icon { color: #409eff; font-size: 12px; flex-shrink: 0; }
+  .el-icon { color: #a8a29e; font-size: 12px; flex-shrink: 0; }
   span:first-of-type { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 
 .station-phone {
   font-size: 11px;
-  color: #c0c4cc;
+  color: #a8a29e;
   flex-shrink: 0;
 }
 
 .kanban-station-more {
   font-size: 11px;
-  color: #c0c4cc;
+  color: #a8a29e;
   padding-left: 20px;
 }
 
@@ -4458,15 +4460,15 @@ $danger: #f56c6c;
   gap: 8px;
   padding: 2px 0;
 
-  small { font-size: 11px; color: #c0c4cc; }
+  small { font-size: 11px; color: #a8a29e; }
 }
 
 .kanban-card-foot {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-top: 8px;
-  border-top: 1px solid #f0f0f0;
+  padding-top: 10px;
+  border-top: 1px solid #f0ede8;
 }
 
 .kanban-actions {
@@ -4480,7 +4482,7 @@ $danger: #f56c6c;
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #909399;
+  color: #a8a29e;
 
   .el-icon { font-size: 12px; }
 }
@@ -4488,11 +4490,11 @@ $danger: #f56c6c;
 .kanban-empty {
   text-align: center;
   padding: 24px;
-  color: #c0c4cc;
+  color: #d4d0c8;
   font-size: 13px;
 }
 
-/* 空状态 */
+/* 空状态 - 日式美学 */
 .empty-state {
   grid-column: 1 / -1;
   display: flex;
@@ -4506,7 +4508,7 @@ $danger: #f56c6c;
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: #f5f7fa;
+  background: #f5f5f4;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4520,13 +4522,13 @@ $danger: #f56c6c;
 .empty-title {
   font-size: 16px;
   font-weight: 600;
-  color: #606266;
+  color: #78716c;
   margin: 0 0 8px 0;
 }
 
 .empty-hint {
   font-size: 13px;
-  color: #c0c4cc;
+  color: #a8a29e;
   margin: 0 0 20px 0;
 }
 
@@ -4539,8 +4541,8 @@ $danger: #f56c6c;
 /* 骨架屏 */
 .skeleton-card {
   height: 200px;
-  background: #f0f0f0;
-  border-radius: 10px;
+  background: #f5f5f4;
+  border-radius: 14px;
 }
 
 /* 分页 */
@@ -4565,8 +4567,8 @@ $danger: #f56c6c;
   align-items: center;
   gap: 14px;
   padding: 20px 24px;
-  border-bottom: 1px solid #ebeef5;
-  background: #fafbfc;
+  border-bottom: 1px solid #f0ede8;
+  background: #fafaf9;
   flex-shrink: 0;
 }
 
@@ -4578,8 +4580,10 @@ $danger: #f56c6c;
   align-items: center;
   justify-content: center;
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 700;
   color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
   font-family: 'Manrope', sans-serif;
   letter-spacing: -0.5px;

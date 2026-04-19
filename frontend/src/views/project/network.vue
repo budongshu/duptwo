@@ -240,7 +240,7 @@ const getInitials = (name: string) => {
   return name.slice(0, 2).toUpperCase()
 }
 
-const projectColors = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#909399', '#8b5cf6', '#06b6d4', '#f59e0b']
+const projectColors = ['#4a6fa5', '#6b5b95', '#4a7c59', '#b87333', '#8b6f5b', '#5b7b8c', '#6b7c8c', '#7a8471']
 const getProjectColor = (code: string) => {
   if (!code) return projectColors[0]
   let hash = 0
@@ -248,7 +248,7 @@ const getProjectColor = (code: string) => {
   return projectColors[Math.abs(hash) % projectColors.length]
 }
 
-const avatarColors = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#8b5cf6', '#06b6d4', '#f59e0b', '#ec4899']
+const avatarColors = ['#6b5b95', '#4a7c59', '#b87333', '#8b6f5b', '#5b7b8c', '#6b7c8c', '#7a8471', '#a67c52']
 const getAvatarColor = (name: string) => {
   if (!name) return avatarColors[0]
   let hash = 0
@@ -669,13 +669,13 @@ export default { name: 'ProjectNetwork' }
 </script>
 
 <style scoped lang="scss">
-$primary: #409eff;
+$primary: #6b5b95;
 
 .network-page {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #0f172a;
+  background: #1c1917;
   overflow: hidden;
 }
 
@@ -684,8 +684,8 @@ $primary: #409eff;
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
-  background: #1e293b;
-  border-bottom: 1px solid #334155;
+  background: #292524;
+  border-bottom: 1px solid #44403c;
   flex-shrink: 0;
   gap: 16px;
 }
@@ -699,13 +699,13 @@ $primary: #409eff;
 .page-title {
   font-size: 18px;
   font-weight: 600;
-  color: #f1f5f9;
+  color: #fafaf9;
   margin: 0;
 }
 
 .page-subtitle {
   font-size: 12px;
-  color: #64748b;
+  color: #78716c;
 }
 
 .header-actions {
@@ -725,7 +725,7 @@ $primary: #409eff;
   width: 100%;
   height: 100%;
   display: block;
-  background: radial-gradient(ellipse at center, #1a2744 0%, #0f172a 60%);
+  background: radial-gradient(ellipse at center, #292524 0%, #1c1917 60%);
 }
 
 .graph-loading {
@@ -737,7 +737,7 @@ $primary: #409eff;
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  color: #64748b;
+  color: #78716c;
   font-size: 14px;
 }
 
@@ -746,13 +746,13 @@ $primary: #409eff;
   position: absolute;
   top: 16px;
   left: 16px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid #334155;
-  border-radius: 10px;
+  background: rgba(41, 37, 36, 0.9);
+  border: 1px solid #44403c;
+  border-radius: 12px;
   padding: 12px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   backdrop-filter: blur(8px);
 }
 
@@ -761,7 +761,7 @@ $primary: #409eff;
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  color: #94a3b8;
+  color: #a8a29e;
 }
 
 .legend-node {
@@ -773,20 +773,20 @@ $primary: #409eff;
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #409eff;
+  background: #6b5b95;
 }
 
 .legend-node--project {
   width: 16px;
   height: 16px;
   border-radius: 4px;
-  background: #67c23a;
+  background: #4a7c59;
 }
 
 .legend-line {
   width: 20px;
   height: 2px;
-  background: #64748b;
+  background: #78716c;
   flex-shrink: 0;
 }
 
@@ -796,9 +796,9 @@ $primary: #409eff;
   top: 16px;
   right: 16px;
   width: 240px;
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid #334155;
-  border-radius: 10px;
+  background: rgba(41, 37, 36, 0.9);
+  border: 1px solid #44403c;
+  border-radius: 12px;
   padding: 14px;
   backdrop-filter: blur(8px);
   max-height: calc(100vh - 140px);
@@ -806,10 +806,9 @@ $primary: #409eff;
 }
 
 .workload-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: #64748b;
-  text-transform: uppercase;
+  color: #a8a29e;
   letter-spacing: 0.5px;
   margin-bottom: 12px;
 }
@@ -823,24 +822,24 @@ $primary: #409eff;
 .workload-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 8px;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
   cursor: pointer;
   transition: background 0.2s;
 
   &:hover { background: rgba(255,255,255,0.05); }
-  &--highlight { background: rgba(64, 158, 255, 0.15); }
+  &--highlight { background: rgba(107, 91, 149, 0.2); }
 }
 
 .workload-avatar {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
@@ -853,7 +852,7 @@ $primary: #409eff;
 
 .workload-name {
   font-size: 12px;
-  color: #e2e8f0;
+  color: #e7e5e4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -874,13 +873,13 @@ $primary: #409eff;
 
 .workload-unit {
   font-size: 10px;
-  color: #64748b;
+  color: #78716c;
 }
 
 .workload-bar {
   width: 40px;
   height: 4px;
-  background: #334155;
+  background: #44403c;
   border-radius: 2px;
   flex-shrink: 0;
   overflow: hidden;
@@ -915,8 +914,9 @@ $primary: #409eff;
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 
-  &--project { border-radius: 10px; }
+  &--project { border-radius: 12px; }
 }
 
 .node-detail-info {
@@ -925,14 +925,14 @@ $primary: #409eff;
   h3 {
     font-size: 16px;
     font-weight: 700;
-    color: #303133;
+    color: #1c1917;
     margin: 0 0 4px 0;
   }
 }
 
 .node-detail-meta {
   font-size: 12px;
-  color: #909399;
+  color: #78716c;
 }
 
 .node-detail-projects {
@@ -948,19 +948,19 @@ $primary: #409eff;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background: #f9fafb;
-  border-radius: 8px;
+  background: #fafaf9;
+  border-radius: 10px;
   cursor: pointer;
-  transition: background 0.2s;
-  border: 1px solid #ebeef5;
+  transition: all 0.2s;
+  border: 1px solid #e8e5e1;
 
-  &:hover { background: #f0f9ff; border-color: #d0e8ff; }
+  &:hover { background: #f5f5f4; border-color: #d4d0c8; }
 }
 
 .ndp-avatar {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -968,6 +968,7 @@ $primary: #409eff;
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .ndp-info { flex: 1; }
@@ -975,21 +976,21 @@ $primary: #409eff;
 .ndp-name {
   font-size: 13px;
   font-weight: 600;
-  color: #303133;
+  color: #1c1917;
   margin-bottom: 4px;
 }
 
 .ndp-meta { display: flex; gap: 4px; }
 
-.ndp-arrow { color: #c0c4cc; }
+.ndp-arrow { color: #d4d0c8; }
 
 .node-detail-stats {
   display: flex;
   gap: 16px;
   margin-bottom: 16px;
   padding: 14px;
-  background: #f9fafb;
-  border-radius: 8px;
+  background: #fafaf9;
+  border-radius: 12px;
 }
 
 .nds-item {
@@ -1003,12 +1004,12 @@ $primary: #409eff;
 .nds-num {
   font-size: 18px;
   font-weight: 700;
-  color: #303133;
+  color: #1c1917;
 }
 
 .nds-label {
   font-size: 11px;
-  color: #909399;
+  color: #78716c;
 }
 
 .node-detail-members {
@@ -1021,16 +1022,16 @@ $primary: #409eff;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  background: #f0f9ff;
-  border: 1px solid #d0e8ff;
+  padding: 4px 10px 4px 4px;
+  background: #f5f5f4;
+  border: 1px solid #e8e5e1;
   border-radius: 20px;
   cursor: pointer;
   font-size: 12px;
-  color: #303133;
-  transition: background 0.2s;
+  color: #44403c;
+  transition: all 0.2s;
 
-  &:hover { background: #e6f4ff; }
+  &:hover { background: #f0ede8; border-color: #d4d0c8; }
 }
 
 .ndm-avatar {
