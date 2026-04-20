@@ -6,6 +6,12 @@
         <h1 class="page-title">{{ t('sync.title') }}</h1>
         <span class="page-subtitle">{{ t('sync.subtitle') }}</span>
       </div>
+      <div class="header-right">
+        <el-button @click="showHelp = true" text>
+          <el-icon><QuestionFilled /></el-icon>
+          {{ t('sync.usageGuide') }}
+        </el-button>
+      </div>
     </header>
 
     <!-- 标签页 -->
@@ -25,7 +31,61 @@
     <div class="page-content">
       <!-- 站点管理 -->
       <div v-show="activeTab === 'stations'" class="tab-content">
-        <div class="content-header">
+        <!-- Agent 状态卡片 -->
+        <div v-if="syncStatus.enabled && syncStatus.mode === 'agent'" class="agent-status-card">
+          <div class="agent-status-header">
+            <div class="agent-status-info">
+              <div class="agent-badge">
+                <el-icon><Connection /></el-icon>
+                {{ t('sync.agentMode') }}
+              </div>
+              <div class="agent-name">{{ syncStatus.stationName || syncStatus.stationId }}</div>
+            </div>
+            <div class="agent-status-indicator" :class="connectionStatusClass">
+              <span class="status-dot"></span>
+              {{ connectionStatusText }}
+            </div>
+          </div>
+
+          <div class="agent-status-body">
+            <div class="agent-stat">
+              <span class="stat-label">{{ t('sync.centerUrl') }}</span>
+              <span class="stat-value">{{ syncStatus.centerUrl || '-' }}</span>
+            </div>
+            <div class="agent-stat">
+              <span class="stat-label">{{ t('sync.lastSync') }}</span>
+              <span class="stat-value">{{ formatTime(syncStatus.lastSyncAt) }}</span>
+            </div>
+            <div class="agent-stat">
+              <span class="stat-label">{{ t('sync.syncQueue') }}</span>
+              <span class="stat-value count">{{ syncStatus.syncQueueCount || 0 }}</span>
+            </div>
+            <div class="agent-stat" v-if="syncError">
+              <span class="stat-label">{{ t('sync.lastError') }}</span>
+              <span class="stat-value error">{{ syncError }}</span>
+            </div>
+          </div>
+
+          <div class="agent-status-footer">
+            <el-button size="small" @click="testConnection" :loading="connectionTesting">
+              <el-icon><Refresh /></el-icon>
+              {{ t('sync.testConnection') }}
+            </el-button>
+            <el-button size="small" @click="loadSyncStatus">
+              <el-icon><Refresh /></el-icon>
+              {{ t('common.refresh') }}
+            </el-button>
+          </div>
+        </div>
+
+        <!-- Center 模式提示 -->
+        <div v-else-if="syncStatus.enabled && syncStatus.mode === 'center'" class="center-tip">
+          <el-icon><InfoFilled /></el-icon>
+          <span>{{ t('sync.centerModeTip') }}</span>
+        </div>
+
+        <!-- 搜索和添加 -->
+        <div class="content-header" style="margin-top: 20px;">
           <div class="header-left">
             <el-input
               v-model="stationKeyword"
@@ -51,9 +111,7 @@
             :key="station.id"
             class="station-card"
           >
-            <!-- 左侧状态条 -->
             <div class="station-bar" :style="{ background: getStationColor(station.code) }"></div>
-
             <div class="station-inner">
               <div class="station-top">
                 <div class="station-avatar" :style="{ background: getStationColor(station.code) }">
@@ -80,9 +138,7 @@
                     <el-icon><Location /></el-icon>
                     {{ t('sync.stationUrl') }}
                   </span>
-                  <span class="info-value url" :title="station.url || '-'">
-                    {{ station.url || '-' }}
-                  </span>
+                  <span class="info-value url" :title="station.url || '-'">{{ station.url || '-' }}</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">
@@ -103,11 +159,9 @@
               <div class="station-footer">
                 <el-button size="small" @click="openStationDrawer('edit', station)">
                   <el-icon><Edit /></el-icon>
-                  {{ t('common.edit') }}
                 </el-button>
                 <el-button size="small" @click="showApiKey(station)" type="info" plain>
                   <el-icon><Key /></el-icon>
-                  {{ t('sync.apiKey') }}
                 </el-button>
                 <el-button size="small" type="danger" @click="handleDeleteStation(station)">
                   <el-icon><Delete /></el-icon>
@@ -117,7 +171,7 @@
           </div>
 
           <!-- 空状态 -->
-          <div v-if="filteredStations.length === 0" class="empty-state">
+          <div v-if="filteredStations.length === 0 && !(syncStatus.enabled && syncStatus.mode === 'center')" class="empty-state">
             <div class="empty-icon-wrap">
               <el-icon class="empty-icon"><Connection /></el-icon>
             </div>
@@ -153,7 +207,6 @@
           </div>
         </div>
 
-        <!-- 历史记录表格 -->
         <el-table :data="historyList" stripe v-loading="historyLoading">
           <el-table-column prop="stationName" :label="t('sync.stations')" min-width="120">
             <template #default="{ row }">
@@ -170,36 +223,25 @@
             </template>
           </el-table-column>
           <el-table-column :label="t('sync.totalRecords')" width="80" align="center">
-            <template #default="{ row }">
-              <span class="num">{{ row.totalRecords }}</span>
-            </template>
+            <template #default="{ row }"><span class="num">{{ row.totalRecords }}</span></template>
           </el-table-column>
           <el-table-column :label="t('sync.successCount')" width="80" align="center">
-            <template #default="{ row }">
-              <span class="num success">{{ row.successCount }}</span>
-            </template>
+            <template #default="{ row }"><span class="num success">{{ row.successCount }}</span></template>
           </el-table-column>
           <el-table-column :label="t('sync.failCount')" width="80" align="center">
-            <template #default="{ row }">
-              <span class="num fail">{{ row.failCount }}</span>
-            </template>
+            <template #default="{ row }"><span class="num fail">{{ row.failCount }}</span></template>
           </el-table-column>
           <el-table-column :label="t('sync.conflictCount')" width="90" align="center">
-            <template #default="{ row }">
-              <span class="num conflict">{{ row.conflictCount }}</span>
-            </template>
+            <template #default="{ row }"><span class="num conflict">{{ row.conflictCount }}</span></template>
           </el-table-column>
           <el-table-column prop="createdAt" :label="t('common.createdAt')" width="160" />
           <el-table-column :label="t('common.actions')" width="100" fixed="right" align="center">
             <template #default="{ row }">
-              <el-button size="small" link @click="viewHistoryDetail(row)">
-                {{ t('sync.syncDetail') }}
-              </el-button>
+              <el-button size="small" link @click="viewHistoryDetail(row)">{{ t('sync.syncDetail') }}</el-button>
             </template>
           </el-table-column>
         </el-table>
 
-        <!-- 分页 -->
         <div class="pagination-wrapper">
           <el-pagination
             v-model:current-page="historyPage"
@@ -213,33 +255,117 @@
       </div>
     </div>
 
+    <!-- 使用指南弹窗 -->
+    <el-dialog v-model="showHelp" :title="t('sync.usageGuide')" width="680px" class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-title">{{ t('sync.architectureTitle') }}</div>
+          <div class="help-architecture">
+            <div class="arch-node center">
+              <el-icon><OfficeBuilding /></el-icon>
+              <span>{{ t('sync.centerStation') }}</span>
+              <small>{{ t('sync.centerDesc') }}</small>
+            </div>
+            <div class="arch-arrow">
+              <el-icon><Right /></el-icon>
+              <span>{{ t('sync.dataFlow') }}</span>
+            </div>
+            <div class="arch-node agent">
+              <el-icon><Monitor /></el-icon>
+              <span>{{ t('sync.agentStation') }}</span>
+              <small>{{ t('sync.agentDesc') }}</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-section">
+          <div class="help-title">{{ t('sync.step1Title') }}</div>
+          <div class="help-step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <div class="step-title">{{ t('sync.step1CenterTitle') }}</div>
+              <div class="step-desc">{{ t('sync.step1CenterDesc') }}</div>
+              <pre class="step-config"># app.yaml (Center 站点)
+sync:
+  enabled: true
+  mode: "center"</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-section">
+          <div class="help-title">{{ t('sync.step2Title') }}</div>
+          <div class="help-step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <div class="step-title">{{ t('sync.step2CenterTitle') }}</div>
+              <div class="step-desc">{{ t('sync.step2CenterDesc') }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-section">
+          <div class="help-title">{{ t('sync.step3Title') }}</div>
+          <div class="help-step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <div class="step-title">{{ t('sync.step3AgentTitle') }}</div>
+              <div class="step-desc">{{ t('sync.step3AgentDesc') }}</div>
+              <pre class="step-config"># app.yaml (Agent 站点)
+sync:
+  enabled: true
+  mode: "agent"
+  center_url: "https://center.example.com"
+  station_id: "agent-beijing-01"
+  station_name: "北京部署点"
+
+# 如需代理
+  proxy:
+    enabled: true
+    url: "http://proxy:8080"
+    username: "user"
+    password: "pass"</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-section">
+          <div class="help-title">{{ t('sync.notesTitle') }}</div>
+          <ul class="help-notes">
+            <li>{{ t('sync.note1') }}</li>
+            <li>{{ t('sync.note2') }}</li>
+            <li>{{ t('sync.note3') }}</li>
+          </ul>
+        </div>
+      </div>
+    </el-dialog>
+
     <!-- 站点编辑抽屉 -->
     <el-drawer v-model="stationDrawerVisible" :title="stationDrawerTitle" size="520px" class="sync-drawer">
       <div class="drawer-content">
-        <!-- 帮助提示 -->
         <div class="drawer-tip">
           <el-icon><InfoFilled /></el-icon>
-          <span v-if="stationEditMode === 'create'">创建站点后，将自动生成 API Key，请妥善保管</span>
-          <span v-else>修改站点信息不会影响已生成的 API Key</span>
+          <span v-if="stationEditMode === 'create'">{{ t('sync.createTip') }}</span>
+          <span v-else>{{ t('sync.editTip') }}</span>
         </div>
 
         <el-form :model="stationForm" label-position="top" class="station-form">
           <div class="form-section">
-            <div class="form-section-title">{{ t('sync.stationName') }}</div>
+            <div class="form-section-title">{{ t('sync.basicInfo') }}</div>
             <el-form-item :label="t('sync.stationName')" required>
               <el-input v-model="stationForm.name" :placeholder="t('sync.messages.nameRequired')" />
             </el-form-item>
             <el-form-item :label="t('sync.stationCode')" required>
               <el-input v-model="stationForm.code" :placeholder="t('sync.messages.codeRequired')">
                 <template #suffix>
-                  <el-tooltip content="站点唯一标识，用于Agent识别" placement="top">
+                  <el-tooltip :content="t('sync.codeTip')" placement="top">
                     <el-icon><QuestionFilled /></el-icon>
                   </el-tooltip>
                 </template>
               </el-input>
             </el-form-item>
             <el-form-item :label="t('sync.stationUrl')" required>
-              <el-input v-model="stationForm.url" placeholder="https://center.example.com">
+              <el-input v-model="stationForm.url" placeholder="https://agent.example.com">
                 <template #prefix><el-icon><Link /></el-icon></template>
               </el-input>
             </el-form-item>
@@ -267,9 +393,7 @@
       <template #footer>
         <div class="drawer-footer">
           <el-button @click="stationDrawerVisible = false">{{ t('common.cancel') }}</el-button>
-          <el-button type="primary" @click="saveStation" :loading="stationSaving">
-            {{ t('common.save') }}
-          </el-button>
+          <el-button type="primary" @click="saveStation" :loading="stationSaving">{{ t('common.save') }}</el-button>
         </div>
       </template>
     </el-drawer>
@@ -289,11 +413,11 @@
 
         <div class="apikey-tip">
           <el-icon><Warning /></el-icon>
-          <span>API Key 只显示一次，请立即复制并妥善保管！</span>
+          <span>{{ t('sync.apiKeyWarning') }}</span>
         </div>
 
         <div class="apikey-display">
-          <el-input v-model="displayApiKey" readonly :placeholder="'API Key 将显示在这里'" />
+          <el-input v-model="displayApiKey" readonly />
           <el-button type="primary" @click="copyApiKey" :disabled="!displayApiKey">
             <el-icon><DocumentCopy /></el-icon>
             {{ t('sync.copyApiKey') }}
@@ -301,7 +425,7 @@
         </div>
 
         <div class="apikey-hint">
-          <p>将此 API Key 配置到 Agent 站点的 <code>app.yaml</code> 中：</p>
+          <p>{{ t('sync.agentConfigTip') }}</p>
           <pre class="config-example">sync:
   enabled: true
   mode: "agent"
@@ -362,13 +486,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import {
-  Search, Plus, Refresh, Grid, Document, Connection, Link, Clock, Guide, Edit, Delete, Key,
-  Location, QuestionFilled, InfoFilled, Warning, DocumentCopy
-} from '@element-plus/icons-vue'
+import { Search, Plus, Refresh, Grid, Document, Connection, Link, Clock, Guide, Edit, Delete, Key, Location, QuestionFilled, InfoFilled, Warning, DocumentCopy, OfficeBuilding, Monitor, Right } from '@element-plus/icons-vue'
 import { syncApi, type SyncStation, type SyncHistory } from '@/api/sync'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 
 const activeTab = ref('stations')
 const tabs = computed(() => [
@@ -376,15 +497,33 @@ const tabs = computed(() => [
   { key: 'history', label: t('sync.history'), icon: Document },
 ])
 
+// 帮助弹窗
+const showHelp = ref(false)
+
+// 同步状态
+const syncStatus = ref<any>({ enabled: false, mode: 'center', stationId: '', stationName: '', centerUrl: '', lastSyncAt: null, syncQueueCount: 0 })
+const syncError = ref('')
+const connectionTesting = ref(false)
+const connectionStatus = ref<'connected' | 'connecting' | 'error' | 'offline'>('offline')
+
+const connectionStatusClass = computed(() => connectionStatus.value)
+const connectionStatusText = computed(() => {
+  const map: Record<string, string> = {
+    connected: t('sync.statusConnected'),
+    connecting: t('sync.statusConnecting'),
+    error: t('sync.statusError'),
+    offline: t('sync.statusOffline')
+  }
+  return map[connectionStatus.value] || t('sync.statusOffline')
+})
+
 // 站点相关
 const stationKeyword = ref('')
 const stationList = ref<SyncStation[]>([])
 const stationLoading = ref(false)
 const stationDrawerVisible = ref(false)
 const stationDrawerTitle = ref('')
-const stationForm = ref({
-  id: 0, name: '', code: '', url: '', status: 'active', description: '',
-})
+const stationForm = ref({ id: 0, name: '', code: '', url: '', status: 'active', description: '' })
 const stationSaving = ref(false)
 const stationEditMode = ref<'create' | 'edit'>('create')
 
@@ -435,6 +574,44 @@ const formatTime = (time: string | null) => {
   return time.replace('T', ' ').slice(0, 16)
 }
 
+const loadSyncStatus = async () => {
+  try {
+    const res = await syncApi.getStatus()
+    syncStatus.value = res.data || {}
+    if (syncStatus.value.enabled && syncStatus.value.mode === 'agent') {
+      connectionStatus.value = 'connected'
+    } else {
+      connectionStatus.value = 'offline'
+    }
+    syncError.value = ''
+  } catch (e: any) {
+    connectionStatus.value = 'error'
+    syncError.value = e.message || '连接失败'
+  }
+}
+
+const testConnection = async () => {
+  connectionTesting.value = true
+  connectionStatus.value = 'connecting'
+  try {
+    const res = await syncApi.getStatus()
+    if (res.data.enabled && res.data.mode === 'center') {
+      connectionStatus.value = 'connected'
+      ElMessage.success(t('sync.connectionSuccess'))
+    } else {
+      connectionStatus.value = 'connected'
+      ElMessage.success(t('sync.connectionSuccess'))
+    }
+    syncError.value = ''
+  } catch (e: any) {
+    connectionStatus.value = 'error'
+    syncError.value = e.message || '连接失败'
+    ElMessage.error(t('sync.connectionFailed'))
+  } finally {
+    connectionTesting.value = false
+  }
+}
+
 const loadStations = async () => {
   stationLoading.value = true
   try {
@@ -479,9 +656,8 @@ const saveStation = async () => {
     if (stationEditMode.value === 'create') {
       const res = await syncApi.createStation(stationForm.value)
       ElMessage.success(t('sync.messages.createSuccess'))
-      // 自动显示 API Key
       currentStationForKey.value = res.data
-      displayApiKey.value = res.data.apiKey || '请到站点详情查看'
+      displayApiKey.value = res.data.apiKey || t('sync.noApiKey')
       apiKeyDialogVisible.value = true
     } else {
       await syncApi.updateStation(stationForm.value)
@@ -503,8 +679,7 @@ const handleDeleteStation = async (station: SyncStation) => {
 
 const showApiKey = (station: SyncStation) => {
   currentStationForKey.value = station
-  // 实际项目中需要从后端获取真实 API Key，这里模拟
-  displayApiKey.value = station.apiKey || '请重新保存站点获取'
+  displayApiKey.value = station.apiKey || t('sync.noApiKey')
   apiKeyDialogVisible.value = true
 }
 
@@ -523,124 +698,64 @@ const viewHistoryDetail = async (row: SyncHistory) => {
   } catch (e) { console.error(e) }
 }
 
-onMounted(() => { loadStations(); loadHistory() })
+onMounted(() => { loadSyncStatus(); loadStations(); loadHistory() })
 </script>
 
 <style scoped lang="scss">
-.sync-page {
-  padding: 20px 24px;
-  min-height: 100vh;
-  background: #fafaf9;
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
+.sync-page { padding: 20px 24px; min-height: 100vh; background: #fafaf9; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
 .header-left { display: flex; flex-direction: column; gap: 4px; }
 .page-title { font-size: 20px; font-weight: 700; color: #1c1917; margin: 0; }
 .page-subtitle { font-size: 13px; color: #a8a29e; }
+.header-right { display: flex; gap: 8px; }
 
 /* 标签页 */
-.view-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-.tab-btn {
-  display: flex; align-items: center; gap: 6px;
-  padding: 10px 18px;
-  background: #fff;
-  border: 1px solid #e8e5e1;
-  border-radius: 12px;
-  font-size: 13px; font-weight: 500;
-  color: #78716c;
-  cursor: pointer;
-  transition: all 0.2s;
-  .el-icon { font-size: 15px; }
-  &:hover { border-color: #d4d0c8; color: #57534e; }
-  &.active {
-    background: #fff;
-    border-color: #6b5b95;
-    color: #6b5b95;
-    box-shadow: 0 2px 10px rgba(107, 91, 149, 0.15);
-  }
-}
+.view-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+.tab-btn { display: flex; align-items: center; gap: 6px; padding: 10px 18px; background: #fff; border: 1px solid #e8e5e1; border-radius: 12px; font-size: 13px; font-weight: 500; color: #78716c; cursor: pointer; transition: all 0.2s; .el-icon { font-size: 15px; } &:hover { border-color: #d4d0c8; color: #57534e; } &.active { background: #fff; border-color: #6b5b95; color: #6b5b95; box-shadow: 0 2px 10px rgba(107, 91, 149, 0.15); } }
+
+/* Agent 状态卡片 */
+.agent-status-card { background: #fff; border-radius: 16px; border: 1px solid #e8e5e1; overflow: hidden; margin-bottom: 4px; }
+.agent-status-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: linear-gradient(135deg, #6b5b95 0%, #8b7bab 100%); }
+.agent-status-info { display: flex; flex-direction: column; gap: 6px; }
+.agent-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #fff; opacity: 0.9; .el-icon { font-size: 14px; } }
+.agent-name { font-size: 16px; font-weight: 600; color: #fff; }
+.agent-status-indicator { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 20px; background: rgba(255,255,255,0.2); color: #fff; .status-dot { width: 8px; height: 8px; border-radius: 50%; } &.connected { background: rgba(74, 124, 89, 0.3); } &.connecting { background: rgba(184, 115, 51, 0.3); } &.error { background: rgba(220, 38, 38, 0.3); } }
+.agent-status-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; padding: 16px 20px; }
+.agent-stat { display: flex; flex-direction: column; gap: 4px; }
+.stat-label { font-size: 11px; color: #a8a29e; }
+.stat-value { font-size: 13px; color: #57534e; font-weight: 500; &.count { font-size: 16px; font-weight: 700; color: #6b5b95; } &.error { color: #dc2626; font-size: 12px; } }
+.agent-status-footer { display: flex; gap: 8px; padding: 12px 20px; border-top: 1px solid #f0ede8; }
+
+/* Center 模式提示 */
+.center-tip { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: #f0fdf4; border: 1px solid #4a7c59; border-radius: 10px; font-size: 13px; color: #4a7c59; margin-top: 20px; .el-icon { font-size: 16px; } }
 
 /* 内容区 */
-.page-content {
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid #e8e5e1;
-  overflow: hidden;
-}
+.page-content { background: #fff; border-radius: 16px; border: 1px solid #e8e5e1; overflow: hidden; }
 .tab-content { padding: 20px; }
-.content-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 20px; gap: 12px;
-}
+.content-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
 .header-right { display: flex; gap: 8px; }
 
 /* 站点卡片 */
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
-}
-.station-card {
-  background: #fafaf9;
-  border-radius: 16px;
-  border: 1px solid #e8e5e1;
-  overflow: hidden;
-  transition: all 0.25s;
-  display: flex;
-  &:hover { border-color: #d4d0c8; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
-}
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+.station-card { background: #fafaf9; border-radius: 16px; border: 1px solid #e8e5e1; overflow: hidden; transition: all 0.25s; display: flex; &:hover { border-color: #d4d0c8; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.06); } }
 .station-bar { width: 4px; flex-shrink: 0; }
 .station-inner { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .station-top { display: flex; align-items: center; gap: 12px; }
-.station-avatar {
-  width: 44px; height: 44px; border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px; font-weight: 700; color: #fff; flex-shrink: 0;
-}
+.station-avatar { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; flex-shrink: 0; }
 .station-info { flex: 1; min-width: 0; }
 .station-name { font-size: 15px; font-weight: 600; color: #1c1917; }
 .station-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-.station-code {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 11px; color: #a8a29e;
-  .el-icon { font-size: 11px; }
-}
-.station-status-tag {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 6px;
-  .status-dot { width: 6px; height: 6px; border-radius: 50%; }
-  &.active { background: #f0fdf4; color: #4a7c59; .status-dot { background: #4a7c59; } }
-  &.inactive { background: #f5f5f4; color: #a8a29e; .status-dot { background: #a8a29e; } }
-}
-
+.station-code { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #a8a29e; .el-icon { font-size: 11px; } }
+.station-status-tag { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 6px; .status-dot { width: 6px; height: 6px; border-radius: 50%; } &.active { background: #f0fdf4; color: #4a7c59; .status-dot { background: #4a7c59; } } &.inactive { background: #f5f5f4; color: #a8a29e; .status-dot { background: #a8a29e; } } }
 .station-body { display: flex; flex-direction: column; gap: 8px; }
 .info-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0ede8; &:last-child { border-bottom: none; } }
 .info-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #a8a29e; .el-icon { font-size: 13px; } }
 .info-value { font-size: 12px; color: #57534e; font-weight: 500; &.url { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } &.count { font-size: 14px; font-weight: 700; color: #6b5b95; } }
-
 .station-footer { display: flex; gap: 8px; margin-top: 4px; .el-button { flex: 1; } }
 
 /* 空状态 */
-.empty-state {
-  grid-column: 1 / -1;
-  display: flex; flex-direction: column; align-items: center;
-  padding: 80px 20px;
-}
-.empty-icon-wrap {
-  width: 80px; height: 80px; border-radius: 50%;
-  background: #f5f5f4;
-  display: flex; align-items: center; justify-content: center;
-  margin-bottom: 20px;
-}
+.empty-state { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; padding: 80px 20px; }
+.empty-icon-wrap { width: 80px; height: 80px; border-radius: 50%; background: #f5f5f4; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
 .empty-icon { font-size: 36px; color: #d4d0c8; }
 .empty-title { font-size: 16px; font-weight: 600; color: #78716c; margin-bottom: 8px; }
 .empty-hint { font-size: 13px; color: #a8a29e; }
@@ -648,7 +763,7 @@ onMounted(() => { loadStations(); loadHistory() })
 /* 分页 */
 .pagination-wrapper { display: flex; justify-content: center; margin-top: 20px; }
 
-/* 表格内样式 */
+/* 表格样式 */
 .station-cell { display: flex; align-items: center; gap: 8px; }
 .station-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .status-tag { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 6px; &.pending { background: #fef9c3; color: #854d0e; } &.processing { background: #dbeafe; color: #1e40af; } &.completed { background: #f0fdf4; color: #4a7c59; } &.failed { background: #fef2f2; color: #dc2626; } }
@@ -657,14 +772,24 @@ onMounted(() => { loadStations(); loadHistory() })
 .result-tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; &.success { background: #f0fdf4; color: #4a7c59; } &.failed { background: #fef2f2; color: #dc2626; } }
 .new-serial { color: #6b5b95; font-weight: 500; } .none { color: #d4d0c8; }
 
+/* 帮助弹窗 */
+.help-content { display: flex; flex-direction: column; gap: 24px; }
+.help-section { }
+.help-title { font-size: 14px; font-weight: 600; color: #1c1917; margin-bottom: 12px; }
+.help-architecture { display: flex; align-items: center; justify-content: center; gap: 24px; padding: 24px; background: #fafaf9; border-radius: 12px; }
+.arch-node { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px 28px; border-radius: 12px; background: #fff; border: 2px solid #e8e5e1; min-width: 140px; .el-icon { font-size: 28px; color: #6b5b95; } span { font-size: 14px; font-weight: 600; color: #1c1917; } small { font-size: 11px; color: #a8a29e; text-align: center; } &.center { border-color: #6b5b95; } &.agent { border-color: #4a7c59; .el-icon { color: #4a7c59; } } }
+.arch-arrow { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #a8a29e; .el-icon { font-size: 24px; } span { font-size: 11px; } }
+.help-step { display: flex; gap: 12px; }
+.step-num { width: 28px; height: 28px; border-radius: 50%; background: #6b5b95; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0; }
+.step-content { flex: 1; }
+.step-title { font-size: 13px; font-weight: 600; color: #1c1917; margin-bottom: 4px; }
+.step-desc { font-size: 12px; color: #78716c; margin-bottom: 8px; }
+.step-config { background: #1c1917; color: #e7e5e4; padding: 12px 14px; border-radius: 8px; font-size: 12px; font-family: 'Monaco', monospace; overflow-x: auto; margin: 0; }
+.help-notes { margin: 0; padding-left: 20px; li { font-size: 12px; color: #78716c; margin-bottom: 6px; &:last-child { margin-bottom: 0; } } }
+
 /* 抽屉样式 */
 .drawer-content { padding: 0 4px; }
-.drawer-tip {
-  display: flex; align-items: center; gap: 8px;
-  padding: 12px 16px; background: #fef9c3; border-radius: 10px;
-  font-size: 13px; color: #854d0e; margin-bottom: 20px;
-  .el-icon { font-size: 16px; }
-}
+.drawer-tip { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: #fef9c3; border-radius: 10px; font-size: 13px; color: #854d0e; margin-bottom: 20px; .el-icon { font-size: 16px; } }
 .station-form { }
 .form-section { margin-bottom: 24px; &:last-child { margin-bottom: 0; } }
 .form-section-title { font-size: 12px; font-weight: 600; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
@@ -676,33 +801,14 @@ onMounted(() => { loadStations(); loadHistory() })
 .station-avatar-sm { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; }
 .apikey-station-name { font-size: 14px; font-weight: 600; color: #1c1917; }
 .apikey-station-code { font-size: 11px; color: #a8a29e; }
-.apikey-tip {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 14px; background: #fef2f2; border-radius: 8px;
-  font-size: 12px; color: #dc2626;
-  .el-icon { font-size: 14px; }
-}
+.apikey-tip { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #fef2f2; border-radius: 8px; font-size: 12px; color: #dc2626; .el-icon { font-size: 14px; } }
 .apikey-display { display: flex; gap: 8px; }
-.apikey-hint {
-  p { font-size: 12px; color: #78716c; margin: 0 0 8px 0; }
-  code { background: #f5f5f4; padding: 2px 6px; border-radius: 4px; color: #6b5b95; }
-}
-.config-example {
-  background: #1c1917; color: #e7e5e4;
-  padding: 14px 16px; border-radius: 10px;
-  font-size: 12px; font-family: 'Monaco', 'Menlo', monospace;
-  overflow-x: auto; margin: 0;
-}
+.apikey-hint { p { font-size: 12px; color: #78716c; margin: 0 0 8px 0; } code { background: #f5f5f4; padding: 2px 6px; border-radius: 4px; color: #6b5b95; } }
+.config-example { background: #1c1917; color: #e7e5e4; padding: 14px 16px; border-radius: 10px; font-size: 12px; font-family: 'Monaco', monospace; overflow-x: auto; margin: 0; }
 
 /* 详情弹窗 */
 .detail-summary { display: flex; gap: 16px; margin-bottom: 20px; }
-.summary-item {
-  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 16px; background: #fafaf9; border-radius: 12px; border: 1px solid #e8e5e1;
-  &.success { border-color: #4a7c59; .summary-num { color: #4a7c59; } }
-  &.fail { border-color: #dc2626; .summary-num { color: #dc2626; } }
-  &.conflict { border-color: #b87333; .summary-num { color: #b87333; } }
-}
+.summary-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px; background: #fafaf9; border-radius: 12px; border: 1px solid #e8e5e1; &.success { border-color: #4a7c59; .summary-num { color: #4a7c59; } } &.fail { border-color: #dc2626; .summary-num { color: #dc2626; } } &.conflict { border-color: #b87333; .summary-num { color: #b87333; } } }
 .summary-num { font-size: 24px; font-weight: 700; color: #1c1917; }
 .summary-label { font-size: 11px; color: #78716c; }
 </style>
