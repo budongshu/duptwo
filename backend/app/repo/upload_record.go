@@ -497,3 +497,28 @@ func (r *UploadRecordRepo) ListAllForExport(req dto.UploadRecordListReq) ([]mode
 
 	return records, nil
 }
+
+// GetRecordsSince 获取指定时间之后或指定SerialNo之后的记录（用于增量同步）
+func (r *UploadRecordRepo) GetRecordsSince(lastSyncAt *time.Time, lastSerialNo string, projectNames []string, limit int) ([]model.UploadRecord, error) {
+	var records []model.UploadRecord
+
+	db := global.DB.Model(&model.UploadRecord{}).Where("is_deleted = ?", false)
+
+	// 项目过滤
+	if len(projectNames) > 0 {
+		db = db.Where("project_name IN ?", projectNames)
+	}
+
+	// 时间过滤（断点恢复）
+	if lastSyncAt != nil {
+		db = db.Where("created_at > ?", lastSyncAt)
+	}
+
+	// 或者 SerialNo 过滤（用于同时间的断点）
+	if lastSerialNo != "" {
+		db = db.Where("serial_no > ?", lastSerialNo)
+	}
+
+	err := db.Order("created_at ASC, serial_no ASC").Limit(limit).Find(&records).Error
+	return records, err
+}

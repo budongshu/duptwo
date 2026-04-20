@@ -505,6 +505,16 @@ func initSyncScheduler() {
 	}
 
 	scheduler := service.NewSyncScheduler()
+
+	// 从配置设置过滤器
+	if len(global.CONF.Sync.Filter.ProjectNames) > 0 {
+		filter := &service.SyncFilter{
+			ProjectNames: global.CONF.Sync.Filter.ProjectNames,
+		}
+		scheduler.SetFilter(filter)
+		global.AppLogger.Info("同步过滤器已设置，项目: %v", global.CONF.Sync.Filter.ProjectNames)
+	}
+
 	if err := scheduler.Start(); err != nil {
 		global.AppLogger.Error("启动同步调度器失败: %v", err)
 		return

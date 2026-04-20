@@ -7,22 +7,28 @@ import (
 	"time"
 
 	"datauptwo/global"
+	"datauptwo/app/repo"
 )
 
 // SyncScheduler 同步调度器
 type SyncScheduler struct {
-	mu              sync.RWMutex
-	running         bool
-	stopChan        chan struct{}
-	queue           []SyncTask
-	client          *SyncClient
-	interval        time.Duration
-	retryCount      int
-	lastErrorType   string          // 上次错误类型，用于去重告警
-	lastErrorTime   time.Time       // 上次错误时间
-	errorCount      int             // 连续错误次数
-	registered      bool            // 是否已注册到 Center
-	lastRegisterErr string          // 注册错误信息（避免重复告警）
+	mu            sync.RWMutex
+	running       bool
+	stopChan      chan struct{}
+	queue         []SyncTask
+	client        *SyncClient
+	interval      time.Duration
+	retryCount    int
+	lastErrorType string
+	lastErrorTime time.Time
+	errorCount    int
+	registered    bool
+	lastRegisterErr string
+	lastSyncAt    *time.Time       // 上次同步时间（断点）
+	lastSerialNo  string           // 上次同步的最后一条 SerialNo
+	batchSize     int             // 每批同步数量
+	syncFilter    *SyncFilter     // 同步过滤器
+	recordRepo    *repo.UploadRecordRepo // 用于查询待同步记录
 }
 
 // SyncTask 同步任务
@@ -30,12 +36,20 @@ type SyncTask struct {
 	ID          uint       `json:"id"`
 	SerialNo    string     `json:"serialNo"`
 	ProjectName string     `json:"projectName"`
-	Status      string     `json:"status"` // pending/processing/completed/failed
+	Status      string     `json:"status"`
 	RetryCount  int        `json:"retryCount"`
 	MaxRetries  int        `json:"maxRetries"`
 	NextRetryAt *time.Time `json:"nextRetryAt"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	ErrorMsg    string     `json:"errorMsg"`
+}
+
+// SyncFilter 同步过滤器
+type SyncFilter struct {
+	ProjectNames []string // 只同步这些项目，空=全部
+	StartTime    *time.Time
+	EndTime      *time.Time
+	Status       string // 只同步特定状态的记录
 }
 
 // NewSyncScheduler 创建同步调度器
@@ -46,10 +60,25 @@ func NewSyncScheduler() *SyncScheduler {
 		queue:      make([]SyncTask, 0),
 		interval:   5 * time.Minute,
 		retryCount: 3,
+		batchSize:  100, // 默认每批100条
 	}
 }
 
-// Start 启动调度器（Agent模式自动注册）
+// SetFilter 设置同步过滤器
+func (s *SyncScheduler) SetFilter(filter *SyncFilter) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.syncFilter = filter
+}
+
+// GetFilter 获取同步过滤器
+func (s *SyncScheduler) GetFilter() *SyncFilter {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.syncFilter
+}
+
+// Start 启动调度器
 func (s *SyncScheduler) Start() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -63,6 +92,11 @@ func (s *SyncScheduler) Start() error {
 		s.interval = parseDuration(global.CONF.Sync.Interval)
 		s.retryCount = global.CONF.Sync.RetryCount
 
+		// 读取批量大小配置
+		if global.CONF.Sync.BatchSize > 0 {
+			s.batchSize = global.CONF.Sync.BatchSize
+		}
+
 		// Agent 模式：自动注册到 Center
 		if global.CONF.Sync.Mode == "agent" && global.CONF.Sync.CenterURL != "" {
 			s.doAutoRegister()
@@ -75,7 +109,8 @@ func (s *SyncScheduler) Start() error {
 	// 启动调度循环
 	go s.run()
 
-	global.AppLogger.Info("同步调度器已启动，模式: %s，间隔: %v", global.CONF.Sync.Mode, s.interval)
+	global.AppLogger.Info("同步调度器已启动，模式: %s，间隔: %v，批量大小: %d",
+		global.CONF.Sync.Mode, s.interval, s.batchSize)
 	return nil
 }
 
@@ -98,28 +133,25 @@ func (s *SyncScheduler) registerToCenter() {
 	// 创建临时客户端（无 API Key）
 	tempClient := NewSyncClient(global.CONF.Sync.CenterURL, "")
 
-	// 准备注册请求（使用 station_id 作为站点代码）
+	// 准备注册请求
 	registerReq := struct {
 		StationCode string `json:"stationCode"`
 		StationName string `json:"stationName"`
 		URL         string `json:"url"`
 	}{
-		StationCode: global.CONF.Sync.StationID,  // station_id 同时作为站点代码
+		StationCode: global.CONF.Sync.StationID,
 		StationName: global.CONF.Sync.StationName,
-		URL:         fmt.Sprintf("http://localhost:%s", global.CONF.Sync.StationID), // 本地地址
+		URL:         fmt.Sprintf("http://localhost:%s", global.CONF.Sync.StationID),
 	}
 
-	// 调用注册接口
 	respBody, statusCode, err := tempClient.Post("/api/sync/register", registerReq)
 	if err != nil {
 		errMsg := fmt.Sprintf("自动注册失败: %v", err)
-		// 避免重复告警：相同错误1小时内只告警一次
 		if s.lastRegisterErr != errMsg || time.Since(s.lastErrorTime) > time.Hour {
 			global.AppLogger.Error(errMsg)
 			s.lastRegisterErr = errMsg
 			s.lastErrorTime = time.Now()
 		}
-		// 注册失败不影响启动，继续运行
 		s.registered = false
 		return
 	}
@@ -135,7 +167,6 @@ func (s *SyncScheduler) registerToCenter() {
 		return
 	}
 
-	// 解析响应获取 API Key
 	var resp struct {
 		Code    int    `json:"code"`
 		Message string `json:"message"`
@@ -157,17 +188,14 @@ func (s *SyncScheduler) registerToCenter() {
 		return
 	}
 
-	// 保存 API Key 到配置（通过 viper）
 	apiKey := resp.Data.APIKey
 	global.CONF.Sync.APIKey = apiKey
 	global.CONF.Sync.StationID = resp.Data.StationID
 
-	// 创建客户端
 	s.client = NewSyncClient(global.CONF.Sync.CenterURL, apiKey)
 	s.registered = true
 
 	global.AppLogger.Info("自动注册成功，站点ID: %s", resp.Data.StationID)
-	global.AppLogger.Info("API Key 已保存，请在配置文件中备份: %s...", apiKey[:16])
 }
 
 // Stop 停止调度器
@@ -196,6 +224,9 @@ func (s *SyncScheduler) run() {
 		time.Sleep(5 * time.Second)
 	}
 
+	// 立即执行一次同步（不要等待定时器）
+	go s.processQueue()
+
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
@@ -213,7 +244,6 @@ func (s *SyncScheduler) run() {
 func (s *SyncScheduler) processQueue() {
 	// Agent 未注册，跳过
 	if global.CONF.Sync.Mode == "agent" && !s.registered {
-		// 尝试重新注册
 		s.tryReRegister()
 		return
 	}
@@ -229,7 +259,6 @@ func (s *SyncScheduler) processQueue() {
 	var pendingTasks []SyncTask
 	for _, task := range s.queue {
 		if task.Status == "pending" || (task.Status == "failed" && task.RetryCount < task.MaxRetries) {
-			// 检查是否到了重试时间
 			if task.NextRetryAt != nil && time.Now().Before(*task.NextRetryAt) {
 				continue
 			}
@@ -238,15 +267,15 @@ func (s *SyncScheduler) processQueue() {
 	}
 
 	if len(pendingTasks) == 0 {
+		// 没有排队的任务，扫描新增记录
+		s.scanAndAddRecords()
 		return
 	}
 
-	// 只在首次或有新任务时记录
 	if s.errorCount == 0 {
 		global.AppLogger.Info("开始处理同步任务，共 %d 个", len(pendingTasks))
 	}
 
-	// 处理每个任务
 	for _, task := range pendingTasks {
 		if err := s.executeTask(&task); err != nil {
 			s.handleTaskError(&task, err)
@@ -256,106 +285,88 @@ func (s *SyncScheduler) processQueue() {
 	}
 }
 
-// tryReRegister 尝试重新注册
-func (s *SyncScheduler) tryReRegister() {
-	if s.registered {
+// scanAndAddRecords 扫描并添加新记录到队列（增量同步）
+func (s *SyncScheduler) scanAndAddRecords() {
+	// 获取需要同步的记录（从上次同步位置之后）
+	records := s.fetchRecordsToSync()
+	if len(records) == 0 {
 		return
 	}
 
-	// 每5分钟尝试一次注册
-	if time.Since(s.lastErrorTime) < s.interval {
-		return
-	}
+	global.AppLogger.Info("发现 %d 条新记录待同步", len(records))
 
-	s.mu.Lock()
-	s.registerToCenter()
-	s.mu.Unlock()
+	for _, record := range records {
+		// 检查是否已在队列中
+		exists := false
+		for _, t := range s.queue {
+			if t.SerialNo == record.SerialNo && t.Status != "completed" {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			task := SyncTask{
+				ID:          uint(len(s.queue) + 1),
+				SerialNo:    record.SerialNo,
+				ProjectName: record.ProjectName,
+				Status:      "pending",
+				RetryCount:  0,
+				MaxRetries:  s.retryCount,
+				CreatedAt:   time.Now(),
+			}
+			s.queue = append(s.queue, task)
+		}
+	}
 }
 
-// executeTask 执行同步任务
-func (s *SyncScheduler) executeTask(task *SyncTask) error {
-	// 准备同步数据
-	record := SyncRecordData{
-		SerialNo:    task.SerialNo,
-		ProjectName: task.ProjectName,
+// RecordInfo 记录信息
+type RecordInfo struct {
+	SerialNo    string
+	ProjectName string
+	CreatedAt   time.Time
+	Status      string
+}
+
+// fetchRecordsToSync 获取需要同步的记录（从数据库查询，增量同步）
+func (s *SyncScheduler) fetchRecordsToSync() []RecordInfo {
+	if s.recordRepo == nil {
+		s.recordRepo = repo.NewUploadRecordRepo()
 	}
 
-	// 调用中心站点API
-	req := &SyncUploadRequest{
-		Records: []SyncRecordData{record},
+	// 获取项目过滤列表
+	var projectNames []string
+	if s.syncFilter != nil && len(s.syncFilter.ProjectNames) > 0 {
+		projectNames = s.syncFilter.ProjectNames
 	}
 
-	resp, err := s.client.UploadRecords(req)
+	// 查询记录
+	records, err := s.recordRepo.GetRecordsSince(s.lastSyncAt, s.lastSerialNo, projectNames, s.batchSize)
 	if err != nil {
-		return fmt.Errorf("同步失败: %w", err)
-	}
-
-	if resp.Code != 200 {
-		return fmt.Errorf("同步返回错误: %s", resp.Message)
-	}
-
-	return nil
-}
-
-// handleTaskError 处理任务错误（去重告警）
-func (s *SyncScheduler) handleTaskError(task *SyncTask, err error) {
-	task.RetryCount++
-	task.ErrorMsg = err.Error()
-
-	// 获取错误类型标识（用于去重）
-	errType := fmt.Sprintf("%s:%s", task.ProjectName, err.Error()[:min(50, len(err.Error()))])
-
-	if task.RetryCount >= task.MaxRetries {
-		task.Status = "failed"
-		// 去重告警：相同错误1小时内只记录一次
-		if s.lastErrorType != errType || time.Since(s.lastErrorTime) > time.Hour {
-			global.AppLogger.Error("同步任务 %s 失败，已达到最大重试次数: %s", task.SerialNo, err.Error())
-			s.lastErrorType = errType
+		if s.errorCount == 0 || time.Since(s.lastErrorTime) > time.Hour {
+			global.AppLogger.Error("查询待同步记录失败: %v", err)
 			s.lastErrorTime = time.Now()
+			s.errorCount++
 		}
-	} else {
-		// 设置下次重试时间
-		retryInterval := parseDuration(global.CONF.Sync.RetryInterval)
-		nextRetry := time.Now().Add(retryInterval)
-		task.NextRetryAt = &nextRetry
-
-		// 去重告警：相同错误1小时内只记录一次
-		if s.lastErrorType != errType || time.Since(s.lastErrorTime) > time.Hour {
-			global.AppLogger.Warn("同步任务 %s 失败，将在 %v 后重试 (第 %d/%d 次): %s",
-				task.SerialNo, retryInterval, task.RetryCount, task.MaxRetries, err.Error())
-			s.lastErrorType = errType
-			s.lastErrorTime = time.Now()
-		}
+		return nil
 	}
 
-	// 更新队列中的任务
-	s.updateTask(task)
-}
-
-// markTaskCompleted 标记任务完成
-func (s *SyncScheduler) markTaskCompleted(task *SyncTask) {
-	task.Status = "completed"
-	task.NextRetryAt = nil
-	s.updateTask(task)
-	// 不打印成功日志，减少噪音
-}
-
-// updateTask 更新队列中的任务
-func (s *SyncScheduler) updateTask(updatedTask *SyncTask) {
-	for i, task := range s.queue {
-		if task.ID == updatedTask.ID {
-			s.queue[i] = *updatedTask
-			return
+	result := make([]RecordInfo, len(records))
+	for i, r := range records {
+		result[i] = RecordInfo{
+			SerialNo:    r.SerialNo,
+			ProjectName: r.ProjectName,
+			CreatedAt:   r.CreatedAt,
+			Status:      r.Status,
 		}
 	}
+	return result
 }
 
-// AddTask 添加同步任务到队列
+// AddTask 手动添加同步任务
 func (s *SyncScheduler) AddTask(serialNo, projectName string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// 检查是否已存在
 	for _, task := range s.queue {
 		if task.SerialNo == serialNo && task.Status != "completed" {
 			return
@@ -373,7 +384,97 @@ func (s *SyncScheduler) AddTask(serialNo, projectName string) {
 	}
 
 	s.queue = append(s.queue, task)
-	// 不打印添加任务日志，减少噪音
+}
+
+// tryReRegister 尝试重新注册
+func (s *SyncScheduler) tryReRegister() {
+	if s.registered {
+		return
+	}
+
+	if time.Since(s.lastErrorTime) < s.interval {
+		return
+	}
+
+	s.mu.Lock()
+	s.registerToCenter()
+	s.mu.Unlock()
+}
+
+// executeTask 执行同步任务
+func (s *SyncScheduler) executeTask(task *SyncTask) error {
+	record := SyncRecordData{
+		SerialNo:    task.SerialNo,
+		ProjectName: task.ProjectName,
+	}
+
+	req := &SyncUploadRequest{
+		Records: []SyncRecordData{record},
+	}
+
+	resp, err := s.client.UploadRecords(req)
+	if err != nil {
+		return fmt.Errorf("同步失败: %w", err)
+	}
+
+	if resp.Code != 200 {
+		return fmt.Errorf("同步返回错误: %s", resp.Message)
+	}
+
+	// 更新断点
+	s.lastSerialNo = task.SerialNo
+	now := time.Now()
+	s.lastSyncAt = &now
+
+	return nil
+}
+
+// handleTaskError 处理任务错误
+func (s *SyncScheduler) handleTaskError(task *SyncTask, err error) {
+	task.RetryCount++
+	task.ErrorMsg = err.Error()
+
+	errType := fmt.Sprintf("%s:%s", task.ProjectName, err.Error()[:min(50, len(err.Error()))])
+
+	if task.RetryCount >= task.MaxRetries {
+		task.Status = "failed"
+		if s.lastErrorType != errType || time.Since(s.lastErrorTime) > time.Hour {
+			global.AppLogger.Error("同步任务 %s 失败，已达到最大重试次数: %s", task.SerialNo, err.Error())
+			s.lastErrorType = errType
+			s.lastErrorTime = time.Now()
+			s.errorCount++
+		}
+	} else {
+		retryInterval := parseDuration(global.CONF.Sync.RetryInterval)
+		nextRetry := time.Now().Add(retryInterval)
+		task.NextRetryAt = &nextRetry
+
+		if s.lastErrorType != errType || time.Since(s.lastErrorTime) > time.Hour {
+			global.AppLogger.Warn("同步任务 %s 失败，将在 %v 后重试 (第 %d/%d 次): %s",
+				task.SerialNo, retryInterval, task.RetryCount, task.MaxRetries, err.Error())
+			s.lastErrorType = errType
+			s.lastErrorTime = time.Now()
+		}
+	}
+
+	s.updateTask(task)
+}
+
+// markTaskCompleted 标记任务完成
+func (s *SyncScheduler) markTaskCompleted(task *SyncTask) {
+	task.Status = "completed"
+	task.NextRetryAt = nil
+	s.updateTask(task)
+}
+
+// updateTask 更新队列中的任务
+func (s *SyncScheduler) updateTask(updatedTask *SyncTask) {
+	for i, task := range s.queue {
+		if task.ID == updatedTask.ID {
+			s.queue[i] = *updatedTask
+			return
+		}
+	}
 }
 
 // GetQueueStatus 获取队列状态
@@ -400,17 +501,21 @@ func (s *SyncScheduler) GetQueueStatus() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"enabled":     global.CONF.Sync.Enabled,
-		"mode":        global.CONF.Sync.Mode,
-		"running":     s.running,
-		"interval":   s.interval.String(),
-		"registered":  s.registered,
-		"total":       len(s.queue),
-		"pending":     pending,
-		"processing":  processing,
-		"completed":   completed,
-		"failed":      failed,
-		"lastErrorAt": s.lastErrorTime,
+		"enabled":      global.CONF.Sync.Enabled,
+		"mode":         global.CONF.Sync.Mode,
+		"running":      s.running,
+		"interval":     s.interval.String(),
+		"batchSize":    s.batchSize,
+		"registered":   s.registered,
+		"lastSyncAt":   s.lastSyncAt,
+		"lastSerialNo": s.lastSerialNo,
+		"total":        len(s.queue),
+		"pending":      pending,
+		"processing":   processing,
+		"completed":    completed,
+		"failed":       failed,
+		"lastErrorAt":   s.lastErrorTime,
+		"filter":        s.syncFilter,
 	}
 }
 
@@ -458,8 +563,6 @@ func (s *SyncScheduler) RetryFailed() {
 	}
 }
 
-// ============ 辅助函数 ============
-
 // parseDuration 解析时间字符串
 func parseDuration(s string) time.Duration {
 	if s == "" {
@@ -472,16 +575,4 @@ func parseDuration(s string) time.Duration {
 	}
 
 	return d
-}
-
-// MarshalJSON 自定义序列化
-func (t SyncTask) MarshalJSON() ([]byte, error) {
-	type Alias SyncTask
-	return json.Marshal(&struct {
-		Alias
-		CreatedAtStr string `json:"createdAt"`
-	}{
-		Alias:       Alias(t),
-		CreatedAtStr: t.CreatedAt.Format(time.RFC3339),
-	})
 }

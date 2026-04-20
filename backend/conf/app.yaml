@@ -60,9 +60,8 @@ sync:
   enabled: true
   mode: "agent"  # center 或 agent
   center_url: "http://duptwo.bdser.cc"
-  api_key: "3218beb8b0bcec6f1eb60de7107ce612e345e9c1908a608e5b52cfc7636e471c"
-  station_id: ""
-  station_name: ""
+  station_id: "sh-local"
+  station_name: "sh-local"
   interval: "5m"
   retry_count: 3
   retry_interval: "1m"
