@@ -1,1 +1,0 @@
-import{r as t}from"./index-DNWq6uAe.js";var o;(r=>{r.list=e=>t.get("/audit/operation-logs",e),r.exportExcel=e=>t.get("/audit/operation-logs/export",e,{responseType:"blob"})})(o||(o={}));var s;(r=>{r.list=e=>t.get("/audit/login-logs",e),r.exportExcel=e=>t.get("/audit/login-logs/export",e,{responseType:"blob"})})(s||(s={}));export{s as L,o as O};

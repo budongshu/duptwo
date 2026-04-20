@@ -110,6 +110,12 @@ export const asyncRoutes: RouteRecordRaw[] = [
         name: 'Profile',
         component: () => import('@/views/profile/index.vue'),
         meta: { title: '个人设置' }
+      },
+      {
+        path: 'sync',
+        name: 'Sync',
+        component: () => import('@/views/sync/list.vue'),
+        meta: { title: '数据同步' }
       }
     ]
   }
