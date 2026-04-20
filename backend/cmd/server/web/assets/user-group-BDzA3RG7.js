@@ -1,1 +1,0 @@
-import{r}from"./index-DVvump4Y.js";var u;(t=>{t.list=e=>r.get("/user-groups",e),t.getAll=()=>r.get("/user-groups/all"),t.getById=e=>r.get(`/user-groups/${e}`),t.create=e=>r.post("/user-groups",e),t.update=e=>r.put("/user-groups",e),t.del=e=>r.delete(`/user-groups/${e}`),t.batchDelete=e=>r.post("/user-groups/batch-delete",{ids:e})})(u||(u={}));export{u as U};

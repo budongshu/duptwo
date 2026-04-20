@@ -189,7 +189,7 @@
               <span class="num conflict">{{ row.conflictCount }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="createdAt" :label="t('common.createTime')" width="160" />
+          <el-table-column prop="createdAt" :label="t('common.createdAt')" width="160" />
           <el-table-column :label="t('common.actions')" width="100" fixed="right" align="center">
             <template #default="{ row }">
               <el-button size="small" link @click="viewHistoryDetail(row)">
@@ -257,7 +257,7 @@
 
           <div class="form-section">
             <div class="form-section-title">{{ t('common.remark') }}</div>
-            <el-form-item :label="t('common.remark')">
+            <el-form-item :label="t('sync.stationDescription')">
               <el-input v-model="stationForm.description" type="textarea" :rows="3" />
             </el-form-item>
           </div>
