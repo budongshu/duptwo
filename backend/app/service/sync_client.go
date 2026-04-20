@@ -228,6 +228,42 @@ func (c *SyncClient) Ping() (*PingResponse, error) {
 	return &resp, nil
 }
 
+// RegisterRequest 注册请求
+type RegisterRequest struct {
+	StationCode string `json:"stationCode"`
+	StationName string `json:"stationName"`
+	URL         string `json:"url"`
+}
+
+// RegisterResponse 注册响应
+type RegisterResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		StationID string `json:"stationId"`
+		APIKey    string `json:"apiKey"`
+	} `json:"data"`
+}
+
+// Register 注册站点到 Center
+func (c *SyncClient) Register(req *RegisterRequest) (*RegisterResponse, error) {
+	respBody, statusCode, err := c.Post("/api/sync/register", req)
+	if err != nil {
+		return nil, err
+	}
+
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("注册失败，状态码: %d，响应: %s", statusCode, string(respBody))
+	}
+
+	var resp RegisterResponse
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, fmt.Errorf("解析响应失败: %w", err)
+	}
+
+	return &resp, nil
+}
+
 // Close 关闭客户端
 func (c *SyncClient) Close() {
 	if c.client != nil && c.client.Transport != nil {

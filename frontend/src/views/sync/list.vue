@@ -501,10 +501,20 @@ const tabs = computed(() => [
 const showHelp = ref(false)
 
 // 同步状态
-const syncStatus = ref<any>({ enabled: false, mode: 'center', stationId: '', stationName: '', centerUrl: '', lastSyncAt: null, syncQueueCount: 0 })
+const syncStatus = ref<any>({
+  enabled: false,
+  mode: 'center',
+  stationId: '',
+  stationName: '',
+  centerUrl: '',
+  lastSyncAt: null,
+  syncQueueCount: 0,
+  registered: false,
+  lastErrorAt: null
+})
 const syncError = ref('')
 const connectionTesting = ref(false)
-const connectionStatus = ref<'connected' | 'connecting' | 'error' | 'offline'>('offline')
+const connectionStatus = ref<'connected' | 'connecting' | 'error' | 'offline' | 'registered'>('offline')
 
 const connectionStatusClass = computed(() => connectionStatus.value)
 const connectionStatusText = computed(() => {
@@ -512,7 +522,8 @@ const connectionStatusText = computed(() => {
     connected: t('sync.statusConnected'),
     connecting: t('sync.statusConnecting'),
     error: t('sync.statusError'),
-    offline: t('sync.statusOffline')
+    offline: t('sync.statusOffline'),
+    registered: t('sync.statusRegistered')
   }
   return map[connectionStatus.value] || t('sync.statusOffline')
 })
@@ -579,7 +590,12 @@ const loadSyncStatus = async () => {
     const res = await syncApi.getStatus()
     syncStatus.value = res.data || {}
     if (syncStatus.value.enabled && syncStatus.value.mode === 'agent') {
-      connectionStatus.value = 'connected'
+      // Agent 模式：根据 registered 状态显示
+      if (syncStatus.value.registered) {
+        connectionStatus.value = 'connected'
+      } else {
+        connectionStatus.value = 'registered' // 已配置但未注册
+      }
     } else {
       connectionStatus.value = 'offline'
     }

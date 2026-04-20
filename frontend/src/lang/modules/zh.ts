@@ -903,6 +903,7 @@ export default {
     statusConnecting: '连接中',
     statusError: '连接错误',
     statusOffline: '离线',
+    statusRegistered: '待注册',
     connectionSuccess: '连接成功',
     connectionFailed: '连接失败',
     architectureTitle: '架构说明',

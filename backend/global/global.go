@@ -9,9 +9,20 @@ import (
 )
 
 var (
-	DB    *gorm.DB
-	VIPER interface{}
+	DB        *gorm.DB
+	VIPER     interface{}
+	Scheduler interface{} // 全局同步调度器
 )
+
+// GetSyncScheduler 获取同步调度器
+func GetSyncScheduler() interface{} {
+	return Scheduler
+}
+
+// SetSyncScheduler 设置同步调度器
+func SetSyncScheduler(s interface{}) {
+	Scheduler = s
+}
 
 type Config struct {
 	Base      BaseConfig      `mapstructure:"base"`

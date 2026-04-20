@@ -1,0 +1,27 @@
+# Center 站点 - Docker Compose
+version: '3.8'
+
+services:
+  center:
+    image: duptwo:sync-test
+    container_name: duptwo-sync-center
+    restart: unless-stopped
+    ports:
+      - "18421:18421"
+      - "18080:8080"
+    volumes:
+      - ./conf/app.yaml:/app/conf/app.yaml:ro
+      - ./data:/app/data
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18421/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - sync-network
+
+networks:
+  sync-network:
+    driver: bridge

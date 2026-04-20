@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"datauptwo/app/dto"
 	"datauptwo/app/model"
@@ -490,6 +491,15 @@ func (s *SyncService) GetSyncStatus() *dto.SyncStatusResp {
 		resp.StationID = global.CONF.Sync.StationID
 		resp.StationName = global.CONF.Sync.StationName
 		resp.CenterURL = global.CONF.Sync.CenterURL
+
+		// 从调度器获取注册状态
+		if scheduler, ok := global.Scheduler.(*SyncScheduler); ok {
+			status := scheduler.GetQueueStatus()
+			resp.Registered, _ = status["registered"].(bool)
+			if t, ok := status["lastErrorAt"].(time.Time); ok {
+				resp.LastErrorAt = &t
+			}
+		}
 	} else if global.CONF.Sync.Mode == "center" {
 		// Center模式
 		resp.IsCenter = true

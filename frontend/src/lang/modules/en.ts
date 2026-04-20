@@ -846,6 +846,7 @@ export default {
     statusConnecting: 'Connecting',
     statusError: 'Error',
     statusOffline: 'Offline',
+    statusRegistered: 'Pending',
     connectionSuccess: 'Connection successful',
     connectionFailed: 'Connection failed',
     architectureTitle: 'Architecture',

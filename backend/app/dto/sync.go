@@ -166,14 +166,16 @@ type SyncDetailResp struct {
 
 // SyncStatusResp 同步状态响应
 type SyncStatusResp struct {
-	Enabled     bool    `json:"enabled"`
-	Mode        string  `json:"mode"`         // center/agent
-	IsCenter    bool    `json:"isCenter"`
-	StationID   string  `json:"stationId"`
-	StationName string  `json:"stationName"`
-	CenterURL   string  `json:"centerUrl"`
-	LastSyncAt  *time.Time `json:"lastSyncAt"`
-	SyncQueueCount int   `json:"syncQueueCount"` // 队列中的同步任务数
+	Enabled       bool       `json:"enabled"`
+	Mode          string     `json:"mode"`           // center/agent
+	IsCenter      bool       `json:"isCenter"`
+	StationID     string     `json:"stationId"`
+	StationName   string     `json:"stationName"`
+	CenterURL     string     `json:"centerUrl"`
+	LastSyncAt    *time.Time `json:"lastSyncAt"`
+	SyncQueueCount int       `json:"syncQueueCount"` // 队列中的同步任务数
+	Registered    bool       `json:"registered"`      // 是否已注册到 Center
+	LastErrorAt   *time.Time `json:"lastErrorAt"`     // 最后错误时间
 }
 
 // SyncQueueItem 同步队列项

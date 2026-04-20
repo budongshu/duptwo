@@ -1,0 +1,52 @@
+# Center 站点配置 - 数据同步中心
+base:
+  mode: prod
+  port: 18421
+  serve_web: true
+  web_root: /app/web
+
+database:
+  type: sqlite
+  path: /app/data/center.db
+
+log:
+  level: info
+  time_zone: Asia/Shanghai
+  log_name: center
+  max_backup: 10
+  max_size: 50
+
+session:
+  timeout: 7200
+  secret: center-session-secret-change-in-production
+
+cors:
+  allow_origins:
+    - "http://localhost"
+    - "http://localhost:18080"
+    - "http://localhost:18421"
+  allow_methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  allow_headers:
+    - Origin
+    - Content-Type
+    - Authorization
+    - X-API-Key
+  max_age: 86400
+
+jwt:
+  secret: center-jwt-secret-change-in-production
+
+# ========== 数据同步配置 ==========
+sync:
+  enabled: true
+  mode: "center"
+  interval: "1m"
+  retry_count: 3
+  retry_interval: "30s"
+  proxy:
+    enabled: false

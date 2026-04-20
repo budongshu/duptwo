@@ -57,10 +57,10 @@ jwt:
   secret: E1U4JvPDkPxt8MnsnnF5r7u4ix4bVeCj
 
 sync:
-  enabled: false
-  mode: "center"  # center 或 agent
-  center_url: ""
-  api_key: ""
+  enabled: true
+  mode: "agent"  # center 或 agent
+  center_url: "http://duptwo.bdser.cc"
+  api_key: "3218beb8b0bcec6f1eb60de7107ce612e345e9c1908a608e5b52cfc7636e471c"
   station_id: ""
   station_name: ""
   interval: "5m"

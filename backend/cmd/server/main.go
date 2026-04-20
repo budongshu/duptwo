@@ -94,6 +94,9 @@ func runServer(cmd *cobra.Command, args []string) {
 	// 初始化数据
 	initData()
 
+	// 启动同步调度器
+	initSyncScheduler()
+
 	// 启动服务器
 	startServer()
 }
@@ -493,6 +496,22 @@ func migrateModels() error {
 		&model.SyncHistory{},
 		&model.SyncDetail{},
 	)
+}
+
+// initSyncScheduler 初始化同步调度器（Agent 模式自动注册）
+func initSyncScheduler() {
+	if !global.CONF.Sync.Enabled {
+		return
+	}
+
+	scheduler := service.NewSyncScheduler()
+	if err := scheduler.Start(); err != nil {
+		global.AppLogger.Error("启动同步调度器失败: %v", err)
+		return
+	}
+
+	// 保存调度器实例到全局变量
+	global.SetSyncScheduler(scheduler)
 }
 
 func startServer() {
