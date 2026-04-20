@@ -34,6 +34,7 @@ type SyncStationResp struct {
 	StatusText  string     `json:"statusText"`
 	Description string     `json:"description"`
 	IsCenter    bool       `json:"isCenter"`
+	APIKey      string     `json:"apiKey,omitempty"` // 创建时返回API Key
 	LastSyncAt  *time.Time `json:"lastSyncAt"`
 	SyncCount   int64      `json:"syncCount"`
 	Remark      string     `json:"remark"`

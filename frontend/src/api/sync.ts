@@ -11,6 +11,7 @@ export interface SyncStation {
   statusText: string
   description: string
   isCenter: boolean
+  apiKey?: string
   lastSyncAt: string | null
   syncCount: number
   remark: string

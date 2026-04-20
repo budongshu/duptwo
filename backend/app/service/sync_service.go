@@ -42,6 +42,9 @@ func (s *SyncService) CreateStation(req dto.SyncStationCreateReq) (*dto.SyncStat
 		return nil, errors.New("站点代码已存在")
 	}
 
+	// 生成 API Key
+	apiKey, apiKeyHash := s.generateAPIKey()
+
 	station := &model.SyncStation{
 		Name:        req.Name,
 		Code:        req.Code,
@@ -49,13 +52,16 @@ func (s *SyncService) CreateStation(req dto.SyncStationCreateReq) (*dto.SyncStat
 		Status:      "active",
 		Description: req.Description,
 		IsCenter:    req.IsCenter,
+		APIKey:      apiKeyHash,
 	}
 
 	if err := s.stationRepo.Create(station); err != nil {
 		return nil, err
 	}
 
-	return s.toStationResp(station), nil
+	resp := s.toStationResp(station)
+	resp.APIKey = apiKey // 返回明文 API Key（仅创建时返回一次）
+	return resp, nil
 }
 
 // UpdateStation 更新站点
