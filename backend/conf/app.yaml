@@ -55,3 +55,19 @@ cors:
 
 jwt:
   secret: E1U4JvPDkPxt8MnsnnF5r7u4ix4bVeCj
+
+sync:
+  enabled: false
+  mode: "center"  # center 或 agent
+  center_url: ""
+  api_key: ""
+  station_id: ""
+  station_name: ""
+  interval: "5m"
+  retry_count: 3
+  retry_interval: "1m"
+  proxy:
+    enabled: false
+    url: ""
+    username: ""
+    password: ""

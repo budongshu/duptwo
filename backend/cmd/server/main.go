@@ -489,6 +489,9 @@ func migrateModels() error {
 		&model.LoginLog{},
 		&model.SecuritySettings{},
 		&model.LoginLockout{},
+		&model.SyncStation{},
+		&model.SyncHistory{},
+		&model.SyncDetail{},
 	)
 }
 

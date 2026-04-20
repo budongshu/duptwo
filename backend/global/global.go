@@ -21,6 +21,29 @@ type Config struct {
 	CORS      CORSConfig      `mapstructure:"cors"`
 	JWT       JWTConfig       `mapstructure:"jwt"`
 	AD        ADConfig        `mapstructure:"ad"`
+	Sync      SyncConfig      `mapstructure:"sync"`
+}
+
+// SyncConfig 同步配置
+type SyncConfig struct {
+	Enabled       bool       `mapstructure:"enabled"`        // 是否启用同步
+	Mode          string     `mapstructure:"mode"`           // 模式: center(中心站点)/agent(代理站点)
+	CenterURL     string     `mapstructure:"center_url"`     // 中心站点URL
+	APIKey        string     `mapstructure:"api_key"`        // API Key
+	StationID     string     `mapstructure:"station_id"`     // 站点ID
+	StationName   string     `mapstructure:"station_name"`   // 站点名称
+	Interval      string     `mapstructure:"interval"`       // 同步间隔
+	RetryCount    int        `mapstructure:"retry_count"`     // 重试次数
+	RetryInterval string     `mapstructure:"retry_interval"` // 重试间隔
+	Proxy         ProxyConfig `mapstructure:"proxy"`          // 代理配置
+}
+
+// ProxyConfig 代理配置
+type ProxyConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`   // 是否启用代理
+	URL      string `mapstructure:"url"`       // 代理URL
+	Username string `mapstructure:"username"`  // 代理用户名
+	Password string `mapstructure:"password"`  // 代理密码
 }
 
 type ADConfig struct {

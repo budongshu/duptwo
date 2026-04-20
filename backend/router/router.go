@@ -9,6 +9,7 @@ import (
 	projectapi "datauptwo/app/api/v1/project"
 	"datauptwo/app/api/v1/role"
 	uploadRecord "datauptwo/app/api/v1/upload_record"
+	"datauptwo/app/api/v1/sync"
 	"datauptwo/app/api/v1/user"
 	"datauptwo/app/api/v1/user_group"
 	"datauptwo/global"
@@ -37,6 +38,7 @@ type RouterGroup struct {
 	AuditApi              *audit.AuditApi
 	AdminApi              *admin.AdminApi
 	SecurityApi           *admin.SecurityApi
+	SyncApi               *sync.SyncApi
 }
 
 var RouterGroupApp = &RouterGroup{
@@ -52,6 +54,7 @@ var RouterGroupApp = &RouterGroup{
 	AuditApi:              audit.NewAuditApi(),
 	AdminApi:              admin.NewAdminApi(),
 	SecurityApi:           admin.NewSecurityApi(),
+	SyncApi:               sync.NewSyncApi(),
 }
 
 func InitRouter() *gin.Engine {
@@ -126,6 +129,10 @@ func InitRouter() *gin.Engine {
 	r.POST("/api/auth/register", RouterGroupApp.AuthApi.Register)
 	r.POST("/api/auth/mfa/verify", RouterGroupApp.AuthApi.MFAVerify)
 	r.GET("/api/auth/registration-status", RouterGroupApp.AuthApi.GetRegistrationStatus)
+
+	// 公开同步接口（使用API Key认证）
+	r.POST("/api/sync/register", RouterGroupApp.SyncApi.Register)
+	r.POST("/api/sync/upload-records", middleware.ApiKeyAuth(), RouterGroupApp.SyncApi.UploadRecords)
 
 	// 需要认证的接口
 	authGroup := r.Group("/api")
@@ -237,6 +244,17 @@ func InitRouter() *gin.Engine {
 		authGroup.POST("/admin/security/unlock-user", middleware.RequirePermission("config:update"), RouterGroupApp.SecurityApi.UnlockUser)
 		authGroup.GET("/admin/security/locked-ips", middleware.RequirePermission("config:read"), RouterGroupApp.SecurityApi.GetLockedIPs)
 		authGroup.POST("/admin/security/unlock-ip", middleware.RequirePermission("config:update"), RouterGroupApp.SecurityApi.UnlockIP)
+
+		// 同步管理接口
+		authGroup.GET("/sync/stations", middleware.RequirePermission("config:read"), RouterGroupApp.SyncApi.ListStations)
+		authGroup.POST("/sync/stations", middleware.RequirePermission("config:update"), RouterGroupApp.SyncApi.CreateStation)
+		authGroup.GET("/sync/stations/all", middleware.RequirePermission("config:read"), RouterGroupApp.SyncApi.GetAllStations)
+		authGroup.GET("/sync/stations/:id", middleware.RequirePermission("config:read"), RouterGroupApp.SyncApi.GetStation)
+		authGroup.PUT("/sync/stations", middleware.RequirePermission("config:update"), RouterGroupApp.SyncApi.UpdateStation)
+		authGroup.DELETE("/sync/stations/:id", middleware.RequirePermission("config:update"), RouterGroupApp.SyncApi.DeleteStation)
+		authGroup.GET("/sync/history", middleware.RequirePermission("config:read"), RouterGroupApp.SyncApi.GetHistory)
+		authGroup.GET("/sync/history/:id", middleware.RequirePermission("config:read"), RouterGroupApp.SyncApi.GetHistoryDetails)
+		authGroup.GET("/sync/status", middleware.RequirePermission("config:read"), RouterGroupApp.SyncApi.GetStatus)
 	}
 
 	// SPA 路由兜底
