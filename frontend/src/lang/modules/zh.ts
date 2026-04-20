@@ -930,7 +930,8 @@ export default {
     createTip: '创建站点后会生成 API Key，请妥善保管',
     editTip: '修改站点信息',
     apiKeyWarning: 'API Key 仅在创建时显示一次，请妥善保存',
-    agentConfigTip: '在 Agent 站点的 app.yaml 中配置以下信息进行连接',
+    agentConfigTip: '在 Agent 站点的 app.yaml 中配置以下信息，Agent 启动后自动注册',
+    agentConfigExample: '# Agent 配置示例\nsync:\n  enabled: true\n  mode: "agent"\n  center_url: "http://center.example.com:18421"\n  station_id: "agent-beijing-01"\n  station_name: "北京部署点"',
     messages: {
       createSuccess: '站点创建成功',
       createFailed: '创建失败',

@@ -154,19 +154,33 @@ func (s *SyncService) GetAllStations() ([]dto.SyncStationResp, error) {
 
 // ============ 站点注册 ============
 
-// RegisterStation 注册站点
+// RegisterStation 注册站点（自动创建或更新）
 func (s *SyncService) RegisterStation(req dto.SyncRegisterReq) (*dto.SyncRegisterResp, error) {
-	// 查找站点（根据代码）
+	// 先尝试查找已有站点
 	station, err := s.stationRepo.GetByCode(req.StationCode)
-	if err != nil {
-		return nil, errors.New("站点不存在，请先在中心站点创建站点记录")
-	}
 
-	// 验证密码（使用SHA256哈希比较）
-	passwordHash := s.hashPassword(req.Password)
-	// TODO: 实际应该使用 bcrypt 比较，这里简化处理
-	if station.APIKey != "" && station.APIKey != passwordHash {
-		return nil, errors.New("站点密码错误")
+	if err != nil || station == nil {
+		// 站点不存在，自动创建
+		station = &model.SyncStation{
+			Name:        req.StationName,
+			Code:        req.StationCode,
+			URL:         req.URL,
+			Status:      "active",
+			Description: "自动注册",
+		}
+		if createErr := s.stationRepo.Create(station); createErr != nil {
+			return nil, fmt.Errorf("创建站点失败: %w", createErr)
+		}
+	} else {
+		// 站点已存在，更新信息
+		station.Name = req.StationName
+		station.URL = req.URL
+		if station.Status == "" {
+			station.Status = "active"
+		}
+		if updateErr := s.stationRepo.Update(station); updateErr != nil {
+			return nil, fmt.Errorf("更新站点失败: %w", updateErr)
+		}
 	}
 
 	// 生成新的 API Key
@@ -174,11 +188,6 @@ func (s *SyncService) RegisterStation(req dto.SyncRegisterReq) (*dto.SyncRegiste
 
 	// 更新站点的 API Key
 	station.APIKey = apiKeyHash
-	station.URL = req.URL
-	if station.Status == "" {
-		station.Status = "active"
-	}
-
 	if err := s.stationRepo.Update(station); err != nil {
 		return nil, err
 	}

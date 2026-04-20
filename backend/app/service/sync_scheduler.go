@@ -98,13 +98,13 @@ func (s *SyncScheduler) registerToCenter() {
 	// 创建临时客户端（无 API Key）
 	tempClient := NewSyncClient(global.CONF.Sync.CenterURL, "")
 
-	// 准备注册请求
+	// 准备注册请求（使用 station_id 作为站点代码）
 	registerReq := struct {
-		StationID   string `json:"stationId"`
+		StationCode string `json:"stationCode"`
 		StationName string `json:"stationName"`
 		URL         string `json:"url"`
 	}{
-		StationID:   global.CONF.Sync.StationID,
+		StationCode: global.CONF.Sync.StationID,  // station_id 同时作为站点代码
 		StationName: global.CONF.Sync.StationName,
 		URL:         fmt.Sprintf("http://localhost:%s", global.CONF.Sync.StationID), // 本地地址
 	}

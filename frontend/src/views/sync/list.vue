@@ -430,9 +430,9 @@ sync:
   enabled: true
   mode: "agent"
   center_url: "{{ currentStationForKey.url }}"
-  api_key: "{{ displayApiKey }}"
   station_id: "{{ currentStationForKey.code }}"
-  station_name: "{{ currentStationForKey.name }}"</pre>
+  station_name: "{{ currentStationForKey.name }}"
+  # api_key 无需配置，启动时自动获取</pre>
         </div>
       </div>
     </el-dialog>

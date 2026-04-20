@@ -873,7 +873,8 @@ export default {
     createTip: 'API Key is shown once on creation. Please save it securely.',
     editTip: 'Edit station info',
     apiKeyWarning: 'API Key is shown only once on creation. Please save it securely.',
-    agentConfigTip: 'On Agent station, configure:',
+    agentConfigTip: 'On Agent station, configure in app.yaml. Agent auto-registers on startup:',
+    agentConfigExample: '# Agent config example\nsync:\n  enabled: true\n  mode: "agent"\n  center_url: "http://center.example.com:18421"\n  station_id: "agent-beijing-01"\n  station_name: "Beijing Agent"',
     messages: {
       createSuccess: 'Station created',
       createFailed: 'Create failed',
