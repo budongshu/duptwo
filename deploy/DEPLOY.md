@@ -390,6 +390,123 @@ kubectl -n duptwo logs -l app=duptwo --previous
 
 ---
 
+## 数据同步系统（Data Sync）
+
+### 系统架构
+
+duptwo 数据同步系统采用 **Center + Agent** 架构，实现多节点数据汇聚：
+
+```
+                          ┌──────────────────────────────────────┐
+                          │           Center 节点                  │
+                          │         (数据汇聚中心)                  │
+                          │                                      │
+                          │  ┌────────────────────────────────┐   │
+                          │  │  /api/v1/sync/stations        │   │
+                          │  │  /api/v1/sync/history         │   │
+                          │  │  /api/v1/sync/status          │   │
+                          │  │  /api/v1/sync/register        │   │
+                          │  │  /api/v1/sync/upload          │   │
+                          │  └────────────────────────────────┘   │
+                          │                                      │
+                          │  ┌─────────────┐ ┌────────────────┐  │
+                          │  │ Station Mgmt │ │ History Store  │  │
+                          │  └─────────────┘ └────────────────┘  │
+                          └──────────────────────────────────────┘
+                                    ▲          ▲          ▲
+                                    │          │          │
+                          ┌─────────┴┐   ┌─────┴────┐ ┌──┴───────┐
+                          │ Agent 1  │   │ Agent 2  │ │ Agent N  │
+                          │ 站点A    │   │ 站点B    │ │ 站点...  │
+                          └──────────┘   └──────────┘ └──────────┘
+```
+
+- **Center 节点**：数据汇聚中心，负责站点管理、API Key 分配、记录存储
+- **Agent 节点**：各数据采集站点，独立运行，定期推送数据到 Center
+
+### 配置说明
+
+#### Center 模式配置
+
+作为数据汇聚中心启用：
+
+```yaml
+sync:
+  enabled: true
+  mode: "center"    # 作为中心节点运行
+  center_url: ""    # Center 模式下留空
+  api_key: ""       # 自动生成
+  station_id: ""
+  station_name: ""
+  interval: "5m"
+  retry_count: 3
+  retry_interval: "1m"
+  proxy:
+    enabled: false
+    url: ""
+    username: ""
+    password: ""
+```
+
+#### Agent 模式配置
+
+作为数据采集站启用：
+
+```yaml
+sync:
+  enabled: true
+  mode: "agent"     # 作为采集站运行
+  center_url: "http://center-node:8080"  # Center 节点地址
+  api_key: ""       # Agent 注册后由 Center 下发
+  station_id: ""    # Agent 注册后由 Center 下发
+  station_name: "北京站点"
+  interval: "5m"    # 同步间隔
+  retry_count: 3
+  retry_interval: "1m"
+  proxy:
+    enabled: false
+    url: "http://proxy:8080"  # 如需代理
+    username: ""              # 代理认证用户名
+    password: ""              # 代理认证密码
+```
+
+### API Key 说明
+
+| 场景 | 说明 |
+|------|------|
+| **Agent 注册** | 调用 `POST /api/v1/sync/register`，Center 返回 `api_key` 和 `station_id` |
+| **Agent 上传** | 请求头携带 `X-API-Key: <your_api_key>`，调用 `POST /api/v1/sync/upload` |
+| **管理操作** | 所有 `/api/v1/sync/stations` 和 `/api/v1/sync/history` 接口需 JWT 认证 |
+
+### 代理支持
+
+Agent 模式下支持 HTTP/HTTPS 代理，适用于内网环境：
+
+```yaml
+sync:
+  proxy:
+    enabled: true
+    url: "http://proxy.example.com:8080"
+    username: "proxy_user"
+    password: "proxy_pass"
+```
+
+### 相关 API
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| GET | `/api/v1/sync/stations` | JWT | 站点列表 |
+| POST | `/api/v1/sync/stations` | JWT | 创建站点 |
+| PUT | `/api/v1/sync/stations/{id}` | JWT | 更新站点 |
+| DELETE | `/api/v1/sync/stations/{id}` | JWT | 删除站点 |
+| GET | `/api/v1/sync/history` | JWT | 同步历史 |
+| GET | `/api/v1/sync/status` | JWT | 同步状态 |
+| GET | `/api/v1/sync/history/{id}/details` | JWT | 同步详情 |
+| POST | `/api/v1/sync/register` | None | Agent 注册 |
+| POST | `/api/v1/sync/upload` | API Key | Agent 上传记录 |
+
+---
+
 ## 常见问题
 
 **glibc 版本不兼容**

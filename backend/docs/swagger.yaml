@@ -294,6 +294,29 @@ definitions:
     required:
     - id
     type: object
+  datauptwo_app_dto.SyncStation:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      code:
+        type: string
+      url:
+        type: string
+      status:
+        type: string
+      description:
+        type: string
+      apiKey:
+        type: string
+      lastSyncAt:
+        type: string
+      createdAt:
+        type: string
+      updatedAt:
+        type: string
+    type: object
 host: localhost:18421
 info:
   contact:
@@ -1128,14 +1151,177 @@ paths:
       summary: 公开创建上传记录
       tags:
       - PublicUploadRecord
+  /api/v1/sync/stations:
+    get:
+      summary: 获取站点列表
+      tags: [Sync]
+      parameters:
+        - in: query
+          name: page
+          type: integer
+        - in: query
+          name: pageSize
+          type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+    post:
+      summary: 创建站点
+      tags: [Sync]
+      parameters:
+        - in: body
+          name: body
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+              code:
+                type: string
+              url:
+                type: string
+              status:
+                type: string
+              description:
+                type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+  /api/v1/sync/stations/{id}:
+    put:
+      summary: 更新站点
+      tags: [Sync]
+      parameters:
+        - in: path
+          name: id
+          type: integer
+          required: true
+        - in: body
+          name: body
+          schema:
+            type: object
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+    delete:
+      summary: 删除站点
+      tags: [Sync]
+      parameters:
+        - in: path
+          name: id
+          type: integer
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+  /api/v1/sync/history:
+    get:
+      summary: 获取同步历史
+      tags: [Sync]
+      parameters:
+        - in: query
+          name: page
+          type: integer
+        - in: query
+          name: pageSize
+          type: integer
+        - in: query
+          name: stationId
+          type: integer
+        - in: query
+          name: startDate
+          type: string
+        - in: query
+          name: endDate
+          type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+  /api/v1/sync/status:
+    get:
+      summary: 获取同步状态
+      tags: [Sync]
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+  /api/v1/sync/register:
+    post:
+      summary: Agent 自动注册
+      tags: [Sync]
+      parameters:
+        - in: body
+          name: body
+          schema:
+            type: object
+            properties:
+              stationId:
+                type: string
+              stationName:
+                type: string
+              url:
+                type: string
+              password:
+                type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+  /api/v1/sync/upload:
+    post:
+      summary: Agent 上传记录（API Key认证）
+      tags: [Sync]
+      parameters:
+        - in: header
+          name: X-API-Key
+          type: string
+          required: true
+        - in: body
+          name: body
+          schema:
+            type: object
+            properties:
+              records:
+                type: array
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
+  /api/v1/sync/history/{id}/details:
+    get:
+      summary: 获取同步详情
+      tags: [Sync]
+      parameters:
+        - in: path
+          name: id
+          type: integer
+          required: true
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/datauptwo_app_dto.Response'
   /public/upload-records/{serialNo}:
     get:
       parameters:
-      - description: 流水号
-        in: path
-        name: serialNo
-        required: true
-        type: string
+        - description: 流水号
+          in: path
+          name: serialNo
+          required: true
+          type: string
       responses:
         "200":
           description: OK

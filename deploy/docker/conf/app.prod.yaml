@@ -58,3 +58,19 @@ cors:
 
 jwt:
   secret: CHANGE_THIS_JWT_SECRET_IN_PRODUCTION
+
+sync:
+  enabled: false
+  mode: "center"    # center 或 agent
+  center_url: ""
+  api_key: ""
+  station_id: ""
+  station_name: ""
+  interval: "5m"
+  retry_count: 3
+  retry_interval: "1m"
+  proxy:
+    enabled: false
+    url: ""
+    username: ""
+    password: ""

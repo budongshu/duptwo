@@ -9,6 +9,7 @@
 - [项目管理](#项目管理)
 - [人员管理](#人员管理)
 - [字段配置](#字段配置)
+- [数据同步](#数据同步)
 - [完整脚本示例](#完整脚本示例)
 
 ---
@@ -361,6 +362,148 @@ curl -X POST http://localhost:8080/api/field-configs \
 
 ```bash
 curl http://localhost:8080/api/field-configs/all \
+  -H "Authorization: Bearer <token>"
+```
+
+---
+
+## 数据同步
+
+> 数据同步系统采用 Center + Agent 架构，支持多站点数据汇聚。
+
+### 基础信息
+
+| 项目 | 值 |
+|------|-----|
+| 认证方式（管理） | Bearer Token (JWT) |
+| 认证方式（Agent） | X-API-Key 请求头 |
+
+### 站点管理（需 JWT 认证）
+
+#### 获取站点列表
+
+```bash
+curl "http://localhost:8080/api/v1/sync/stations?page=1&pageSize=20" \
+  -H "Authorization: Bearer <token>"
+```
+
+#### 创建站点
+
+```bash
+curl -X POST http://localhost:8080/api/v1/sync/stations \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "北京数据中心",
+    "code": "bj-dc-01",
+    "url": "http://bj-agent:8080",
+    "status": "active",
+    "description": "北京主数据中心"
+  }'
+```
+
+#### 更新站点
+
+```bash
+curl -X PUT http://localhost:8080/api/v1/sync/stations/1 \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "北京数据中心（新）",
+    "status": "paused"
+  }'
+```
+
+#### 删除站点
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/sync/stations/1 \
+  -H "Authorization: Bearer <token>"
+```
+
+### Agent 注册（无需认证）
+
+#### 注册站点
+
+```bash
+curl -X POST http://localhost:8080/api/v1/sync/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "stationId": "",
+    "stationName": "上海站点",
+    "url": "http://sh-agent:8080",
+    "password": "agent_secret_password"
+  }'
+```
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "注册成功",
+  "data": {
+    "stationId": "1",
+    "apiKey": "sk_sync_abc123xyz789...",
+    "stationName": "上海站点"
+  }
+}
+```
+
+### Agent 上传记录（API Key 认证）
+
+#### 上传记录
+
+```bash
+curl -X POST http://localhost:8080/api/v1/sync/upload \
+  -H "X-API-Key: sk_sync_abc123xyz789..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "records": [
+      {
+        "dataType": "sensor",
+        "projectName": "环境监测",
+        "uploader": "agent",
+        "data": {
+          "temperature": 25.5,
+          "humidity": 60,
+          "location": "上海浦东"
+        }
+      },
+      {
+        "dataType": "sensor",
+        "projectName": "环境监测",
+        "uploader": "agent",
+        "data": {
+          "temperature": 26.0,
+          "humidity": 58,
+          "location": "上海浦东"
+        }
+      }
+    ]
+  }'
+```
+
+### 同步历史（需 JWT 认证）
+
+#### 查询同步历史
+
+```bash
+curl "http://localhost:8080/api/v1/sync/history?page=1&pageSize=20&stationId=1&startDate=2025-01-01&endDate=2025-12-31" \
+  -H "Authorization: Bearer <token>"
+```
+
+#### 获取同步详情
+
+```bash
+curl http://localhost:8080/api/v1/sync/history/1/details \
+  -H "Authorization: Bearer <token>"
+```
+
+#### 获取同步状态
+
+```bash
+curl http://localhost:8080/api/v1/sync/status \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -930,6 +1073,36 @@ curl -X POST http://localhost:8080/api/field-configs \
 
 # 所有启用的字段
 curl http://localhost:8080/api/field-configs/all \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# === 数据同步 - 站点管理 ===
+# 站点列表
+curl "http://localhost:8080/api/v1/sync/stations?page=1&pageSize=20" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 创建站点
+curl -X POST http://localhost:8080/api/v1/sync/stations \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"站点A","code":"station-a","url":"http://agent-a:8080","status":"active"}'
+
+# Agent 注册
+curl -X POST http://localhost:8080/api/v1/sync/register \
+  -H "Content-Type: application/json" \
+  -d '{"stationName":"站点B","url":"http://agent-b:8080","password":"secret"}'
+
+# Agent 上传记录
+curl -X POST http://localhost:8080/api/v1/sync/upload \
+  -H "X-API-Key: sk_sync_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{"records":[{"dataType":"sensor","data":{"temp":25}}]}'
+
+# 同步历史
+curl "http://localhost:8080/api/v1/sync/history?page=1&pageSize=20" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 同步状态
+curl http://localhost:8080/api/v1/sync/status \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # === 日志 ===
