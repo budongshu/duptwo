@@ -4999,9 +4999,13 @@ $danger: #f56c6c;
 
   .el-icon { color: #a8a29e; }
 
+  // 标签样式统一，与团队成员标签对齐
   .info-label {
     color: #a8a29e;
     font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    margin-right: 2px;
   }
 }
 

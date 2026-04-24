@@ -1,0 +1,1 @@
+import{r as t}from"./index-6QX5oltd.js";var s;(r=>{r.list=e=>t.get("/roles",e),r.getAll=()=>t.get("/roles/all"),r.getById=e=>t.get(`/roles/${e}`),r.create=e=>t.post("/roles",e),r.update=e=>t.put("/roles",e),r.del=e=>t.delete(`/roles/${e}`),r.batchDelete=e=>t.post("/roles/batch-delete",{ids:e})})(s||(s={}));export{s as R};
