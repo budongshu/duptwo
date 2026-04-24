@@ -121,6 +121,7 @@ func InitRouter() *gin.Engine {
 	r.POST("/public/upload-records", RouterGroupApp.PublicUploadRecordApi.Create)
 	r.GET("/public/upload-records/:serialNo", RouterGroupApp.PublicUploadRecordApi.GetBySerialNo)
 	r.PUT("/public/upload-records/:serialNo", RouterGroupApp.PublicUploadRecordApi.UpdateBySerialNo)
+	r.POST("/public/upload-records/:serialNo/update", RouterGroupApp.PublicUploadRecordApi.UpdateBySerialNoPost)
 
 	// 公开认证接口
 	r.GET("/api/auth/captcha", RouterGroupApp.AuthApi.GetCaptcha)
@@ -133,6 +134,7 @@ func InitRouter() *gin.Engine {
 	// 公开同步接口（使用API Key认证）
 	r.POST("/api/sync/register", RouterGroupApp.SyncApi.Register)
 	r.POST("/api/sync/upload-records", middleware.ApiKeyAuth(), RouterGroupApp.SyncApi.UploadRecords)
+	r.POST("/api/sync/heartbeat", middleware.ApiKeyAuth(), RouterGroupApp.SyncApi.Heartbeat)
 
 	// 需要认证的接口
 	authGroup := r.Group("/api")
@@ -187,6 +189,9 @@ func InitRouter() *gin.Engine {
 		authGroup.POST("/personnels", middleware.RequirePermission("personnel:create"), RouterGroupApp.PersonnelApi.Create)
 		authGroup.GET("/personnels/all", middleware.RequirePermission("personnel:read"), RouterGroupApp.PersonnelApi.ListAll)
 		authGroup.GET("/personnels/export", middleware.RequirePermission("personnel:export"), RouterGroupApp.PersonnelApi.Export)
+		authGroup.GET("/personnels/template", middleware.RequirePermission("personnel:read"), RouterGroupApp.PersonnelApi.GetTemplate)
+		authGroup.POST("/personnels/preview", middleware.RequirePermission("personnel:read"), RouterGroupApp.PersonnelApi.Preview)
+		authGroup.POST("/personnels/import", middleware.RequirePermission("personnel:create"), RouterGroupApp.PersonnelApi.Import)
 		authGroup.GET("/personnels/:id", middleware.RequirePermission("personnel:read"), RouterGroupApp.PersonnelApi.GetByID)
 		authGroup.PUT("/personnels", middleware.RequirePermission("personnel:update"), RouterGroupApp.PersonnelApi.Update)
 		authGroup.DELETE("/personnels/:id", middleware.RequirePermission("personnel:delete"), RouterGroupApp.PersonnelApi.Delete)
@@ -252,8 +257,10 @@ func InitRouter() *gin.Engine {
 		authGroup.GET("/sync/stations/:id", middleware.RequirePermission("config:read"), RouterGroupApp.SyncApi.GetStation)
 		authGroup.PUT("/sync/stations", middleware.RequirePermission("config:update"), RouterGroupApp.SyncApi.UpdateStation)
 		authGroup.DELETE("/sync/stations/:id", middleware.RequirePermission("config:update"), RouterGroupApp.SyncApi.DeleteStation)
+		authGroup.POST("/sync/stations/:id/reset-key", middleware.RequirePermission("config:update"), RouterGroupApp.SyncApi.ResetApiKey)
 		authGroup.GET("/sync/history", middleware.RequirePermission("config:read"), RouterGroupApp.SyncApi.GetHistory)
 		authGroup.GET("/sync/history/:id", middleware.RequirePermission("config:read"), RouterGroupApp.SyncApi.GetHistoryDetails)
+		authGroup.GET("/sync/station-summaries", middleware.RequirePermission("config:read"), RouterGroupApp.SyncApi.GetStationSummaries)
 		authGroup.GET("/sync/status", middleware.RequirePermission("config:read"), RouterGroupApp.SyncApi.GetStatus)
 	}
 

@@ -569,7 +569,7 @@ const trendChartRef = ref<HTMLElement>()
 const dataTypeChartRef = ref<HTMLElement>()
 const projectChartRef = ref<HTMLElement>()
 
-// 每日上传统计日期范围
+// 每日上传统计日期范围（独立控制）
 const trendTimeKey = ref('today')
 const trendCustomRange = ref<[string, string] | null>(null)
 const showTrendCustom = ref(false)
@@ -593,7 +593,6 @@ const getTrendDateRange = (): [string, string] => {
 const loadTrendData = async () => {
   try {
     const params: Record<string, any> = {}
-    // 趋势图使用自身的日期范围（与 filter drawer 解耦）
     if (trendCustomRange.value?.length === 2) {
       params.startDate = trendCustomRange.value[0]
       params.endDate = trendCustomRange.value[1]
@@ -610,7 +609,6 @@ const loadTrendData = async () => {
     updateAllCharts()
   } catch (error) { console.error('Failed to load trend data:', error) }
 }
-
 const setTrendTime = (key: string) => {
   trendTimeKey.value = key
   showTrendCustom.value = false
@@ -619,7 +617,7 @@ const setTrendTime = (key: string) => {
 }
 const handleTrendCustomChange = (val: any) => { if (val) { trendTimeKey.value = 'custom'; trendCustomRange.value = val; loadTrendData() } }
 
-// 磁盘标签状态面板
+// 磁盘标签状态面板（独立时间控制）
 const diskLabels = ref<{ diskLabel: string; count: number; status: 'completed' | 'failed' | 'mixed' | 'pending' }[]>([])
 const diskLabelsLoading = ref(false)
 const diskTimeKey = ref('today')
@@ -842,7 +840,7 @@ const handleResize = () => { trendChart?.resize(); dataTypeChart?.resize(); proj
 
 const loadStatistics = async () => {
   try {
-    // 顶部卡片展示全局汇总，不带任何筛选条件
+    // 1. 顶部卡片展示全局汇总（不带筛选条件）
     const res = await UploadRecordApi.statistics()
     const data = res.data || {}
 
@@ -859,10 +857,7 @@ const loadStatistics = async () => {
     statistics.totalCount = data.totalCount ?? 0
     statistics.totalSize = data.totalSize ?? 0
     statistics.totalSizeStr = data.totalSizeStr ?? '0 B'
-    statistics.trend = data.trend || []
     statistics.byStatus = data.byStatus || []
-    statistics.byDiskLabel = data.byDiskLabel || []
-    statistics.byProject = data.byProject || []
 
     const trend = data.trend || []
     if (trend.length >= 2) {
@@ -873,6 +868,25 @@ const loadStatistics = async () => {
       const pct = Math.round((Math.abs(diff) / base) * 100)
       todayTrend.value = diff >= 0 ? pct : -pct
     }
+
+    // 2. 项目分布、磁盘标签分布跟随页面整体筛选
+    const params: Record<string, any> = {}
+    if (dateRange.value?.length === 2) {
+      params.startDate = dateRange.value[0]
+      params.endDate = dateRange.value[1]
+    } else if (dateRange.value?.length === 1) {
+      params.startDate = dateRange.value[0]
+    }
+    if (searchProjectName.value) params.projectName = searchProjectName.value
+    if (searchDiskLabel.value) params.diskLabel = searchDiskLabel.value
+    if (searchStatus.value) params.status = searchStatus.value
+    if (searchUploader.value) params.uploader = searchUploader.value
+
+    const chartRes = await UploadRecordApi.statistics(params)
+    const chartData = chartRes.data || {}
+    statistics.trend = chartData.trend || []
+    statistics.byDiskLabel = chartData.byDiskLabel || []
+    statistics.byProject = chartData.byProject || []
 
     updateAllCharts()
   } catch (error) { console.error('Failed to load statistics:', error) }
