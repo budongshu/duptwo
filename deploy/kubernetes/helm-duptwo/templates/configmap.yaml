@@ -1,26 +1,31 @@
 {{- /*
-ConfigMap for duptwo application
+ConfigMap for duptwo - MySQL version (使用云 PaaS MySQL)
 */ -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "duptwo.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "duptwo.labels" . | nindent 4 }}
 data:
   app.yaml: |
     base:
       mode: prod
-      port: 18421
-      version: {{ .Chart.AppVersion }}
+      port: {{ .Values.service.port }}
+      version: {{ .Values.image.tag }}
       language: zh
       install_dir: ./data
       serve_web: true
       web_root: ./web
 
     database:
-      type: sqlite
-      path: ./data/registry.db
+      type: mysql
+      host: ${MYSQL_HOST}
+      port: ${MYSQL_PORT}
+      user: ${MYSQL_USER}
+      pass: ${MYSQL_PASSWORD}
+      name: ${MYSQL_DATABASE}
       max_idle_conns: 10
       max_open_conns: 100
       conn_max_lifetime: 3600
@@ -34,13 +39,12 @@ data:
 
     session:
       timeout: 86400
-      secret: "{{ .Values.secret.sessionSecret }}"
+      secret: ${SESSION_SECRET}
 
     cors:
       allow_origins:
         - "http://localhost"
         - "http://localhost:8080"
-        - "http://localhost:18421"
         - "http://{{ .Values.ingress.host }}"
         - "https://{{ .Values.ingress.host }}"
       allow_methods:
@@ -60,4 +64,4 @@ data:
       max_age: 86400
 
     jwt:
-      secret: "{{ .Values.secret.jwtSecret }}"
+      secret: ${JWT_SECRET}

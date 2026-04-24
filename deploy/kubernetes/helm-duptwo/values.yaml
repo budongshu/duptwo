@@ -1,5 +1,5 @@
-# Default values for duptwo
-# 可通过 helm upgrade --install 时覆盖
+# Default values for duptwo - MySQL 生产版
+# 使用云 PaaS MySQL
 
 replicaCount: 2
 
@@ -27,11 +27,21 @@ ingress:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     nginx.ingress.kubernetes.io/proxy-body-size: "500m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
 
-# PVC 配置
+# MySQL 云 PaaS 配置（必填）
+mysql:
+  externalHost: ""  # 例如: rm-xxxxx.mysql.rds.aliyuncs.com
+  externalPort: 3306
+  database: duptwo
+  username: duptwo
+  password: ""  # 通过 --set 传入
+
+# PVC 配置（MySQL 模式下可禁用）
 persistence:
-  enabled: true
-  storageClass: ""  # 空表示使用默认 StorageClass，或指定 "nfs-csi"
+  enabled: false
+  storageClass: ""
   size: 10Gi
 
 # 资源配置
@@ -59,9 +69,7 @@ readinessProbe:
   initialDelaySeconds: 5
   periodSeconds: 10
 
-# 敏感配置（通过 --set 传入或使用 Secret）
+# 敏感配置（通过 --set 传入）
 secret:
   sessionSecret: "REPLACE_WITH_SESSION_SECRET_32CHARS"
   jwtSecret: "REPLACE_WITH_JWT_SECRET_32CHARS"
-  # 或使用已有的 Secret
-  existingSecret: ""

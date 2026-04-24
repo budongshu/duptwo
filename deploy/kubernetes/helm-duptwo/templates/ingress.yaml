@@ -1,21 +1,25 @@
 {{- /*
 Ingress for duptwo
 */ -}}
-{{- if .Values.ingress.enabled }}
+{{- if .Values.ingress.enabled -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ include "duptwo.fullname" . }}-ingress
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "duptwo.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
   annotations:
-    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
     - host: {{ .Values.ingress.host }}
       http:
         paths:
+          # Swagger API 文档
           - path: /swagger
             pathType: Prefix
             backend:
@@ -23,6 +27,7 @@ spec:
                 name: {{ include "duptwo.fullname" . }}-svc
                 port:
                   number: {{ .Values.service.port }}
+          # API 接口
           - path: /api
             pathType: Prefix
             backend:
@@ -30,6 +35,7 @@ spec:
                 name: {{ include "duptwo.fullname" . }}-svc
                 port:
                   number: {{ .Values.service.port }}
+          # 公开接口
           - path: /public
             pathType: Prefix
             backend:
@@ -37,6 +43,7 @@ spec:
                 name: {{ include "duptwo.fullname" . }}-svc
                 port:
                   number: {{ .Values.service.port }}
+          # 前端静态文件（必须最后匹配）
           - path: /
             pathType: Prefix
             backend:

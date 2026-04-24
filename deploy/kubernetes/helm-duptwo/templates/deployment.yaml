@@ -1,10 +1,11 @@
 {{- /*
-Deployment for duptwo
+Deployment for duptwo - MySQL version (使用云 PaaS MySQL)
 */ -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "duptwo.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "duptwo.labels" . | nindent 4 }}
 spec:
@@ -28,28 +29,6 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
-      # 初始化容器：修复数据目录权限
-      initContainers:
-        - name: fix-permissions
-          image: busybox:latest
-          command: ['sh', '-c', 'chown -R 1000:1000 /app/data /app/logs 2>/dev/null || true']
-          volumeMounts:
-            - name: data
-              mountPath: /app/data
-            - name: logs
-              mountPath: /app/logs
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchExpressions:
-                    - key: app
-                      operator: In
-                      values:
-                        - {{ include "duptwo.fullname" . }}
-                topologyKey: kubernetes.io/hostname
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -61,9 +40,41 @@ spec:
           env:
             - name: TZ
               value: Asia/Shanghai
-          envFrom:
-            - secretRef:
-                name: {{ if .Values.secret.existingSecret }}{{ .Values.secret.existingSecret }}{{ else }}{{ include "duptwo.fullname" . }}-secret{{ end }}
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "duptwo.fullname" . }}-secret
+                  key: SESSION_SECRET
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "duptwo.fullname" . }}-secret
+                  key: JWT_SECRET
+            - name: MYSQL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "duptwo.fullname" . }}-secret
+                  key: MYSQL_HOST
+            - name: MYSQL_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "duptwo.fullname" . }}-secret
+                  key: MYSQL_PORT
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "duptwo.fullname" . }}-secret
+                  key: MYSQL_USER
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "duptwo.fullname" . }}-secret
+                  key: MYSQL_PASSWORD
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "duptwo.fullname" . }}-secret
+                  key: MYSQL_DATABASE
           volumeMounts:
             - name: config
               mountPath: /app/conf/app.yaml

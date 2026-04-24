@@ -1,20 +1,20 @@
 # ============================================================
-# duptwo Helm Chart - SQLite 版本
+# duptwo Helm Chart - MySQL 生产版
 # 适用于阿里云 ACK 环境
 # ============================================================
 
 apiVersion: v2
 name: duptwo
-description: duptwo 数据登记平台 (SQLite 版本)
+description: duptwo 数据登记平台 (MySQL 生产版)
 type: application
-version: 1.0.0
+version: 1.1.0
 appVersion: "v1.0.0"
 keywords:
   - data-management
-  - sqlite
+  - mysql
+  - production
   - gin
 home: https://github.com/budongshu/duptwo
 
-# 阿里云 ACK 兼容性
 annotations:
   category: Database
