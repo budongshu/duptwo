@@ -307,3 +307,27 @@ func (s *UserService) AdminEnableMFA(userID uint, code string) error {
 	user.MFAEnabled = true
 	return s.userRepo.Update(user)
 }
+
+// ListForExport 获取所有用户（用于导出）
+func (s *UserService) ListForExport(req dto.UserListReq) ([]model.User, error) {
+	users, _, err := s.userRepo.ListForExport(req)
+	return users, err
+}
+
+// GetRoleAndGroupMaps 获取角色和用户组的映射
+func (s *UserService) GetRoleAndGroupMaps() (roleMap map[uint]string, groupMap map[uint]string) {
+	roleMap = make(map[uint]string)
+	groupMap = make(map[uint]string)
+
+	roles, _ := s.roleRepo.GetAll()
+	for _, r := range roles {
+		roleMap[r.ID] = r.Name
+	}
+
+	groups, _ := s.groupRepo.GetAll()
+	for _, g := range groups {
+		groupMap[g.ID] = g.Name
+	}
+
+	return
+}

@@ -145,4 +145,24 @@ export namespace UserApi {
   export const adminEnableMFA = (data: AdminEnableMFAReq) => {
     return request.post<null>('/users/admin-enable-mfa', data)
   }
+
+  // 导出用户列表
+  export const exportExcel = (params?: { keyword?: string; status?: string }) => {
+    return request.get<Blob>('/users/export', params, { responseType: 'blob' })
+  }
+
+  // 获取导入模板
+  export const getImportTemplate = () => {
+    return request.get<{ fields: any[]; sheetName: string; title: string }>('/users/template')
+  }
+
+  // 导入用户
+  export const importUsers = (file: File, onProgress?: (pct: number) => void) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request.post<{ total: number; success: number; failed: number; failRows: any[] }>('/users/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (e) => { if (e.total) onProgress?.(Math.round((e.loaded * 100) / e.total)) },
+    })
+  }
 }

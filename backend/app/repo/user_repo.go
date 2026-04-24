@@ -95,3 +95,29 @@ func (r *UserRepo) UpdateLastLogin(id uint, ip string) error {
 		"last_login_ip": ip,
 	}).Error
 }
+
+// ListForExport 获取所有用户（用于导出）
+func (r *UserRepo) ListForExport(req dto.UserListReq) ([]model.User, int64, error) {
+	var users []model.User
+	var total int64
+
+	db := global.DB.Model(&model.User{}).Where("is_deleted = ?", false)
+
+	if req.Keyword != "" {
+		db = db.Where("username LIKE ? OR nickname LIKE ? OR email LIKE ?", "%"+req.Keyword+"%", "%"+req.Keyword+"%", "%"+req.Keyword+"%")
+	}
+
+	if req.Status != "" {
+		db = db.Where("status = ?", req.Status)
+	}
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if err := db.Order("id DESC").Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}

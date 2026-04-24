@@ -7,6 +7,14 @@
         <span class="page-subtitle">{{ t('user.list.subtitle') }}</span>
       </div>
       <div class="header-actions">
+        <el-button type="success" @click="handleExport" :loading="exporting">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          {{ t('common.export') }}
+        </el-button>
+        <el-button type="warning" @click="showImportDialog">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          {{ t('common.import') }}
+        </el-button>
         <el-button type="primary" @click="handleCreate">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           {{ t('user.list.create') }}
@@ -277,6 +285,82 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 导入对话框 -->
+    <el-dialog v-model="importDialogVisible" width="560px" destroy-on-close append-to-body class="import-dialog">
+      <div class="import-dlg-header">
+        <span class="import-dlg-title">批量导入用户</span>
+        <span class="import-dlg-sub">支持 xlsx 格式，可分批导入</span>
+      </div>
+
+      <div class="import-steps">
+        <span class="step-num" :class="{ active: importStep >= 1, done: importStep > 1 }">1</span>
+        <span class="step-line" :class="{ done: importStep > 1 }"></span>
+        <span class="step-num" :class="{ active: importStep >= 2, done: importStep > 2 }">2</span>
+        <span class="step-line" :class="{ done: importStep > 2 }"></span>
+        <span class="step-num" :class="{ active: importStep >= 3 }">3</span>
+      </div>
+
+      <!-- Step 1: 上传文件 -->
+      <div v-if="importStep === 1" class="step-content">
+        <div class="field-guide" v-if="importTemplateFields && importTemplateFields.length > 0">
+          <div class="fg-row" v-for="f in importTemplateFields" :key="f.code">
+            <span class="fg-name">{{ f.field }}</span>
+            <span class="fg-type">{{ f.required ? '必填' : '选填' }}</span>
+            <span class="fg-hint">{{ f.example ? `例: ${f.example}` : '' }}</span>
+          </div>
+        </div>
+        <div class="upload-area" @click="triggerFileInput">
+          <input ref="fileInputRef" type="file" accept=".xlsx,.xls" style="display:none" @change="handleFileChange" />
+          <div class="upload-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="upload-text">
+            <span class="upload-tip">点击选择文件或拖拽到此处</span>
+            <span class="upload-hint">支持 xlsx 格式</span>
+          </div>
+          <span v-if="selectedFile" class="selected-file">{{ selectedFile.name }}</span>
+        </div>
+        <div class="step-actions">
+          <el-button @click="importDialogVisible = false">{{ t('common.cancel') }}</el-button>
+          <el-button type="primary" :disabled="!selectedFile" :loading="importing" @click="startImport">{{ importing ? '导入中...' : '开始导入' }}</el-button>
+        </div>
+      </div>
+
+      <!-- Step 2: 导入中 / 结果 -->
+      <div class="step-content">
+        <!-- 导入中 -->
+        <div class="importing-state" v-if="importing">
+          <div class="progress-wrap">
+            <span class="progress-label">正在导入数据...</span>
+            <span class="progress-pct">{{ importProgress }}%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-bar__fill" :style="{ width: importProgress + '%' }"></div></div>
+        </div>
+        <!-- 导入结果 -->
+        <div class="import-result" v-if="!importing && importResult">
+          <div class="res-banner" :class="importResult && importResult.failed > 0 ? 'res-banner--warn' : 'res-banner--ok'">
+            <svg v-if="importResult && importResult.failed === 0" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg v-else-if="importResult" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <div class="res-text">
+              <span class="res-title">导入完成，共 {{ importResult?.total ?? 0 }} 条</span>
+              <span class="res-ok">成功 {{ importResult?.success ?? 0 }} 条</span>
+              <span v-if="importResult && importResult.failed > 0" class="res-fail">失败 {{ importResult.failed }} 条</span>
+            </div>
+          </div>
+          <div class="fail-list" v-if="!importing && importResult && importResult.failRows && importResult.failRows.length > 0">
+            <div class="fail-item" v-for="(f, idx) in importResult.failRows" :key="idx">
+              <span class="fail-row">第{{ f.row }}行</span>
+              <span class="fail-reason">{{ f.reason }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="step-actions" v-if="!importing">
+          <el-button v-if="importResult && importResult.success > 0" type="primary" @click="importDialogVisible = false; loadData()">{{ t('common.done') }}</el-button>
+          <el-button v-else @click="resetImport">{{ t('common.retry') }}</el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -393,6 +477,17 @@ const isPwdValid = (pwd: string) => {
 
 const roles = ref<any[]>([])
 const groups = ref<any[]>([])
+
+// 导入导出相关
+const exporting = ref(false)
+const importDialogVisible = ref(false)
+const importing = ref(false)
+const importProgress = ref(0)
+const importResult = ref<{ total: number; success: number; failed: number; failRows: { row: number; data: string; reason: string }[] } | null>(null)
+const importTemplateFields = ref<{ field: string; code: string; required: boolean; type: string; options?: string; maxLength?: number; example?: string }[]>([])
+const importStep = ref(1)
+const fileInputRef = ref()
+const selectedFile = ref<File | null>(null)
 
 const keyword = ref('')
 const status = ref('')
@@ -624,6 +719,70 @@ const handleAction = (key: string, row: User) => {
   if (key === 'edit') handleEdit(row)
   else if (key === 'delete') handleDelete(row)
   else if (key === 'resetPwd') handleResetPwd(row)
+}
+
+// 导出
+const handleExport = async () => {
+  exporting.value = true
+  try {
+    const blob = await UserApi.exportExcel({ keyword: keyword.value || undefined, status: status.value || undefined })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `用户列表_${new Date().getTime()}.xlsx`
+    link.click()
+    URL.revokeObjectURL(link.href)
+    ElMessage.success(t('common.exportSuccess'))
+  } catch (e: any) { ElMessage.error(e.message || t('common.exportError')) }
+  finally { exporting.value = false }
+}
+
+// 显示导入对话框
+const showImportDialog = async () => {
+  importDialogVisible.value = true
+  importResult.value = null
+  importing.value = false
+  importProgress.value = 0
+  importStep.value = 1
+  selectedFile.value = null
+  try {
+    const res = await UserApi.getImportTemplate()
+    importTemplateFields.value = res.data.fields || []
+  } catch { importTemplateFields.value = [] }
+}
+
+// 触发文件选择
+const triggerFileInput = () => fileInputRef.value?.click()
+
+// 选择文件
+const handleFileChange = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  selectedFile.value = target.files?.[0] || null
+}
+
+// 开始导入
+const startImport = async () => {
+  if (!selectedFile.value) return
+  importing.value = true
+  importProgress.value = 0
+  importResult.value = null
+  importStep.value = 2
+  try {
+    const res = await UserApi.importUsers(selectedFile.value, (pct) => { importProgress.value = pct })
+    importResult.value = res.data
+    importProgress.value = 100
+    if (res.data.failed === 0) ElMessage.success(`导入成功，共 ${res.data.success} 条`)
+    else ElMessage.warning(`部分导入成功 ${res.data.success} 条，失败 ${res.data.failed} 条`)
+    importStep.value = 3
+  } catch (e: any) { ElMessage.error(e.message || '导入失败'); importResult.value = { total: 0, success: 0, failed: 0, failRows: [] } }
+  finally { importing.value = false }
+}
+
+// 重置导入
+const resetImport = () => {
+  importStep.value = 1
+  importResult.value = null
+  selectedFile.value = null
+  if (fileInputRef.value) fileInputRef.value.value = ''
 }
 
 watch(() => pagination.page, () => loadData())
@@ -949,4 +1108,54 @@ export default { name: 'UserList' }
   .page-header { padding: var(--space-3) var(--space-4); }
   .filter-bar { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
 }
+
+/* ==================== 导入对话框 ==================== */
+.import-dlg-header { display: flex; flex-direction: column; gap: 2px; padding: 4px 0; }
+.import-dlg-title { font-size: 15px; font-weight: 700; color: #1c1917; }
+.import-dlg-sub { font-size: 12px; color: #78716c; }
+
+.import-steps { display: flex; align-items: center; justify-content: center; padding: 8px 0 20px; gap: 0; }
+.step-num { width: 28px; height: 28px; border-radius: 50%; background: #e5e7eb; color: #9ca3af; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
+.step-num.active { background: var(--color-primary); color: #fff; }
+.step-num.done { background: var(--color-success); color: #fff; }
+.step-line { flex: 1; height: 2px; background: #e5e7eb; max-width: 80px; transition: background 0.3s; }
+.step-line.done { background: var(--color-success); }
+
+.step-content { min-height: 200px; }
+
+.field-guide { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
+.fg-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.fg-name { color: #374151; font-weight: 600; min-width: 60px; }
+.fg-type { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: #fee2e2; color: #dc2626; }
+.fg-hint { color: #9ca3af; }
+
+.upload-area { border: 2px dashed #e5e7eb; border-radius: 12px; padding: 32px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: border-color 0.2s; &:hover { border-color: var(--color-primary); } }
+.upload-icon { color: #94a3b8; }
+.upload-text { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.upload-tip { font-size: 13px; color: #374151; font-weight: 500; }
+.upload-hint { font-size: 11px; color: #9ca3af; }
+.selected-file { font-size: 12px; color: var(--color-primary); font-weight: 600; }
+
+.step-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; border-top: 1px solid #f0f0f0; margin-top: 16px; }
+
+.importing-state { display: flex; flex-direction: column; gap: 10px; }
+.progress-wrap { display: flex; justify-content: space-between; font-size: 13px; }
+.progress-label { color: #374151; }
+.progress-pct { color: var(--color-primary); font-weight: 600; }
+.progress-bar { height: 6px; background: #f3f4f6; border-radius: 3px; overflow: hidden; }
+.progress-bar__fill { height: 100%; background: var(--color-primary); border-radius: 3px; transition: width 0.3s; }
+
+.import-result { display: flex; flex-direction: column; gap: 12px; }
+.res-banner { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 10px; }
+.res-banner--ok { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.res-banner--warn { background: #fffbeb; border: 1px solid #fde68a; }
+.res-text { display: flex; flex-direction: column; gap: 2px; }
+.res-title { font-size: 14px; font-weight: 600; color: #111827; }
+.res-ok { font-size: 12px; color: #16a34a; }
+.res-fail { font-size: 12px; color: #dc2626; }
+
+.fail-list { display: flex; flex-direction: column; gap: 6px; max-height: 150px; overflow-y: auto; }
+.fail-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fef2f2; border-radius: 6px; font-size: 12px; }
+.fail-row { color: #dc2626; font-weight: 600; }
+.fail-reason { color: #7f1d1d; }
 </style>
