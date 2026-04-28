@@ -32,34 +32,34 @@
           <span class="header-stat-label">总大小</span>
         </div>
         <el-button type="success" :loading="exporting" @click="showExportDialog">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
-          {{ t('uploadRecord.list.exportExcel') }}
+          导出
         </el-button>
         <el-button type="warning" @click="showImportDialog">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="17 8 12 3 7 8"/>
             <line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
-          {{ t('uploadRecord.list.batchImport') }}
+          导入
         </el-button>
         <el-button type="primary" @click="handleCreate">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px">
             <line x1="12" y1="5" x2="12" y2="19"/>
             <line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          {{ t('uploadRecord.list.createRecord') }}
+          创建
         </el-button>
         <el-button @click="loadRecords">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px">
             <path d="M23 4v6h-6M1 20v-6h6"/>
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
           </svg>
-          {{ t('uploadRecord.list.refresh') }}
+          刷新
         </el-button>
       </div>
     </header>
@@ -457,51 +457,53 @@
 
     <!-- 筛选栏 -->
     <div class="filter-card">
-      <!-- 磁盘标签 -->
-      <el-input v-model="searchDiskLabel" :placeholder="t('uploadRecord.list.searchDiskLabel')" clearable size="default" />
-
-      <!-- 项目名称 -->
-      <el-select v-model="searchProjectName" :placeholder="t('uploadRecord.list.searchProjectName')" clearable size="default" filterable>
-        <el-option v-for="p in projectList" :key="p.id" :label="p.name" :value="p.name" />
+      <el-select v-model="searchField" class="fs-field" placeholder="全部">
+        <el-option label="全部" value="" />
+        <el-option label="流水号" value="serialNo" />
+        <el-option label="磁盘标签" value="diskLabel" />
+        <el-option label="项目" value="projectName" />
+        <el-option label="路径" value="destPath" />
+        <el-option label="上传人" value="uploader" />
+        <el-option label="状态" value="status" />
+        <el-option label="备注" value="remark" />
+        <el-option v-for="col in dynamicColumns" :key="col.code" :label="col.name" :value="col.code" />
       </el-select>
 
-      <!-- 状态 -->
-      <el-select v-model="searchStatus" :placeholder="t('uploadRecord.list.searchStatus')" clearable size="default">
-        <el-option :label="t('status.pending')" value="pending" />
-        <el-option :label="t('status.processing')" value="processing" />
-        <el-option :label="t('status.completed')" value="completed" />
-        <el-option :label="t('status.failed')" value="failed" />
+      <el-select v-if="searchField === 'status'" v-model="searchKeyword" class="fs-input" placeholder="状态" clearable @keyup.enter="handleSearch" @clear="handleReset">
+        <el-option label="待处理" value="pending" />
+        <el-option label="处理中" value="processing" />
+        <el-option label="已完成" value="completed" />
+        <el-option label="失败" value="failed" />
       </el-select>
 
-      <!-- 上传人 -->
-      <el-input v-model="searchUploader" :placeholder="t('uploadRecord.list.searchUploader')" clearable size="default" />
+      <el-select v-else-if="getDynamicFieldType(searchField) === 'select'" v-model="searchKeyword" class="fs-input" :placeholder="searchPlaceholder" clearable @keyup.enter="handleSearch" @clear="handleReset">
+        <el-option v-for="opt in getDynamicFieldOptions(searchField)" :key="opt" :label="opt" :value="opt" />
+      </el-select>
 
-      <!-- 日期范围 -->
-      <el-date-picker
-        v-model="searchDateRange"
-        type="daterange"
-        :range-separator="t('common.to')"
-        :start-placeholder="t('common.startDate')"
-        :end-placeholder="t('common.endDate')"
-        value-format="YYYY-MM-DD"
-        size="default"
+      <el-date-picker v-else-if="getDynamicFieldType(searchField) === 'date'" v-model="searchDateRange" type="daterange" class="fs-date" value-format="YYYY-MM-DD" @change="handleSearch" />
+
+      <el-input
+        v-else
+        v-model="searchKeyword"
+        :placeholder="searchPlaceholder"
+        class="fs-input"
+        clearable
+        :class="{ 'kw-hl': searchActive }"
+        @keyup.enter="handleSearch"
+        @clear="handleReset"
       />
 
-      <!-- 关键词 -->
-      <el-input v-model="searchKeyword" :placeholder="t('uploadRecord.list.searchKeywordPlaceholder')" clearable size="default">
-        <template #prefix>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/>
-            <path d="M21 21l-4.35-4.35"/>
-          </svg>
-        </template>
-      </el-input>
-
-      <!-- 操作按钮 -->
-      <div class="filter-actions">
-        <el-button type="primary" @click="handleSearch">{{ t('uploadRecord.list.query') }}</el-button>
-        <el-button @click="handleReset">{{ t('uploadRecord.list.reset') }}</el-button>
+      <div class="fs-date-range">
+        <el-date-picker
+          v-model="searchDateRange"
+          type="daterange"
+          value-format="YYYY-MM-DD"
+          @change="handleSearch"
+        />
       </div>
+
+      <el-button type="primary" @click="handleSearch" class="fs-btn">搜索</el-button>
+      <el-button @click="handleReset" text>重置</el-button>
     </div>
 
     <!-- 表格 -->
@@ -595,6 +597,18 @@
                     {{ col.label }}
                   </el-checkbox>
                 </div>
+                <div
+                  v-for="col in allDynamicColumns"
+                  :key="col.prop"
+                  class="settings-item"
+                >
+                  <el-checkbox
+                    v-model="col.visible"
+                    @change="handleColumnToggle"
+                  >
+                    {{ col.label }}
+                  </el-checkbox>
+                </div>
               </div>
               <div class="settings-footer">
                 <span class="settings-hint">{{ t('uploadRecord.list.columnHint') }}</span>
@@ -615,14 +629,17 @@
           size="small"
           :row-class-name="tableRowClassName"
           @selection-change="handleSelectionChange"
+          @sort-change="handleSortChange"
         >
         <el-table-column type="selection" width="45" fixed="left" />
-        <el-table-column v-if="isColumnVisible('serialNo')" prop="serialNo" :label="t('uploadRecord.list.colSerialNo')" min-width="120" show-overflow-tooltip>
+        <el-table-column v-if="isColumnVisible('serialNo')" prop="serialNo" :label="t('uploadRecord.list.colSerialNo')" min-width="120">
           <template #default="{ row }">
             <span class="serial-cell">
-              <span>{{ row.serialNo }}</span>
+              <el-tooltip :content="row.serialNo" placement="top">
+                <span class="serial-text">{{ row.serialNo }}</span>
+              </el-tooltip>
               <el-tooltip :content="t('uploadRecord.list.copySerialNo') || '复制流水号'" placement="top">
-                <button class="copy-btn copy-btn--sm" @click.stop="copyPath(row.serialNo)">
+                <button class="copy-btn copy-btn--sm serial-copy" @click.stop="copyPath(row.serialNo)">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -632,12 +649,14 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column v-if="isColumnVisible('diskLabel')" prop="diskLabel" :label="t('uploadRecord.list.colDiskLabel')" min-width="100" align="center">
+        <el-table-column v-if="isColumnVisible('diskLabel')" prop="diskLabel" :label="t('uploadRecord.list.colDiskLabel')" min-width="100" align="center" sortable="custom">
           <template #default="{ row }">
             <span class="disk-cell">
-              <span class="type-tag">{{ row.diskLabel }}</span>
+              <el-tooltip :content="row.diskLabel" placement="top">
+                <span class="disk-text">{{ row.diskLabel }}</span>
+              </el-tooltip>
               <el-tooltip :content="t('uploadRecord.list.copyDiskLabel') || '复制磁盘标签'" placement="top">
-                <button class="copy-btn copy-btn--sm" @click.stop="copyPath(row.diskLabel)">
+                <button class="copy-btn copy-btn--sm disk-copy" @click.stop="copyPath(row.diskLabel)">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -647,7 +666,7 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column v-if="isColumnVisible('projectName')" prop="projectName" :label="t('uploadRecord.list.colProjectName')" min-width="110" show-overflow-tooltip />
+        <el-table-column v-if="isColumnVisible('projectName')" prop="projectName" :label="t('uploadRecord.list.colProjectName')" min-width="110" show-overflow-tooltip sortable="custom" />
         <!-- 动态字段列 -->
         <el-table-column
           v-for="col in visibleDynamicColumns"
@@ -657,6 +676,7 @@
           min-width="100"
           align="center"
           show-overflow-tooltip
+          sortable="custom"
         >
           <template #default="{ row }">
             <span class="dynamic-field">{{ row.data?.[col.code] ?? '-' }}</span>
@@ -681,9 +701,13 @@
             <span v-else class="no-data">-</span>
           </template>
         </el-table-column>
-        <el-table-column v-if="isColumnVisible('fileSize')" prop="fileSizeStr" :label="t('uploadRecord.list.colFileSize')" min-width="90" align="center" />
+        <el-table-column v-if="isColumnVisible('fileSize')" prop="fileSize" :label="t('uploadRecord.list.colFileSize')" min-width="90" align="center" sortable="custom">
+          <template #default="{ row }">
+            <span>{{ formatBytes(row.fileSize) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column v-if="isColumnVisible('uploader')" prop="uploader" :label="t('uploadRecord.list.colUploader')" min-width="80" align="center" />
-        <el-table-column v-if="isColumnVisible('status')" prop="status" :label="t('uploadRecord.list.colStatus')" min-width="70" align="center">
+        <el-table-column v-if="isColumnVisible('status')" prop="status" :label="t('uploadRecord.list.colStatus')" min-width="70" align="center" sortable="custom">
           <template #default="{ row }">
             <span class="status-badge" :class="getStatusClass(row.status)">
               {{ row.statusText }}
@@ -691,7 +715,7 @@
           </template>
         </el-table-column>
         <el-table-column v-if="isColumnVisible('remark')" prop="remark" :label="t('uploadRecord.list.colRemark')" min-width="100" show-overflow-tooltip />
-        <el-table-column v-if="isColumnVisible('createdAt')" prop="createdAt" :label="t('uploadRecord.list.colTime')" min-width="160" />
+        <el-table-column v-if="isColumnVisible('createdAt')" prop="createdAt" :label="t('uploadRecord.list.colTime')" min-width="160" sortable="custom" />
         <el-table-column :label="t('uploadRecord.list.colActions')" width="110" fixed="right" align="center">
           <template #default="{ row }">
             <TableActions :actions="[
@@ -785,7 +809,7 @@
 
         <div class="detail-row">
           <span class="detail-row__label">文件大小</span>
-          <span class="detail-row__text">{{ currentRecord.fileSizeStr }}</span>
+          <span class="detail-row__text">{{ formatBytes(currentRecord.fileSize) }}</span>
         </div>
 
         <div class="detail-row">
@@ -1047,9 +1071,17 @@ const loadColumnSettings = () => {
   if (saved) {
     try {
       const savedConfig = JSON.parse(saved)
+      // 恢复固定列设置
       allColumns.value.forEach(col => {
         const savedCol = savedConfig.find((c: ColumnConfig) => c.prop === col.prop)
         if (savedCol && !col.required) {
+          col.visible = savedCol.visible
+        }
+      })
+      // 恢复动态列设置
+      allDynamicColumns.value.forEach(col => {
+        const savedCol = savedConfig.find((c: ColumnConfig) => c.prop === col.prop)
+        if (savedCol) {
           col.visible = savedCol.visible
         }
       })
@@ -1060,12 +1092,20 @@ const loadColumnSettings = () => {
 }
 
 const saveColumnSettings = () => {
-  const config = allColumns.value.map(col => ({
-    prop: col.prop,
-    label: col.label,
-    visible: col.visible,
-    required: col.required
-  }))
+  const config = [
+    ...allColumns.value.map(col => ({
+      prop: col.prop,
+      label: col.label,
+      visible: col.visible,
+      required: col.required
+    })),
+    ...allDynamicColumns.value.map(col => ({
+      prop: col.prop,
+      label: col.label,
+      visible: col.visible,
+      required: false
+    }))
+  ]
   localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
 }
 
@@ -1078,6 +1118,9 @@ const handleResetColumns = () => {
     if (!col.required) {
       col.visible = false
     }
+  })
+  allDynamicColumns.value.forEach(col => {
+    col.visible = true
   })
   saveColumnSettings()
   ElMessage.success(t('uploadRecord.list.resetColumnSuccess'))
@@ -1127,6 +1170,9 @@ const importResult = ref<ImportResultResp | null>(null)
 const previewRowCount = ref<number | null>(null)
 const previewLoading = ref(false)
 
+// 搜索激活状态
+const searchActive = ref(false)
+
 // options 字段是逗号分隔字符串，需要解析后展示
 const getOptionsArr = (opts: string | undefined) => {
   if (!opts) return []
@@ -1137,16 +1183,32 @@ const searchStatus = ref('')
 const searchUploader = ref('')
 const searchKeyword = ref('')
 const searchDateRange = ref<string[]>([])
+
+// 排序
+const sortField = ref('')
+const sortOrder = ref<'asc' | 'desc'>('')
+
 const tableData = ref<UploadRecord[]>([])
-const diskLabels = ref<string[]>([])
 const dynamicColumns = ref<FieldConfig[]>([])
 const projectList = ref<ProjectSimple[]>([])
 const personnelList = ref<Personnel[]>([])
 const searchProjectName = ref('')
+const searchField = ref('')
+const searchPlaceholder = computed(() => {
+  const map: Record<string, string> = {
+    serialNo: '搜索流水号',
+    diskLabel: '搜索磁盘标签',
+    projectName: '搜索项目名称',
+    destPath: '搜索目标路径',
+    uploader: '搜索上传人',
+    status: '搜索状态',
+    remark: '搜索备注'
+  }
+  return map[searchField.value] || t('uploadRecord.list.searchKeywordPlaceholder')
+})
 const detailVisible = ref(false)
 const editVisible = ref(false)
 const createVisible = ref(false)
-const createFormRef = ref()
 const currentRecord = ref<UploadRecord | null>(null)
 const tableRef = ref()
 
@@ -1174,18 +1236,30 @@ const statusCount = computed(() => {
   return s
 })
 const filterByStatus = (status: string) => {
-  searchStatus.value = searchStatus.value === status ? '' : status
+  if (searchStatus.value === status) {
+    searchStatus.value = ''
+  } else {
+    searchStatus.value = status
+    // Clear other filters to avoid conflicting filter conditions
+    searchDiskLabel.value = ''
+    searchUploader.value = ''
+    searchProjectName.value = ''
+    searchKeyword.value = ''
+    searchField.value = ''
+    searchDateRange.value = []
+    searchActive.value = false
+  }
   loadRecords()
 }
 const formatBytes = (bytes: number): string => {
   if (!bytes || bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
   const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i]
+  return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[Math.min(i, units.length - 1)]
 }
 
 // 文件大小工具
-const fileSizeUnit = ref('MB')
+const fileSizeUnit = ref('GB')
 const fileSizeInputVal = ref(0)
 
 const BYTE_UNITS: Record<string, number> = {
@@ -1206,7 +1280,7 @@ const syncFileSizeFromInput = () => {
 const initFileSizeFromBytes = (bytes: number) => {
   if (bytes === 0) {
     fileSizeInputVal.value = 0
-    fileSizeUnit.value = 'MB'
+    fileSizeUnit.value = 'GB'
     return
   }
   // 找到最合适的单位
@@ -1360,7 +1434,9 @@ const syncFilterToExport = () => {
     exportForm.status = searchStatus.value
     exportForm.uploader = searchUploader.value
     exportForm.dateRange = searchDateRange.value ? [...searchDateRange.value] : []
-    exportForm.keyword = searchKeyword.value
+    if (!searchField.value) {
+      exportForm.keyword = searchKeyword.value
+    }
   }
   refreshExportPreview()
 }
@@ -1523,16 +1599,24 @@ const loadPersonnel = async () => {
 const loadRecords = async () => {
   loading.value = true
   try {
-    const params = {
+    const params: Record<string, any> = {
       page: pagination.page,
       pageSize: pagination.pageSize,
+      startDate: searchDateRange.value?.[0] || undefined,
+      endDate: searchDateRange.value?.[1] || undefined,
+      sortField: sortField.value || undefined,
+      sortOrder: sortOrder.value || undefined,
       diskLabel: searchDiskLabel.value || undefined,
       status: searchStatus.value || undefined,
       uploader: searchUploader.value || undefined,
-      projectName: searchProjectName.value || undefined,
-      keyword: searchKeyword.value || undefined,
-      startDate: searchDateRange.value?.[0] || undefined,
-      endDate: searchDateRange.value?.[1] || undefined
+      projectName: searchProjectName.value || undefined
+    }
+    // 字段精确搜索：searchField 指定字段，keyword 填入对应字段
+    if (searchField.value && searchKeyword.value.trim()) {
+      ;(params as any)[searchField.value] = searchKeyword.value.trim()
+    } else if (!searchField.value && searchKeyword.value.trim()) {
+      // 未选字段时，keyword 搜索所有字段
+      ;(params as any).keyword = searchKeyword.value.trim()
     }
 
     const res = await UploadRecordApi.list(params)
@@ -1541,9 +1625,6 @@ const loadRecords = async () => {
 
     // 更新数据类型列表
     const stats = await UploadRecordApi.statistics()
-    if (stats.data.byDiskLabel) {
-      diskLabels.value = stats.data.byDiskLabel.map((d: { diskLabel: string }) => d.diskLabel)
-    }
   } catch (error) {
     console.error('Failed to load records:', error)
     ElMessage.error(t('uploadRecord.list.loadFailed'))
@@ -1553,17 +1634,41 @@ const loadRecords = async () => {
 }
 
 const handleSearch = () => {
+  if (searchKeyword.value.trim()) {
+    searchActive.value = true
+  }
   pagination.page = 1
   loadRecords()
 }
 
+const getDynamicFieldType = (fieldCode: string) => {
+  const col = dynamicColumns.value.find(c => c.code === fieldCode)
+  return col?.type || 'text'
+}
+
+const getDynamicFieldOptions = (fieldCode: string) => {
+  const col = dynamicColumns.value.find(c => c.code === fieldCode)
+  if (!col?.options) return []
+  return String(col.options).split(',').map(s => s.trim()).filter(Boolean)
+}
+
 const handleReset = () => {
-  searchDiskLabel.value = ''
+  searchActive.value = false
   searchStatus.value = ''
   searchUploader.value = ''
   searchProjectName.value = ''
   searchKeyword.value = ''
+  searchField.value = ''
   searchDateRange.value = []
+  sortField.value = ''
+  sortOrder.value = ''
+  pagination.page = 1
+  loadRecords()
+}
+
+const handleSortChange = ({ prop, order }: { prop: string; order: string }) => {
+  sortField.value = prop || ''
+  sortOrder.value = order === 'ascending' ? 'asc' : order === 'descending' ? 'desc' : ''
   pagination.page = 1
   loadRecords()
 }
@@ -1676,7 +1781,7 @@ const handleCreate = () => {
   createForm.createdAt = ''
   createForm.data = {}
   fileSizeInputVal.value = 0
-  fileSizeUnit.value = 'MB'
+  fileSizeUnit.value = 'GB'
   createForm.fileSize = 0
   createVisible.value = true
 }
@@ -1864,6 +1969,10 @@ const closeImportDialog = () => {
   importDialogVisible.value = false
   importingDone.value = false
   importProgress.value = 0
+  activeImportStep.value = 1
+  selectedFile.value = null
+  fileList.value = []
+  importResult.value = null
   if (importResult.value && importResult.value.success > 0) {
     loadRecords()
   }
@@ -1886,14 +1995,13 @@ onMounted(() => {
   min-height: 100vh;
   background: var(--color-page-bg);
   padding: var(--space-4);
-  overflow-x: auto;
 }
 
 /* ==================== 页面标题栏 ==================== */
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: var(--space-3);
   flex-wrap: wrap;
   gap: var(--space-3);
@@ -1954,46 +2062,44 @@ onMounted(() => {
 
 .header-actions {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-2);
 
   :deep(.el-button) {
     font-size: 13px;
     font-weight: 600;
     border-radius: var(--radius-sm);
-    padding: 8px 16px;
+    padding: 7px 14px;
+    white-space: nowrap;
   }
 }
 
 /* ==================== 筛选栏 ==================== */
 .filter-card {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
   align-items: center;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-3);
-  box-shadow: var(--shadow-xs);
-  border: 1px solid var(--color-border-light);
-
-  > * { flex: 0 0 auto; }
-  .el-input,
-  .el-select { width: 130px; }
-  .el-date-editor { width: 220px !important; }
+  gap: 10px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  border: 1px solid #ebeef5;
+  flex-wrap: wrap;
 }
 
-.filter-actions {
-  margin-left: auto;
-  display: flex;
-  gap: var(--space-2);
+.fs-field { width: 120px; }
+.fs-input { width: 240px; }
+.filter-card :deep(.fs-date) { width: 120px !important; }
+.fs-date-range { width: 260px; flex-shrink: 0; }
+.fs-date-range :deep(.el-date-editor) { width: 100% !important; }
+.fs-btn { font-size: 13px; }
 
-  :deep(.el-button) {
-    font-size: 13px;
-    font-weight: 600;
-    border-radius: var(--radius-sm);
-    padding: 6px 16px;
-  }
+/* 搜索后关键词高亮 */
+:deep(.kw-hl .el-input__inner) {
+  color: var(--color-primary) !important;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 }
 
 /* ==================== 内容卡片 ==================== */
@@ -2223,7 +2329,22 @@ onMounted(() => {
   }
 }
 
-.type-tag {
+.serial-text {
+  display: inline-block;
+  padding: 3px 10px;
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.disk-text {
   display: inline-block;
   padding: 3px 10px;
   background: var(--color-primary-light-9);
@@ -2231,7 +2352,45 @@ onMounted(() => {
   border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 600;
-  border: 1px solid rgba(0,94,235,0.12);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.disk-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  padding-right: 24px;
+  min-width: 0;
+}
+
+.serial-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  padding-right: 24px;
+  min-width: 0;
+}
+
+.serial-copy {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.disk-copy {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
 }
 
 .path-text {
@@ -2315,6 +2474,9 @@ onMounted(() => {
   border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 600;
+  background-clip: padding-box;
+
+  &::after { display: none !important; }
 
   &--success { background: rgba(34,197,94,0.1); color: var(--color-success); }
   &--warning { background: rgba(245,158,11,0.1); color: var(--color-warning); }
@@ -2332,53 +2494,12 @@ onMounted(() => {
 }
 
 /* ==================== 导出侧边栏 ==================== */
-.drawer-title-inner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.drawer-title-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  background: rgba(34, 197, 94, 0.1);
-  color: var(--color-success);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.drawer-title-text {
-  font-family: 'Manrope', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
 :deep(.export-drawer) {
   .el-drawer__header {
     padding: 14px 16px;
     margin-bottom: 0;
     border-bottom: 1px solid var(--color-border-light);
     background: var(--color-surface);
-  }
-
-  .el-drawer__body {
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-}
-
-:deep(.create-drawer) {
-  .el-drawer__header {
-    padding: 16px 20px;
-    margin-bottom: 0;
-    border-bottom: 1px solid #f0f0f0;
-    background: #ffffff;
   }
 
   .el-drawer__body {
@@ -3416,7 +3537,7 @@ onMounted(() => {
     width: 100%;
   }
 
-  :deep(.el-date-editor) {
+  .form-item--date :deep(.el-date-editor) {
     width: 100% !important;
 
     .el-input__wrapper {
@@ -3624,6 +3745,8 @@ onMounted(() => {
     border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
+
+    &::after { display: none !important; }
 
     &--pending { background: #fffbeb; color: #d97706; }
     &--processing { background: #eff6ff; color: #2563eb; }
@@ -4240,10 +4363,7 @@ onMounted(() => {
 @media (max-width: 1366px) {
   .page { padding: var(--space-3); }
   .page-header { padding: var(--space-3) var(--space-4); }
-  .filter-card { padding: var(--space-2) var(--space-3); gap: var(--space-2); margin-bottom: var(--space-2); }
-  .filter-card .el-input,
-  .filter-card .el-select { width: 120px; }
-  .filter-card .el-date-editor { width: 200px !important; }
+  .filter-card { padding: 8px 12px; }
 }
 
 /* ==================== 弹窗通用样式 ==================== */
