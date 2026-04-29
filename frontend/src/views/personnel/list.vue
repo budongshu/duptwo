@@ -41,86 +41,160 @@
       </div>
     </div>
 
-    <!-- 筛选栏 -->
-    <div class="filter-bar">
-      <div class="filter-bar__search">
-        <el-input
-          v-model="searchKeyword"
-          :placeholder="t('personnel.list.searchPlaceholder')"
-          clearable
-          @keyup.enter="handleSearch"
-          style="width: 260px"
-        >
-          <template #prefix>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </template>
-        </el-input>
+    <!-- 筛选工具栏 -->
+    <div class="toolbar">
+      <!-- 搜索框 -->
+      <div class="toolbar__search">
+        <div class="search-box">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input
+            v-model="searchKeyword"
+            class="search-input"
+            :placeholder="t('personnel.list.searchPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+          <span class="search-kbd">↵</span>
+        </div>
       </div>
-      <div class="filter-bar__selects">
-        <el-select v-model="searchStatus" :placeholder="t('common.status')" clearable style="width: 110px">
-          <el-option :label="t('common.enabled')" value="active" />
-          <el-option :label="t('common.disabled')" value="inactive" />
-        </el-select>
-        <el-select v-model="searchOnProject" :placeholder="t('personnel.list.onProjectStatus')" clearable style="width: 110px">
-          <el-option :label="t('personnel.list.onProject')" value="在项" />
-          <el-option :label="t('personnel.list.offProject')" value="离项" />
-        </el-select>
-        <el-select v-model="searchPosition" :placeholder="t('personnel.list.form.position')" clearable style="width: 130px" @change="handleSearch">
-          <el-option label="测试工程师" value="测试工程师" />
-          <el-option label="网络工程师" value="网络工程师" />
-          <el-option label="安全工程师" value="安全工程师" />
-          <el-option label="开发工程师" value="开发工程师" />
-          <el-option label="运维工程师" value="运维工程师" />
-          <el-option label="运营人员" value="运营人员" />
-          <el-option label="合规专家" value="合规专家" />
-          <el-option label="解决方案" value="解决方案" />
-          <el-option label="商务人员" value="商务人员" />
-          <el-option label="成本人员" value="成本人员" />
-          <el-option label="驻场人员" value="驻场人员" />
-          <el-option label="驻场人员-ODC" value="驻场人员-ODC" />
-          <el-option label="项目管理" value="项目管理" />
-          <el-option label="合规负责人" value="合规负责人" />
-          <el-option label="产品人员" value="产品人员" />
-          <el-option label="其他人员" value="其他人员" />
-        </el-select>
+
+      <!-- 激活筛选标签 -->
+      <div class="toolbar__chips" v-if="hasActiveFilters">
+        <span v-if="searchStatus" class="filter-chip">
+          {{ t('common.status') }}: {{ searchStatus === 'active' ? t('common.enabled') : t('common.disabled') }}
+          <button class="chip-remove" @click="searchStatus = ''; handleSearch()">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </span>
+        <span v-if="searchOnProject" class="filter-chip">
+          {{ t('personnel.list.onProjectStatus') }}: {{ searchOnProject }}
+          <button class="chip-remove" @click="searchOnProject = ''; handleSearch()">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </span>
+        <span v-if="searchPosition" class="filter-chip">
+          {{ t('personnel.list.form.position') }}: {{ searchPosition }}
+          <button class="chip-remove" @click="searchPosition = ''; handleSearch()">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </span>
+        <button class="chips-clear" @click="handleReset">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          {{ t('common.clear') }}
+        </button>
       </div>
-      <div class="filter-bar__actions">
-        <el-button type="primary" @click="handleSearch">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          {{ t('common.search') }}
-        </el-button>
-        <el-button @click="handleReset">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>
-          {{ t('common.reset') }}
-        </el-button>
-        <el-button v-if="selectedRows.length > 0" type="danger" plain @click="handleBatchDelete">
-          {{ t('common.batchDelete') }} ({{ selectedRows.length }})
-        </el-button>
-        <!-- 字段显示控制 -->
-        <el-popover placement="bottom-end" :width="220" trigger="click">
-          <template #reference>
-            <el-button>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="8" y2="18"/></svg>
-              字段
-            </el-button>
-          </template>
-          <div class="column-settings">
-            <div class="settings-header">
-              <span class="settings-title">字段显示</span>
-              <el-button type="primary" text size="small" @click="handleResetColumns">重置</el-button>
-            </div>
-            <div class="settings-list">
-              <div v-for="col in visibleColumns" :key="col.key" class="settings-item">
-                <el-checkbox v-model="col.visible" @change="saveColumnVisibility">
-                  {{ col.label }}
-                </el-checkbox>
+
+      <!-- 右侧操作 -->
+      <div class="toolbar__actions">
+        <!-- 筛选器 -->
+        <div class="filter-group">
+          <el-popover placement="bottom-start" :width="340" trigger="click" :hide-after="0" :show-after="0" popper-class="filter-panel-popover">
+            <template #reference>
+              <button class="action-btn action-btn--ghost" :class="{ 'is-active': hasActiveFilters }">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                {{ t('common.filter') }}
+                <span v-if="activeFilterCount > 0" class="filter-badge">{{ activeFilterCount }}</span>
+              </button>
+            </template>
+            <div class="filter-panel">
+              <div class="filter-panel__header">
+                <span class="fp-title">{{ t('common.filter') }}</span>
+                <button class="fp-reset" @click="handleReset">{{ t('common.reset') }}</button>
+              </div>
+              <div class="filter-panel__body">
+                <div class="fp-group">
+                  <label class="fp-label">{{ t('common.status') }}</label>
+                  <div class="fp-tags">
+                    <button class="fp-tag" :class="{ 'is-selected': searchStatus === 'active' }" @click="searchStatus = searchStatus === 'active' ? '' : 'active'; handleSearch()">
+                      {{ t('common.enabled') }}
+                    </button>
+                    <button class="fp-tag" :class="{ 'is-selected': searchStatus === 'inactive' }" @click="searchStatus = searchStatus === 'inactive' ? '' : 'inactive'; handleSearch()">
+                      {{ t('common.disabled') }}
+                    </button>
+                  </div>
+                </div>
+                <div class="fp-group">
+                  <label class="fp-label">{{ t('personnel.list.onProjectStatus') }}</label>
+                  <div class="fp-tags">
+                    <button class="fp-tag" :class="{ 'is-selected': searchOnProject === '在项' }" @click="searchOnProject = searchOnProject === '在项' ? '' : '在项'; handleSearch()">
+                      {{ t('personnel.list.onProject') }}
+                    </button>
+                    <button class="fp-tag" :class="{ 'is-selected': searchOnProject === '离项' }" @click="searchOnProject = searchOnProject === '离项' ? '' : '离项'; handleSearch()">
+                      {{ t('personnel.list.offProject') }}
+                    </button>
+                  </div>
+                </div>
+                <div class="fp-group">
+                  <label class="fp-label">{{ t('personnel.list.form.position') }}</label>
+                  <div class="fp-tags fp-tags--wrap">
+                    <button
+                      v-for="pos in allPositions"
+                      :key="pos"
+                      class="fp-tag"
+                      :class="{ 'is-selected': searchPosition === pos }"
+                      @click="searchPosition = searchPosition === pos ? '' : pos; handleSearch()"
+                    >{{ pos }}</button>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="settings-footer">
-              <span class="settings-hint">提示：拖拽表头可调整列顺序</span>
+          </el-popover>
+
+          <!-- 字段显示 -->
+          <el-popover placement="bottom-end" :width="240" trigger="click" :hide-after="0" :show-after="0" popper-class="col-panel-popover">
+            <template #reference>
+              <button class="action-btn action-btn--ghost">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="8" y2="18"/></svg>
+                {{ t('common.columns') }}
+              </button>
+            </template>
+            <div class="filter-panel">
+              <div class="filter-panel__header">
+                <span class="fp-title">{{ t('common.columns') }}</span>
+                <button class="fp-reset" @click="handleResetColumns">{{ t('common.reset') }}</button>
+              </div>
+              <div class="filter-panel__body">
+                <div v-for="col in visibleColumns" :key="col.key" class="col-toggle" :class="{ 'is-disabled': col.required }">
+                  <el-checkbox v-model="col.visible" :disabled="col.required" @change="saveColumnVisibility">
+                    {{ col.label }}
+                  </el-checkbox>
+                </div>
+              </div>
             </div>
-          </div>
-        </el-popover>
+          </el-popover>
+        </div>
+
+        <!-- 数据操作 -->
+        <el-dropdown trigger="click" @command="handleDataAction">
+          <button class="action-btn action-btn--ghost">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            {{ t('common.data') }}
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="export">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                {{ t('common.export') }}
+              </el-dropdown-item>
+              <el-dropdown-item command="import">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                {{ t('common.import') }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+
+        <!-- 批量删除 -->
+        <button v-if="selectedRows.length > 0" class="action-btn action-btn--danger" @click="handleBatchDelete">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          {{ t('common.batchDelete') }} ({{ selectedRows.length }})
+        </button>
+
+        <!-- 新建 -->
+        <button class="action-btn action-btn--primary" @click="handleCreate">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          {{ t('common.create') }}
+        </button>
       </div>
     </div>
 
@@ -721,6 +795,25 @@ const isColumnVisible = (key: string) => {
   return col ? col.visible : true
 }
 
+// 筛选相关
+const allPositions = ['测试工程师', '前端工程师', '算法工程师', 'DBA数据库', '网络工程师', '安全工程师', '开发工程师', '运维工程师', '运营人员', '合规专家', '解决方案', '商务人员', '成本人员', '驻场人员', '驻场人员-ODC', '项目管理', '合规负责人', '产品人员', '其他人员']
+
+const hasActiveFilters = computed(() => !!(searchKeyword.value || searchStatus.value || searchOnProject.value || searchPosition.value))
+
+const activeFilterCount = computed(() => {
+  let count = 0
+  if (searchStatus.value) count++
+  if (searchOnProject.value) count++
+  if (searchPosition.value) count++
+  return count
+})
+
+// 数据操作
+const handleDataAction = (cmd: string) => {
+  if (cmd === 'export') handleExport()
+  else if (cmd === 'import') showImportDialog()
+}
+
 // 监听字段变化，保存配置
 watch(visibleColumns, () => {
   saveColumnVisibility()
@@ -1220,21 +1313,322 @@ export default { name: 'PersonnelList' }
   margin: 0 4px;
 }
 
-/* ==================== 筛选栏 ==================== */
-.filter-bar {
+/* ==================== 工具栏 ==================== */
+.toolbar {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 10px;
   background: var(--color-surface);
   border-radius: var(--radius-lg);
-  padding: var(--space-3) var(--space-4);
+  padding: 12px 16px;
   box-shadow: var(--shadow-xs);
   border: 1px solid var(--color-border-light);
   flex-wrap: wrap;
+  min-height: 52px;
 
-  &__search { display: flex; align-items: center; gap: var(--space-2); }
-  &__selects { display: flex; align-items: center; gap: var(--space-2); }
-  &__actions { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+  &__search { display: flex; align-items: center; }
+
+  &__chips {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex: 1;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+}
+
+/* 搜索框 */
+.search-box {
+  display: flex;
+  align-items: center;
+  background: var(--gray-50);
+  border: 1.5px solid var(--gray-200);
+  border-radius: 8px;
+  padding: 0 10px;
+  height: 34px;
+  width: 260px;
+  transition: all 0.15s;
+  gap: 6px;
+
+  &:focus-within {
+    border-color: var(--color-primary);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(27, 58, 138, 0.08);
+  }
+
+  .search-icon { color: var(--gray-400); flex-shrink: 0; }
+}
+
+.search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  flex: 1;
+  font-family: inherit;
+
+  &::placeholder { color: var(--gray-400); }
+}
+
+.search-kbd {
+  font-size: 10px;
+  color: var(--gray-400);
+  background: var(--gray-100);
+  border: 1px solid var(--gray-200);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: 'Manrope', monospace;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+/* 筛选标签 Chip */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 10px;
+  background: var(--color-primary-light-9);
+  border: 1px solid rgba(27, 58, 138, 0.15);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--color-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  animation: chipIn 0.15s ease;
+}
+
+@keyframes chipIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.chip-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: rgba(27, 58, 138, 0.12);
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--color-primary);
+  padding: 0;
+  transition: background 0.12s;
+
+  &:hover { background: rgba(27, 58, 138, 0.25); }
+}
+
+.chips-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  color: var(--gray-500);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 20px;
+  font-family: inherit;
+  transition: all 0.12s;
+
+  &:hover { background: var(--gray-100); color: var(--color-text-primary); }
+}
+
+/* 操作按钮 */
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1.5px solid transparent;
+  font-family: inherit;
+  white-space: nowrap;
+
+  &--ghost {
+    background: transparent;
+    color: var(--color-text-secondary);
+    border-color: var(--gray-200);
+
+    &:hover {
+      background: var(--gray-50);
+      border-color: var(--gray-300);
+      color: var(--color-text-primary);
+    }
+
+    &.is-active {
+      background: var(--color-primary-light-9);
+      border-color: rgba(27, 58, 138, 0.25);
+      color: var(--color-primary);
+    }
+  }
+
+  &--primary {
+    background: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+
+    &:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
+    &:active { transform: scale(0.98); }
+  }
+
+  &--danger {
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+    border-color: rgba(153, 27, 27, 0.2);
+
+    &:hover { background: rgba(153, 27, 27, 0.12); }
+  }
+}
+
+.filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+/* 筛选面板 */
+.filter-panel {
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--gray-100);
+    margin-bottom: 10px;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 360px;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar { width: 4px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 2px; }
+  }
+}
+
+.fp-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.1px;
+}
+
+.fp-reset {
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 2px 6px;
+  border-radius: 4px;
+
+  &:hover { background: var(--color-primary-light-9); }
+}
+
+.fp-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fp-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fp-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &--wrap {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+.fp-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1.5px solid var(--gray-200);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: inherit;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: var(--gray-400);
+    color: var(--color-text-primary);
+  }
+
+  &.is-selected {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+  }
+}
+
+/* 字段显示面板 */
+.col-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  :deep(.el-checkbox) {
+    font-size: 13px;
+    color: var(--color-text-primary);
+  }
 }
 
 /* ==================== 内容卡片 ==================== */

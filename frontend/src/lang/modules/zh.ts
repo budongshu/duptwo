@@ -96,7 +96,11 @@ export default {
     done: '完成',
     required: '必填',
     optional: '选填',
-    back: '上一步'
+    back: '上一步',
+    filter: '筛选',
+    columns: '列',
+    data: '数据',
+    clear: '清除'
   },
   login: {
     title: '数据管理平台',
