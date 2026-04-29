@@ -477,7 +477,7 @@
       <div class="toolbar__actions">
         <!-- 筛选器 -->
         <div class="filter-group">
-          <el-popover placement="bottom-start" :width="360" trigger="click" :hide-after="0" :show-after="0" popper-class="filter-panel-popover">
+          <el-popover placement="bottom-start" :width="340" trigger="click" :hide-after="0" :show-after="0" popper-class="filter-panel-popover" @show="loadDiskLabelOptions">
             <template #reference>
               <button class="action-btn action-btn--ghost" :class="{ 'is-active': hasActiveFilters }">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -491,26 +491,78 @@
                 <button class="fp-reset" @click="handleReset">{{ t('common.reset') }}</button>
               </div>
               <div class="filter-panel__body">
+                <!-- 状态：紧凑标签行 -->
                 <div class="fp-group">
                   <label class="fp-label">{{ t('common.status') }}</label>
-                  <div class="fp-tags fp-tags--wrap">
+                  <div class="fp-tags fp-tags--row">
                     <button class="fp-tag" :class="{ 'is-selected': searchStatus === 'pending' }" @click="searchStatus = searchStatus === 'pending' ? '' : 'pending'; handleSearch()">{{ statusLabels['pending'] }}</button>
                     <button class="fp-tag" :class="{ 'is-selected': searchStatus === 'processing' }" @click="searchStatus = searchStatus === 'processing' ? '' : 'processing'; handleSearch()">{{ statusLabels['processing'] }}</button>
                     <button class="fp-tag" :class="{ 'is-selected': searchStatus === 'completed' }" @click="searchStatus = searchStatus === 'completed' ? '' : 'completed'; handleSearch()">{{ statusLabels['completed'] }}</button>
                     <button class="fp-tag" :class="{ 'is-selected': searchStatus === 'failed' }" @click="searchStatus = searchStatus === 'failed' ? '' : 'failed'; handleSearch()">{{ statusLabels['failed'] }}</button>
                   </div>
                 </div>
-                <div class="fp-group" v-if="diskLabelOptions && diskLabelOptions.length > 0">
+                <!-- 磁盘标签：搜索选择器（支持数千选项） -->
+                <div class="fp-group">
                   <label class="fp-label">{{ t('uploadRecord.list.diskLabel') }}</label>
-                  <div class="fp-tags fp-tags--wrap">
-                    <button v-for="d in diskLabelOptions" :key="d" class="fp-tag" :class="{ 'is-selected': searchDiskLabel === d }" @click="searchDiskLabel = searchDiskLabel === d ? '' : d; handleSearch()">{{ d }}</button>
-                  </div>
+                  <el-select
+                    v-model="searchDiskLabel"
+                    :placeholder="diskLabelLoading ? '加载中...' : '搜索磁盘标签'"
+                    filterable
+                    clearable
+                    :loading="diskLabelLoading"
+                    remote
+                    :remote-method="() => {}"
+                    style="width: 100%"
+                    size="small"
+                    @change="handleSearch"
+                  >
+                    <el-option
+                      v-for="d in diskLabelOptions"
+                      :key="d"
+                      :label="d"
+                      :value="d"
+                    />
+                  </el-select>
                 </div>
-                <div class="fp-group" v-if="projectNameOptions && projectNameOptions.length > 0">
+                <!-- 项目名称：搜索选择器 -->
+                <div class="fp-group">
                   <label class="fp-label">{{ t('uploadRecord.list.project') }}</label>
-                  <div class="fp-tags fp-tags--wrap">
-                    <button v-for="p in projectNameOptions" :key="p" class="fp-tag" :class="{ 'is-selected': searchProjectName === p }" @click="searchProjectName = searchProjectName === p ? '' : p; handleSearch()">{{ p }}</button>
-                  </div>
+                  <el-select
+                    v-model="searchProjectName"
+                    placeholder="搜索项目名称"
+                    filterable
+                    clearable
+                    style="width: 100%"
+                    size="small"
+                    @change="handleSearch"
+                  >
+                    <el-option
+                      v-for="p in projectNameOptions"
+                      :key="p"
+                      :label="p"
+                      :value="p"
+                    />
+                  </el-select>
+                </div>
+                <!-- 上传人：搜索选择器 -->
+                <div class="fp-group">
+                  <label class="fp-label">{{ t('uploadRecord.list.uploader') }}</label>
+                  <el-select
+                    v-model="searchUploader"
+                    placeholder="搜索上传人"
+                    filterable
+                    clearable
+                    style="width: 100%"
+                    size="small"
+                    @change="handleSearch"
+                  >
+                    <el-option
+                      v-for="u in uploaderOptions"
+                      :key="u"
+                      :label="u"
+                      :value="u"
+                    />
+                  </el-select>
                 </div>
               </div>
             </div>
@@ -1164,6 +1216,26 @@ const searchStatus = ref('')
 const searchUploader = ref('')
 const searchKeyword = ref('')
 const searchDateRange = ref<string[]>([])
+const diskLabelAllOptions = ref<string[]>([])
+const diskLabelLoading = ref(false)
+
+// 磁盘标签：API 加载，支持数千个选项
+const loadDiskLabelOptions = async () => {
+  if (diskLabelAllOptions.value.length > 0) return
+  diskLabelLoading.value = true
+  try {
+    const res = await UploadRecordApi.diskLabels()
+    diskLabelAllOptions.value = (res.data || []).map((d: any) => d.diskLabel).filter(Boolean)
+  } catch { /* ignore */ } finally { diskLabelLoading.value = false }
+}
+
+const diskLabelOptions = computed(() => diskLabelAllOptions.value)
+
+// project 选项：来自已加载的项目列表
+const projectNameOptions = computed(() => projectList.value.map(p => p.name))
+
+// uploader 选项：来自已加载的人员列表
+const uploaderOptions = computed(() => personnelList.value.map(p => p.name).filter(Boolean))
 
 // 筛选相关
 const statusLabels: Record<string, string> = {
@@ -1172,18 +1244,6 @@ const statusLabels: Record<string, string> = {
   completed: '已完成',
   failed: '失败'
 }
-
-const diskLabelOptions = computed(() => {
-  const labels = new Set<string>()
-  tableData.value.forEach(r => { if (r.diskLabel) labels.add(r.diskLabel) })
-  return Array.from(labels).slice(0, 20)
-})
-
-const projectNameOptions = computed(() => {
-  const names = new Set<string>()
-  tableData.value.forEach(r => { if (r.projectName) names.add(r.projectName) })
-  return Array.from(names).slice(0, 20)
-})
 
 const hasActiveFilters = computed(() => !!(searchStatus.value || searchDiskLabel.value || searchProjectName.value || searchUploader.value || searchKeyword.value))
 const activeFilterCount = computed(() => {
@@ -1675,8 +1735,9 @@ const getDynamicFieldOptions = (fieldCode: string) => {
 const handleReset = () => {
   searchActive.value = false
   searchStatus.value = ''
-  searchUploader.value = ''
+  searchDiskLabel.value = ''
   searchProjectName.value = ''
+  searchUploader.value = ''
   searchKeyword.value = ''
   searchField.value = ''
   searchDateRange.value = []
@@ -2306,11 +2367,30 @@ onMounted(() => {
 .fp-group { display: flex; flex-direction: column; gap: 6px; }
 .fp-label { font-size: 11px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; }
 
+// el-select 在筛选面板中的样式
+.filter-panel__body {
+  :deep(.el-select) {
+    .el-select__wrapper {
+      min-height: 30px;
+      border-radius: 6px;
+      border-color: var(--gray-200);
+      box-shadow: none !important;
+      background: var(--gray-50);
+      &:hover { border-color: var(--gray-300); }
+      &.is-focus, &.is-focused { border-color: var(--color-primary); background: #fff; box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.12) !important; }
+    }
+    .el-select__placeholder { font-size: 12px; color: var(--gray-400); }
+    .el-select__input { font-size: 12px; }
+    .el-select__tags { display: none; }
+  }
+}
+
 .fp-tags {
   display: flex;
   flex-direction: column;
   gap: 4px;
   &--wrap { flex-direction: row; flex-wrap: wrap; }
+  &--row { flex-direction: row; gap: 4px; }
 }
 
 .fp-tag {
