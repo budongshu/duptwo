@@ -395,6 +395,9 @@
             <el-form-item :label="t('personnel.list.form.position')" prop="position">
               <el-select v-model="form.position" :placeholder="t('personnel.list.form.positionPlaceholder')" style="width: 100%" clearable>
                 <el-option label="测试工程师" value="测试工程师" />
+                <el-option label="前端工程师" value="前端工程师" />
+                <el-option label="算法工程师" value="算法工程师" />
+                <el-option label="DBA数据库" value="DBA数据库" />
                 <el-option label="网络工程师" value="网络工程师" />
                 <el-option label="安全工程师" value="安全工程师" />
                 <el-option label="开发工程师" value="开发工程师" />
@@ -769,6 +772,9 @@ const formatDateTime = (timeStr: string) => {
 // 职位颜色配置（浅色主题，实色背景 + 顶部彩边）
 const positionColors: Record<string, { bg: string; border: string; text: string; label: string }> = {
   '测试工程师':    { bg: '#eff6ff', border: '#3b82f6', text: '#1d4ed8', label: '#3b82f6' },
+  '前端工程师':    { bg: '#f0fdf4', border: '#22c55e', text: '#15803d', label: '#22c55e' },
+  '算法工程师':    { bg: '#fdf4ff', border: '#a855f7', text: '#7e22ce', label: '#a855f7' },
+  'DBA数据库':    { bg: '#fff7ed', border: '#f97316', text: '#c2410c', label: '#f97316' },
   '网络工程师':    { bg: '#ecfeff', border: '#06b6d4', text: '#0e7490', label: '#06b6d4' },
   '安全工程师':    { bg: '#f5f3ff', border: '#a855f7', text: '#7e22ce', label: '#a855f7' },
   '开发工程师':    { bg: '#fefce8', border: '#ca8a04', text: '#a16207', label: '#ca8a04' },
@@ -788,7 +794,7 @@ const positionColors: Record<string, { bg: string; border: string; text: string;
 
 // 职位统计（基于所有数据，不受分页影响）
 const positionStats = computed(() => {
-  const positions = ['测试工程师', '网络工程师', '安全工程师', '开发工程师', '运维工程师', '运营人员', '合规专家', '解决方案', '商务人员', '成本人员', '驻场人员', '驻场人员-ODC', '项目管理', '合规负责人', '产品人员', '其他人员']
+  const positions = ['测试工程师', '前端工程师', '算法工程师', 'DBA数据库', '网络工程师', '安全工程师', '开发工程师', '运维工程师', '运营人员', '合规专家', '解决方案', '商务人员', '成本人员', '驻场人员', '驻场人员-ODC', '项目管理', '合规负责人', '产品人员', '其他人员']
   return positions
     .map(p => ({ position: p, count: allPersonnelData.value.filter(r => r.position === p).length, color: positionColors[p] }))
     .filter(s => s.count > 0)

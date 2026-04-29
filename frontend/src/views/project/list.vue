@@ -2064,6 +2064,8 @@ const getProjectBgStyle = (code: string) => {
   return { background: getProjectColor(code) }
 }
 
+const getAvatarColor = (name: string) => avatarColors[(name || '').charCodeAt(0) % avatarColors.length]
+
 const getTeamMembers = (project: Project) => {
   const members: string[] = []
   const fields: (keyof Project)[] = [
