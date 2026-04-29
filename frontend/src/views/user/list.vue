@@ -51,13 +51,37 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         {{ t('common.batchDelete') }} ({{ selectedRows.length }})
       </el-button>
+      <el-popover placement="bottom-end" :width="240" trigger="click">
+        <template #reference>
+          <el-button>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            {{ t('user.list.columnDisplay') }}
+          </el-button>
+        </template>
+        <div class="col-settings">
+          <div class="col-settings__header">
+            <span>{{ t('user.list.columnSettingsTitle') }}</span>
+            <el-button type="primary" text size="small" @click="handleResetColumns">{{ t('user.list.columnReset') }}</el-button>
+          </div>
+          <div class="col-settings__list">
+            <div v-for="col in allColumns" :key="col.prop" class="col-settings__item" :class="{ 'is-disabled': col.required }">
+              <el-checkbox v-model="col.visible" :disabled="col.required" @change="saveColumnSettings">
+                {{ col.label }}
+              </el-checkbox>
+            </div>
+          </div>
+        </div>
+      </el-popover>
     </div>
 
     <!-- 表格卡片 -->
     <div class="content-card">
-      <el-table ref="tableRef" v-model:selection="selectedRows" :data="tableData" v-loading="loading" stripe @selection-change="handleSelectionChange">
+      <el-table ref="tableRef" v-model:selection="selectedRows" :data="tableData" v-loading="loading" stripe @selection-change="handleSelectionChange" @sort-change="handleSortChange">
         <el-table-column type="selection" width="40" fixed="left" />
-        <el-table-column prop="nickname" :label="t('user.list.table.name')" min-width="110" show-overflow-tooltip>
+        <el-table-column v-if="isColumnVisible('nickname')" prop="nickname" :label="t('user.list.table.name')" min-width="110" show-overflow-tooltip sortable="custom">
           <template #default="{ row }">
             <div class="user-cell">
               <div class="user-avatar" :style="{ background: getAvatarColor(row.nickname) }">{{ (row.nickname || row.username || 'U').charAt(0).toUpperCase() }}</div>
@@ -65,45 +89,60 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="username" :label="t('user.list.table.username')" min-width="100" show-overflow-tooltip />
-        <el-table-column prop="email" :label="t('user.list.table.email')" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="roleName" :label="t('user.list.table.role')" min-width="100" show-overflow-tooltip>
+        <el-table-column v-if="isColumnVisible('username')" prop="username" :label="t('user.list.table.username')" min-width="100" show-overflow-tooltip sortable="custom" />
+        <el-table-column v-if="isColumnVisible('email')" prop="email" :label="t('user.list.table.email')" min-width="160" show-overflow-tooltip sortable="custom" />
+        <el-table-column v-if="isColumnVisible('roleName')" prop="roleName" :label="t('user.list.table.role')" min-width="100" show-overflow-tooltip sortable="custom">
           <template #default="{ row }">
-            <el-tag type="info" size="small" effect="plain">{{ row.roleName || '—' }}</el-tag>
+            <el-tag v-if="row.roleName" type="info" size="small" effect="plain">{{ row.roleName }}</el-tag>
+            <span v-else class="empty-text">—</span>
           </template>
         </el-table-column>
-        <el-table-column prop="groupName" :label="t('user.list.table.group')" min-width="110">
+        <el-table-column v-if="isColumnVisible('groupName')" prop="groupName" :label="t('user.list.table.group')" min-width="110" sortable="custom">
           <template #default="{ row }">
             <span v-if="row.groupName" class="group-link" @click="jumpToGroup(row.groupId)">{{ row.groupName }}</span>
             <span v-else class="empty-text">—</span>
           </template>
         </el-table-column>
-        <el-table-column prop="status" :label="t('common.status')" width="90" align="center">
+        <el-table-column v-if="isColumnVisible('status')" prop="status" :label="t('common.status')" width="90" align="center" sortable="custom">
           <template #default="{ row }">
             <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small" effect="light">
               {{ row.status === 'active' ? t('common.enabled') : t('common.disabled') }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="locked" :label="t('user.list.table.locked')" width="80" align="center">
+        <el-table-column v-if="isColumnVisible('locked')" prop="locked" :label="t('user.list.table.locked')" width="80" align="center" sortable="custom">
           <template #default="{ row }">
             <el-tag v-if="row.locked" type="danger" size="small" effect="plain">
               <el-icon style="vertical-align: middle; margin-right: 2px"><Lock /></el-icon>
               {{ t('user.list.table.lockedStatus') }}
             </el-tag>
-            <span v-else class="text-muted" style="font-size: 12px">—</span>
+            <span v-else class="empty-text">—</span>
           </template>
         </el-table-column>
-        <el-table-column prop="mfaEnabled" :label="t('user.list.table.mfa')" width="80" align="center">
+        <el-table-column v-if="isColumnVisible('mfaEnabled')" prop="mfaEnabled" :label="t('user.list.table.mfa')" width="80" align="center" sortable="custom">
           <template #default="{ row }">
             <el-tag :type="row.mfaEnabled ? 'success' : 'info'" size="small" effect="plain">
               {{ row.mfaEnabled ? t('user.list.table.mfaOn') : t('user.list.table.mfaOff') }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" :label="t('common.createdAt')" min-width="170">
+        <el-table-column v-if="isColumnVisible('department')" prop="department" :label="t('user.list.table.department')" min-width="110" show-overflow-tooltip sortable="custom">
           <template #default="{ row }">
-            <span class="time-text">{{ formatDate(row.createdAt) }}</span>
+            <span :class="row.department ? '' : 'empty-text'">{{ row.department || '—' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="isColumnVisible('source')" prop="source" :label="t('user.list.table.source')" width="90" align="center" sortable="custom">
+          <template #default="{ row }">
+            <el-tag v-if="row.source === 'AD'" type="warning" size="small" effect="plain">
+              <el-icon style="vertical-align: middle; margin-right: 2px"><Key /></el-icon>
+              AD域
+            </el-tag>
+            <el-tag v-else type="info" size="small" effect="plain">本地</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="isColumnVisible('createdAt')" prop="createdAt" :label="t('common.createdAt')" min-width="170" sortable="custom">
+          <template #default="{ row }">
+            <span class="time-text" v-html="formatDate(row.createdAt)"></span>
           </template>
         </el-table-column>
         <el-table-column :label="t('common.actions')" width="120" fixed="right" align="center">
@@ -111,11 +150,11 @@
             <TableActions :actions="row.locked ? [
               { key: 'unlock', label: t('user.list.actions.unlock'), type: 'danger' },
               { key: 'edit', label: t('common.edit'), type: 'primary' },
-              { key: 'resetPwd', label: t('user.list.form.resetPwd'), type: 'warning' },
+              { key: 'resetPwd', label: t('user.list.form.resetPwd'), type: 'warning', disabled: row.source === 'AD', disabledTip: t('user.list.form.noResetPwdAD') },
               { key: 'delete', label: t('common.delete'), type: 'danger' }
             ] : [
               { key: 'edit', label: t('common.edit'), type: 'primary' },
-              { key: 'resetPwd', label: t('user.list.form.resetPwd'), type: 'warning' },
+              { key: 'resetPwd', label: t('user.list.form.resetPwd'), type: 'warning', disabled: row.source === 'AD', disabledTip: t('user.list.form.noResetPwdAD') },
               { key: 'delete', label: t('common.delete'), type: 'danger' }
             ]" :row="row" @action="(key, r) => handleAction(key, r)" />
           </template>
@@ -289,8 +328,8 @@
     <!-- 导入对话框 -->
     <el-dialog v-model="importDialogVisible" width="560px" destroy-on-close append-to-body class="import-dialog">
       <div class="import-dlg-header">
-        <span class="import-dlg-title">批量导入用户</span>
-        <span class="import-dlg-sub">支持 xlsx 格式，可分批导入</span>
+        <span class="import-dlg-title">{{ t('user.list.messages.importTitle') }}</span>
+        <span class="import-dlg-sub">{{ t('user.list.messages.importSub') }}</span>
       </div>
 
       <div class="import-steps">
@@ -301,61 +340,87 @@
         <span class="step-num" :class="{ active: importStep >= 3 }">3</span>
       </div>
 
-      <!-- Step 1: 上传文件 -->
+      <!-- Step 1: 上传文件 + 自动识别 -->
       <div v-if="importStep === 1" class="step-content">
+        <!-- 下载模板按钮 -->
+        <div class="step-toolbar">
+          <el-button class="btn-outline" @click="downloadTemplate">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            {{ t('user.list.messages.downloadTemplate') }}
+          </el-button>
+        </div>
+        <!-- 字段说明 -->
         <div class="field-guide" v-if="importTemplateFields && importTemplateFields.length > 0">
           <div class="fg-row" v-for="f in importTemplateFields" :key="f.code">
             <span class="fg-name">{{ f.field }}</span>
-            <span class="fg-type">{{ f.required ? '必填' : '选填' }}</span>
+            <span class="fg-type">{{ f.required ? t('common.required') : t('common.optional') }}</span>
             <span class="fg-hint">{{ f.example ? `例: ${f.example}` : '' }}</span>
           </div>
         </div>
-        <div class="upload-area" @click="triggerFileInput">
+        <!-- 上传区域（选中文件后变为预览状态） -->
+        <div class="upload-area" :class="{ 'upload-area--preview': selectedFile && !importing && importStep === 1 }" @click="triggerFileInput">
           <input ref="fileInputRef" type="file" accept=".xlsx,.xls" style="display:none" @change="handleFileChange" />
-          <div class="upload-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          </div>
-          <div class="upload-text">
-            <span class="upload-tip">点击选择文件或拖拽到此处</span>
-            <span class="upload-hint">支持 xlsx 格式</span>
-          </div>
-          <span v-if="selectedFile" class="selected-file">{{ selectedFile.name }}</span>
+          <!-- 未选中文件 -->
+          <template v-if="!selectedFile">
+            <div class="upload-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="upload-text">
+              <span class="upload-tip">{{ t('user.list.messages.uploadTip') }}</span>
+              <span class="upload-hint">{{ t('user.list.messages.uploadHint') }}</span>
+            </div>
+          </template>
+          <!-- 已选中文件：预览识别结果 -->
+          <template v-else>
+            <div class="preview-icon">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#409eff" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <div class="preview-text">
+              <span class="preview-title">{{ selectedFile.name }}</span>
+              <span class="preview-count" v-if="previewing">{{ t('common.loading') }}</span>
+              <span class="preview-count" v-else-if="previewTotal > 0">已识别 {{ previewTotal }} 条用户记录</span>
+              <span class="preview-empty" v-else-if="previewError">{{ previewError }}</span>
+              <span class="preview-empty" v-else>未识别到有效用户数据，请检查文件格式</span>
+            </div>
+          </template>
         </div>
         <div class="step-actions">
           <el-button @click="importDialogVisible = false">{{ t('common.cancel') }}</el-button>
-          <el-button type="primary" :disabled="!selectedFile" :loading="importing" @click="startImport">{{ importing ? '导入中...' : '开始导入' }}</el-button>
+          <el-button type="primary" :disabled="!selectedFile || previewing" :loading="importing" @click="startImport">{{ importing ? t('user.list.messages.importProgress') : t('user.list.messages.startImport') }}</el-button>
         </div>
       </div>
 
-      <!-- Step 2: 导入中 / 结果 -->
-      <div class="step-content">
-        <!-- 导入中 -->
-        <div class="importing-state" v-if="importing">
+      <!-- Step 2: 导入中 -->
+      <div v-if="importStep === 2" class="step-content">
+        <div class="importing-state">
           <div class="progress-wrap">
-            <span class="progress-label">正在导入数据...</span>
+            <span class="progress-label">{{ t('user.list.messages.importProgress') }}</span>
             <span class="progress-pct">{{ importProgress }}%</span>
           </div>
           <div class="progress-bar"><div class="progress-bar__fill" :style="{ width: importProgress + '%' }"></div></div>
         </div>
-        <!-- 导入结果 -->
-        <div class="import-result" v-if="!importing && importResult">
+      </div>
+
+      <!-- Step 3: 导入结果 -->
+      <div v-if="importStep === 3" class="step-content">
+        <div class="import-result">
           <div class="res-banner" :class="importResult && importResult.failed > 0 ? 'res-banner--warn' : 'res-banner--ok'">
             <svg v-if="importResult && importResult.failed === 0" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             <svg v-else-if="importResult" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             <div class="res-text">
               <span class="res-title">导入完成，共 {{ importResult?.total ?? 0 }} 条</span>
               <span class="res-ok">成功 {{ importResult?.success ?? 0 }} 条</span>
-              <span v-if="importResult && importResult.failed > 0" class="res-fail">失败 {{ importResult.failed }} 条</span>
+              <span class="res-fail" v-if="importResult && importResult.failed > 0">失败 {{ importResult.failed }} 条</span>
             </div>
           </div>
-          <div class="fail-list" v-if="!importing && importResult && importResult.failRows && importResult.failRows.length > 0">
+          <div class="fail-list" v-if="importResult && importResult.failRows && importResult.failRows.length > 0">
             <div class="fail-item" v-for="(f, idx) in importResult.failRows" :key="idx">
               <span class="fail-row">第{{ f.row }}行</span>
               <span class="fail-reason">{{ f.reason }}</span>
             </div>
           </div>
         </div>
-        <div class="step-actions" v-if="!importing">
+        <div class="step-actions">
           <el-button v-if="importResult && importResult.success > 0" type="primary" @click="importDialogVisible = false; loadData()">{{ t('common.done') }}</el-button>
           <el-button v-else @click="resetImport">{{ t('common.retry') }}</el-button>
         </div>
@@ -488,12 +553,17 @@ const importTemplateFields = ref<{ field: string; code: string; required: boolea
 const importStep = ref(1)
 const fileInputRef = ref()
 const selectedFile = ref<File | null>(null)
+const previewing = ref(false)
+const previewTotal = ref(0)
+const previewError = ref('')
 
 const keyword = ref('')
 const status = ref('')
 const filterRoleId = ref<number | undefined>()
 const filterGroupId = ref<number | undefined>()
 const pagination = reactive({ page: 1, pageSize: 20, total: 0 })
+const sortField = ref('')
+const sortOrder = ref('')
 
 const form = reactive<CreateUserReq & { id?: number; roleId?: number; groupId?: number }>({
   username: '', nickname: '', email: '', password: '', roleId: undefined, groupId: undefined, status: 'active', sort: 0,
@@ -514,7 +584,7 @@ const formRules = computed(() => ({
 
 // 格式化时间 YYYY-MM-DD HH:mm:ss
 const formatDate = (dateStr: string | undefined) => {
-  if (!dateStr) return '—'
+  if (!dateStr) return '<span class="empty-text">—</span>'
   const d = new Date(dateStr)
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -554,14 +624,59 @@ const loadData = async () => {
       status: status.value || undefined,
       roleId: filterRoleId.value || undefined,
       groupId: filterGroupId.value || undefined,
+      sortField: sortField.value || undefined,
+      sortOrder: sortOrder.value || undefined,
     })
     if (res.code === 200) { tableData.value = res.data.items || []; pagination.total = res.data.total || 0 }
   } finally { loading.value = false }
 }
 
 const handleSearch = () => { pagination.page = 1; loadData() }
-const handleReset = () => { keyword.value = ''; status.value = ''; filterRoleId.value = undefined; filterGroupId.value = undefined; pagination.page = 1; loadData() }
+const handleReset = () => { keyword.value = ''; status.value = ''; filterRoleId.value = undefined; filterGroupId.value = undefined; sortField.value = ''; sortOrder.value = ''; pagination.page = 1; loadData() }
 const handleSelectionChange = (rows: User[]) => { selectedRows.value = rows }
+const handleSortChange = ({ prop, order }: { prop: string; order: string }) => {
+  sortField.value = prop || ''
+  sortOrder.value = order === 'ascending' ? 'asc' : order === 'descending' ? 'desc' : ''
+  pagination.page = 1
+  loadData()
+}
+
+// 字段显示配置
+interface ColumnConfig { prop: string; label: string; visible: boolean; required: boolean }
+const allColumns = ref<ColumnConfig[]>([
+  { prop: 'nickname', label: '姓名', visible: true, required: true },
+  { prop: 'username', label: '用户名', visible: true, required: true },
+  { prop: 'email', label: '邮箱', visible: true, required: false },
+  { prop: 'roleName', label: '角色', visible: true, required: false },
+  { prop: 'groupName', label: '用户组', visible: true, required: false },
+  { prop: 'status', label: '状态', visible: true, required: false },
+  { prop: 'locked', label: '锁定', visible: true, required: false },
+  { prop: 'mfaEnabled', label: 'MFA', visible: true, required: false },
+  { prop: 'department', label: '部门', visible: true, required: false },
+  { prop: 'source', label: '来源', visible: true, required: false },
+  { prop: 'createdAt', label: '创建时间', visible: true, required: true },
+])
+const COL_STG_KEY = 'usr_list_cols'
+const loadColumnSettings = () => {
+  const saved = localStorage.getItem(COL_STG_KEY)
+  if (saved) {
+    try {
+      const cfg: ColumnConfig[] = JSON.parse(saved)
+      allColumns.value.forEach(col => {
+        const c = cfg.find(x => x.prop === col.prop)
+        if (c && !col.required) col.visible = c.visible
+      })
+    } catch {}
+  }
+}
+const saveColumnSettings = () => {
+  localStorage.setItem(COL_STG_KEY, JSON.stringify(allColumns.value.map(c => ({ prop: c.prop, visible: c.visible }))))
+}
+const handleResetColumns = () => {
+  allColumns.value.forEach(c => { if (!c.required) c.visible = true })
+  saveColumnSettings()
+}
+const isColumnVisible = (prop: string) => allColumns.value.find(c => c.prop === prop)?.visible !== false
 
 const handleCreate = async () => {
   isEdit.value = false
@@ -741,6 +856,9 @@ const showImportDialog = async () => {
   importDialogVisible.value = true
   importResult.value = null
   importing.value = false
+  previewing.value = false
+  previewTotal.value = 0
+  previewError.value = ''
   importProgress.value = 0
   importStep.value = 1
   selectedFile.value = null
@@ -753,10 +871,39 @@ const showImportDialog = async () => {
 // 触发文件选择
 const triggerFileInput = () => fileInputRef.value?.click()
 
-// 选择文件
-const handleFileChange = (e: Event) => {
+// 下载模板
+const downloadTemplate = async () => {
+  try {
+    await UserApi.downloadTemplate()
+  } catch {
+    ElMessage.error(t('user.list.messages.templateDownloadFailed'))
+  }
+}
+
+// 选择文件并自动预览
+const handleFileChange = async (e: Event) => {
   const target = e.target as HTMLInputElement
-  selectedFile.value = target.files?.[0] || null
+  const file = target.files?.[0]
+  if (!file) return
+  selectedFile.value = file
+  previewTotal.value = 0
+  previewError.value = ''
+  previewing.value = true
+  try {
+    const res = await UserApi.previewImport(file)
+    previewTotal.value = res.data.total || 0
+    if (previewTotal.value > 0) {
+      ElMessage.success({ message: `已识别 ${previewTotal.value} 条用户记录`, grouping: true })
+    } else {
+      ElMessage.warning({ message: '未识别到有效用户数据，请检查文件格式' })
+    }
+  } catch (err: any) {
+    previewTotal.value = 0
+    previewError.value = err?.message || '预览识别失败'
+    ElMessage.error({ message: previewError.value })
+  } finally {
+    previewing.value = false
+  }
 }
 
 // 开始导入
@@ -770,10 +917,10 @@ const startImport = async () => {
     const res = await UserApi.importUsers(selectedFile.value, (pct) => { importProgress.value = pct })
     importResult.value = res.data
     importProgress.value = 100
-    if (res.data.failed === 0) ElMessage.success(`导入成功，共 ${res.data.success} 条`)
-    else ElMessage.warning(`部分导入成功 ${res.data.success} 条，失败 ${res.data.failed} 条`)
+    if (res.data.failed === 0) ElMessage.success(t('user.list.messages.importSuccessMsg', res.data.success))
+    else ElMessage.warning(t('user.list.messages.importPartial', res.data.success, res.data.failed))
     importStep.value = 3
-  } catch (e: any) { ElMessage.error(e.message || '导入失败'); importResult.value = { total: 0, success: 0, failed: 0, failRows: [] } }
+  } catch (e: any) { ElMessage.error(e.message || t('user.list.messages.importFailedMsg')); importResult.value = { total: 0, success: 0, failed: 0, failRows: [] } }
   finally { importing.value = false }
 }
 
@@ -781,13 +928,16 @@ const startImport = async () => {
 const resetImport = () => {
   importStep.value = 1
   importResult.value = null
+  previewTotal.value = 0
+  previewError.value = ''
+  previewing.value = false
   selectedFile.value = null
   if (fileInputRef.value) fileInputRef.value.value = ''
 }
 
 watch(() => pagination.page, () => loadData())
 watch(() => pagination.pageSize, () => { pagination.page = 1; loadData() })
-onMounted(() => loadData())
+onMounted(() => { loadData(); loadRolesAndGroups(); loadColumnSettings() })
 </script>
 
 <script lang="ts">
@@ -872,7 +1022,7 @@ export default { name: 'UserList' }
   &:hover { text-decoration: underline; }
 }
 
-.empty-text { color: var(--color-text-secondary); font-size: 13px; }
+.empty-text { color: var(--el-text-color-placeholder); }
 
 .time-text {
   font-size: 12px;
@@ -1114,6 +1264,8 @@ export default { name: 'UserList' }
 .import-dlg-title { font-size: 15px; font-weight: 700; color: #1c1917; }
 .import-dlg-sub { font-size: 12px; color: #78716c; }
 
+.step-toolbar { display: flex; justify-content: flex-end; padding: 0 0 12px; }
+
 .import-steps { display: flex; align-items: center; justify-content: center; padding: 8px 0 20px; gap: 0; }
 .step-num { width: 28px; height: 28px; border-radius: 50%; background: #e5e7eb; color: #9ca3af; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
 .step-num.active { background: var(--color-primary); color: #fff; }
@@ -1130,11 +1282,17 @@ export default { name: 'UserList' }
 .fg-hint { color: #9ca3af; }
 
 .upload-area { border: 2px dashed #e5e7eb; border-radius: 12px; padding: 32px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: border-color 0.2s; &:hover { border-color: var(--color-primary); } }
+.upload-area--preview { border-style: solid; border-color: #dbeafe; background: #eff6ff; padding: 24px; }
 .upload-icon { color: #94a3b8; }
 .upload-text { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .upload-tip { font-size: 13px; color: #374151; font-weight: 500; }
 .upload-hint { font-size: 11px; color: #9ca3af; }
-.selected-file { font-size: 12px; color: var(--color-primary); font-weight: 600; }
+
+.preview-icon { color: #409eff; }
+.preview-text { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.preview-title { font-size: 13px; color: #374151; font-weight: 500; }
+.preview-count { font-size: 14px; color: #409eff; font-weight: 700; }
+.preview-empty { font-size: 13px; color: #dc2626; }
 
 .step-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; border-top: 1px solid #f0f0f0; margin-top: 16px; }
 
@@ -1158,4 +1316,10 @@ export default { name: 'UserList' }
 .fail-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fef2f2; border-radius: 6px; font-size: 12px; }
 .fail-row { color: #dc2626; font-weight: 600; }
 .fail-reason { color: #7f1d1d; }
+
+/* 字段显示配置 */
+.col-settings { min-width: 220px; }
+.col-settings__header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; margin-bottom: 8px; border-bottom: 1px solid #f0f0f0; font-size: 13px; font-weight: 600; color: #374151; }
+.col-settings__list { display: flex; flex-direction: column; gap: 2px; }
+.col-settings__item { padding: 4px 0; font-size: 13px; &.is-disabled { opacity: 0.5; } }
 </style>

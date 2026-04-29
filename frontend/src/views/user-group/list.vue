@@ -46,6 +46,12 @@
           </template>
         </el-table-column>
         <el-table-column prop="description" :label="t('userGroup.list.table.description')" min-width="240" show-overflow-tooltip />
+        <el-table-column prop="roleName" :label="t('userGroup.list.table.role')" min-width="140">
+          <template #default="{ row }">
+            <span v-if="row.roleName" class="role-badge">{{ row.roleName }}</span>
+            <span v-else class="empty-text">—</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="sort" :label="t('common.sort')" width="70" align="center" />
         <el-table-column :label="t('common.actions')" width="120" fixed="right" align="center">
           <template #default="{ row }">
@@ -91,6 +97,11 @@
           <el-form-item :label="t('userGroup.list.drawer.description')">
             <el-input v-model="form.description" type="textarea" :rows="3" :placeholder="t('userGroup.list.drawer.descriptionPlaceholder')" />
           </el-form-item>
+          <el-form-item :label="t('userGroup.list.drawer.role')">
+            <el-select v-model="form.roleId" clearable style="width: 100%">
+              <el-option v-for="r in roleList" :key="r.id" :label="r.name" :value="r.id" />
+            </el-select>
+          </el-form-item>
           <el-form-item :label="t('common.sort')">
             <el-input-number v-model="form.sort" :min="0" :max="9999" style="width: 100%" />
           </el-form-item>
@@ -128,11 +139,15 @@
           </div>
           <div class="detail-row">
             <span class="detail-label">{{ t('userGroup.list.detail.description') }}</span>
-            <span class="detail-value">{{ detailGroup.description || '—' }}</span>
+            <span class="detail-value" :class="detailGroup.description ? '' : 'empty-text'">{{ detailGroup.description || '—' }}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">{{ t('common.sort') }}</span>
             <span class="detail-value">{{ detailGroup.sort }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">{{ t('userGroup.list.table.role') }}</span>
+            <span class="detail-value" :class="detailGroup.roleName ? '' : 'empty-text'">{{ detailGroup.roleName || '—' }}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">{{ t('common.createdAt') }}</span>
@@ -163,6 +178,7 @@ import { ref, reactive, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { UserGroupApi, type UserGroup, type CreateUserGroupReq, type UpdateUserGroupReq } from '@/api/user-group'
+import { RoleApi } from '@/api/role'
 import TableActions from '@/components/TableActions.vue'
 
 const { t } = useI18n()
@@ -170,6 +186,7 @@ const { t } = useI18n()
 const loading = ref(false)
 const submitting = ref(false)
 const tableData = ref<UserGroup[]>([])
+const roleList = ref<{id: number, name: string}[]>([])
 const tableRef = ref()
 const selectedRows = ref<UserGroup[]>([])
 const drawerVisible = ref(false)
@@ -180,7 +197,7 @@ const formRef = ref()
 const keyword = ref('')
 const pagination = reactive({ page: 1, pageSize: 20, total: 0 })
 
-const form = reactive<CreateUserGroupReq>({ name: '', code: '', description: '', sort: 0 })
+const form = reactive<CreateUserGroupReq & {roleId?: number}>({ name: '', code: '', description: '', roleId: undefined, sort: 0 })
 
 const formRules = {
   name: [{ required: true, message: t('userGroup.list.messages.nameRequired'), trigger: 'blur' }],
@@ -208,13 +225,18 @@ const loadData = async () => {
   } finally { loading.value = false }
 }
 
+const loadRoles = async () => {
+  const res = await RoleApi.list({ page: 1, pageSize: 100 })
+  if (res.code === 200) { roleList.value = res.data.items || [] }
+}
+
 const handleSearch = () => { pagination.page = 1; loadData() }
 const handleReset = () => { keyword.value = ''; pagination.page = 1; loadData() }
 const handleSelectionChange = (rows: UserGroup[]) => { selectedRows.value = rows }
 
 const handleCreate = () => {
   isEdit.value = false
-  Object.assign(form, { name: '', code: '', description: '', sort: 0 })
+  Object.assign(form, { name: '', code: '', description: '', roleId: undefined, sort: 0 })
   drawerVisible.value = true
 }
 
@@ -226,11 +248,14 @@ const handleAction = (key: string, row: UserGroup) => {
 
 const handleEdit = (row: UserGroup) => {
   isEdit.value = true
-  Object.assign(form, { id: row.id, name: row.name, code: row.code, description: row.description, sort: row.sort })
+  Object.assign(form, { id: row.id, name: row.name, code: row.code, description: row.description, roleId: row.roleId || undefined, sort: row.sort })
   drawerVisible.value = true
 }
 
-const handleView = (row: UserGroup) => { detailGroup.value = row; detailVisible.value = true }
+const handleView = (row: UserGroup) => {
+  detailGroup.value = row
+  detailVisible.value = true
+}
 
 const confirmSubmit = async () => {
   const valid = await formRef.value?.validate().catch(() => false)
@@ -238,7 +263,7 @@ const confirmSubmit = async () => {
   submitting.value = true
   try {
     if (isEdit.value) {
-      const res = await UserGroupApi.update({ id: form.id as number, name: form.name, code: form.code, description: form.description, sort: form.sort })
+      const res = await UserGroupApi.update({ id: form.id as number, name: form.name, code: form.code, description: form.description, roleId: form.roleId || 0, sort: form.sort })
       if (res.code === 200) { ElMessage.success(t('common.updateSuccess')); drawerVisible.value = false; loadData() }
       else ElMessage.error(res.message || t('userGroup.list.messages.updateFailed'))
     } else {
@@ -270,7 +295,7 @@ const handleBatchDelete = async () => {
 
 watch(() => pagination.page, () => loadData())
 watch(() => pagination.pageSize, () => { pagination.page = 1; loadData() })
-onMounted(() => loadData())
+onMounted(() => { loadData(); loadRoles() })
 </script>
 
 <script lang="ts">
@@ -379,6 +404,19 @@ export default { name: 'UserGroupList' }
   padding: 2px 8px;
   border-radius: 5px;
 }
+
+.role-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 94, 235, 0.08);
+  color: var(--color-primary);
+  border: 1px solid rgba(0, 94, 235, 0.15);
+}
+
+.empty-text { color: var(--el-text-color-placeholder); }
 
 .pagination-bar {
   display: flex;

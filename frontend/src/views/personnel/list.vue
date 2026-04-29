@@ -149,7 +149,7 @@
         <el-table-column v-if="isColumnVisible('phone')" :label="t('personnel.list.form.phone')" min-width="130">
           <template #default="{ row }">
             <span class="cell-with-copy">
-              <span>{{ row.phone || '—' }}</span>
+              <span :class="row.phone ? '' : 'empty-text'">{{ row.phone || '—' }}</span>
               <el-tooltip v-if="row.phone" content="复制手机号" placement="top">
                 <button class="copy-btn copy-btn--sm" @click.stop="copyText(row.phone)">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -164,7 +164,7 @@
         <el-table-column v-if="isColumnVisible('email')" :label="t('personnel.list.form.email')" min-width="180">
           <template #default="{ row }">
             <span class="cell-with-copy">
-              <span class="email-cell">{{ row.email || '—' }}</span>
+              <span class="email-cell" :class="row.email ? '' : 'empty-text'">{{ row.email || '—' }}</span>
               <el-tooltip v-if="row.email" content="复制邮箱" placement="top">
                 <button class="copy-btn copy-btn--sm" @click.stop="copyText(row.email)">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -178,7 +178,7 @@
         </el-table-column>
         <el-table-column v-if="isColumnVisible('company')" prop="company" :label="t('personnel.list.form.company')" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">
-            <span class="cell-company">{{ row.company || '—' }}</span>
+            <span :class="['cell-company', row.company ? '' : 'empty-text']">{{ row.company || '—' }}</span>
           </template>
         </el-table-column>
         <el-table-column v-if="isColumnVisible('position')" prop="position" :label="t('personnel.list.form.position')" min-width="90" align="center">
@@ -1094,6 +1094,9 @@ export default { name: 'PersonnelList' }
 </script>
 
 <style scoped lang="scss">
+/* ==================== 通用 ==================== */
+.empty-text { color: var(--el-text-color-placeholder); }
+
 /* ==================== 页面布局 ==================== */
 .page {
   padding: var(--space-4);
