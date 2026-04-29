@@ -2,17 +2,10 @@
   <div class="page">
     <!-- 页面标题 -->
     <header class="page-header">
-      <div>
+      <div class="header-left">
         <h1 class="page-title">{{ t('fieldConfig.list.title') }}</h1>
-        <p class="page-subtitle">{{ t('fieldConfig.list.subtitle') }}</p>
+        <span class="page-subtitle">{{ t('fieldConfig.list.subtitle') }}</span>
       </div>
-      <el-button type="primary" @click="handleCreate">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px">
-          <line x1="12" y1="5" x2="12" y2="19"/>
-          <line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-        {{ t('fieldConfig.list.addField') }}
-      </el-button>
     </header>
 
     <!-- 工具栏 -->
