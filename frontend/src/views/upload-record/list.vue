@@ -2381,21 +2381,6 @@ onMounted(() => {
   }
 }
 
-/* ==================== 表格工具栏 ==================== */
-.table-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border-light);
-  background: var(--color-surface-2);
-}
-
-.toolbar-left {
-  .record-count { font-size: 13px; color: var(--color-text-secondary); strong { color: var(--color-text-primary); font-weight: 700; } }
-  .selection-count { margin-left: var(--space-4); font-size: 13px; color: var(--color-danger); strong { font-weight: 700; } }
-}
-
 /* ==================== 表格样式 ==================== */
 :deep(.el-table) {
   --el-table-border-color: var(--color-border-light);

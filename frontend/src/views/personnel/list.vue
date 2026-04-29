@@ -1872,8 +1872,7 @@ export default { name: 'PersonnelList' }
 @media (max-width: 1366px) {
   .page { padding: var(--space-3); gap: var(--space-2); }
   .page-header { padding: var(--space-3) var(--space-4); }
-  .filter-bar { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
-  .filter-bar__actions { margin-left: 0; }
+  .toolbar { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
 }
 
 @media (max-width: 1024px) {
@@ -2060,65 +2059,6 @@ export default { name: 'PersonnelList' }
     width: 11px;
     height: 11px;
   }
-}
-
-/* 字段显示控制 */
-.column-settings {
-  .settings-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: var(--space-2);
-    margin-bottom: var(--space-2);
-    border-bottom: 1px solid var(--color-border-light);
-  }
-
-  .settings-title {
-    font-family: 'Manrope', sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--color-primary);
-  }
-
-  .settings-list {
-    max-height: 280px;
-    overflow-y: auto;
-    margin: 0 -12px;
-    padding: 0 12px;
-  }
-
-  .settings-item {
-    padding: 4px 10px;
-    margin: 0 -10px;
-    border-radius: var(--radius-sm);
-    transition: background 0.15s ease;
-
-    &:hover { background: var(--color-surface-2); }
-
-    :deep(.el-checkbox) {
-      width: 100%;
-      .el-checkbox__label {
-        font-size: 13px;
-        color: var(--color-text-primary);
-        font-weight: 500;
-      }
-      .el-checkbox__input.is-checked .el-checkbox__inner {
-        background-color: var(--color-primary);
-        border-color: var(--color-primary);
-      }
-      .el-checkbox__input.is-checked + .el-checkbox__label {
-        color: var(--color-primary);
-      }
-    }
-  }
-
-  .settings-footer {
-    margin-top: var(--space-2);
-    padding-top: var(--space-2);
-    border-top: 1px solid var(--color-border-light);
-  }
-
-  .settings-hint { font-size: 11px; color: var(--color-text-muted); }
 }
 
 /* ==================== 导入对话框 ==================== */

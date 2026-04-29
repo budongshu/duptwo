@@ -719,7 +719,7 @@ export default { name: 'RoleList' }
 @media (max-width: 1366px) {
   .page { padding: var(--space-3); gap: var(--space-2); }
   .page-header { padding: var(--space-3) var(--space-4); }
-  .filter-bar { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+  .toolbar { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
 }
 
 @media (max-width: 1024px) {
