@@ -7,29 +7,29 @@
         <p class="page-subtitle">{{ t('uploadRecord.list.subtitle') }}</p>
       </div>
       <div class="header-actions">
-        <div class="header-stat" @click="filterByStatus('')">
-          <span class="header-stat-num">{{ pagination.total }}</span>
-          <span class="header-stat-label">全部</span>
+        <div class="kpi-pill" @click="filterByStatus('')">
+          <span class="kpi-pill__num">{{ pagination.total }}</span>
+          <span class="kpi-pill__label">全部</span>
         </div>
-        <div class="header-stat header-stat--success" @click="filterByStatus('completed')">
-          <span class="header-stat-num">{{ statusCount.completed }}</span>
-          <span class="header-stat-label">已完成</span>
+        <div class="kpi-pill kpi-pill--success" @click="filterByStatus('completed')">
+          <span class="kpi-pill__num">{{ statusCount.completed }}</span>
+          <span class="kpi-pill__label">已完成</span>
         </div>
-        <div class="header-stat header-stat--warning" @click="filterByStatus('pending')">
-          <span class="header-stat-num">{{ statusCount.pending }}</span>
-          <span class="header-stat-label">待处理</span>
+        <div class="kpi-pill kpi-pill--warning" @click="filterByStatus('pending')">
+          <span class="kpi-pill__num">{{ statusCount.pending }}</span>
+          <span class="kpi-pill__label">待处理</span>
         </div>
-        <div class="header-stat header-stat--info" @click="filterByStatus('processing')">
-          <span class="header-stat-num">{{ statusCount.processing }}</span>
-          <span class="header-stat-label">处理中</span>
+        <div class="kpi-pill kpi-pill--info" @click="filterByStatus('processing')">
+          <span class="kpi-pill__num">{{ statusCount.processing }}</span>
+          <span class="kpi-pill__label">处理中</span>
         </div>
-        <div class="header-stat header-stat--danger" @click="filterByStatus('failed')">
-          <span class="header-stat-num">{{ statusCount.failed }}</span>
-          <span class="header-stat-label">失败</span>
+        <div class="kpi-pill kpi-pill--danger" @click="filterByStatus('failed')">
+          <span class="kpi-pill__num">{{ statusCount.failed }}</span>
+          <span class="kpi-pill__label">失败</span>
         </div>
-        <div class="header-stat header-stat--purple" @click="">
-          <span class="header-stat-num">{{ formatBytes(totalSize) }}</span>
-          <span class="header-stat-label">总大小</span>
+        <div class="kpi-pill kpi-pill--purple" @click="">
+          <span class="kpi-pill__num">{{ formatBytes(totalSize) }}</span>
+          <span class="kpi-pill__label">总大小</span>
         </div>
       </div>
     </header>
@@ -2110,37 +2110,45 @@ onMounted(() => {
   color: var(--color-text-muted);
 }
 
-.header-stat {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
+.kpi-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 14px;
-  background: #f0f2f5;
-  border-radius: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-light);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.15s;
   flex-shrink: 0;
 
-  &:hover { background: #e6e8eb; }
+  &:hover {
+    background: var(--gray-100);
+    border-color: var(--gray-300);
+    transform: translateY(-1px);
+  }
 }
 
-.header-stat-num {
-  font-size: 18px;
-  font-weight: 700;
-  color: #303133;
+.kpi-pill__num {
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text-primary);
   line-height: 1;
+  letter-spacing: -0.5px;
 }
 
-.header-stat-label {
+.kpi-pill__label {
   font-size: 12px;
-  color: #909399;
+  color: var(--color-text-muted);
+  font-weight: 500;
 }
 
-.header-stat--success .header-stat-num { color: #67c23a; }
-.header-stat--warning .header-stat-num { color: #e6a23c; }
-.header-stat--info .header-stat-num { color: #409eff; }
-.header-stat--danger .header-stat-num { color: #f56c6c; }
-.header-stat--purple .header-stat-num { color: #8b5cf6; }
+.kpi-pill--success { background: var(--color-success-bg); border-color: rgba(4,120,87,0.25); .kpi-pill__num { color: var(--color-success); } }
+.kpi-pill--warning { background: var(--color-warning-bg); border-color: rgba(146,64,14,0.25); .kpi-pill__num { color: var(--color-warning); } }
+.kpi-pill--info { background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.2); .kpi-pill__num { color: var(--chart-blue); } }
+.kpi-pill--danger { background: var(--color-danger-bg); border-color: rgba(153,27,27,0.2); .kpi-pill__num { color: var(--color-danger); } }
+.kpi-pill--purple { background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.2); .kpi-pill__num { color: #8b5cf6; } }
 
 .header-actions {
   display: flex;
@@ -2464,25 +2472,51 @@ onMounted(() => {
   table-layout: fixed;
 
   th.el-table__cell {
-    background-color: var(--color-surface-3) !important;
-    border-bottom: 1px solid var(--color-border) !important;
-    padding: 12px 14px !important;
+    background-color: var(--gray-50) !important;
+    border-bottom: 1px solid var(--gray-200) !important;
+    padding: 10px 14px !important;
     color: var(--color-text-secondary) !important;
-    font-weight: 700 !important;
-    font-size: 11px !important;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    letter-spacing: 0;
+    text-transform: none;
   }
 
   td.el-table__cell {
     padding: 10px 14px !important;
     font-size: 13px;
     color: var(--color-text-primary);
-    border-bottom: 1px solid var(--color-border-light) !important;
+    border-bottom: 1px solid var(--gray-100) !important;
   }
 
   .el-table__body tr:hover > td.el-table__cell {
-    background-color: var(--color-primary-light-9) !important;
+    background-color: var(--gray-50) !important;
+  }
+
+  // Status column badge — pill style
+  .cell .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1px;
+
+    &::before {
+      content: '';
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    &--success { background: rgba(4,120,87,0.1); color: #059669; &::before { background: #059669; } }
+    &--warning { background: rgba(146,64,14,0.1); color: #b45309; &::before { background: #b45309; } }
+    &--danger { background: rgba(153,27,27,0.08); color: #dc2626; &::before { background: #dc2626; } }
+    &--info { background: rgba(37,99,235,0.1); color: #2563eb; &::before { background: #2563eb; } }
   }
 }
 
@@ -2625,21 +2659,7 @@ onMounted(() => {
 
 .dynamic-field { font-size: 13px; color: var(--color-text-primary); font-weight: 500; }
 
-.status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 600;
-  background-clip: padding-box;
-
-  &::after { display: none !important; }
-
-  &--success { background: rgba(34,197,94,0.1); color: var(--color-success); }
-  &--warning { background: rgba(245,158,11,0.1); color: var(--color-warning); }
-  &--danger { background: rgba(239,68,68,0.08); color: var(--color-danger); }
-  &--info { background: rgba(59,130,246,0.1); color: var(--chart-blue); }
-}
+/* status-badge styles moved into :deep(.el-table) for pill-with-dot styling */
 
 /* ==================== 分页 ==================== */
 .pagination-wrapper {
@@ -4520,7 +4540,13 @@ onMounted(() => {
 @media (max-width: 1366px) {
   .page { padding: var(--space-3); }
   .page-header { padding: var(--space-3) var(--space-4); }
-  .filter-card { padding: 8px 12px; }
+  .toolbar { padding: 8px 12px; min-height: auto; }
+}
+
+@media (max-width: 900px) {
+  .page-header { flex-direction: column; align-items: flex-start; }
+  .header-left { width: 100%; }
+  .search-box { width: 100%; }
 }
 
 /* ==================== 弹窗通用样式 ==================== */
