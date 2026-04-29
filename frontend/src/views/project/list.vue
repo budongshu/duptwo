@@ -132,6 +132,19 @@
         <el-option :label="t('common.disabled')" value="inactive" />
       </el-select>
       <el-button @click="handleReset" text>重置</el-button>
+      <!-- 拼图风格选择 -->
+      <div class="masonry-style-picker" v-if="viewMode === 'detail'">
+        <button
+          v-for="s in masonryStyles"
+          :key="s.key"
+          class="masonry-style-btn"
+          :class="{ active: masonryStyle === s.key }"
+          :title="s.desc"
+          @click="masonryStyle = s.key"
+        >
+          {{ s.label }}
+        </button>
+      </div>
       <div class="filter-tip">
         共 {{ pagination.total }} 个项目
       </div>
@@ -174,22 +187,11 @@
             @dragstart="onDragStart(p, col.key)"
             @dragend="onDragEnd"
           >
-            <div class="kanban-card-inner">
-              <div class="kanban-card-content">
-                <div class="kanban-card-head">
-                  <div class="kanban-avatar" :style="getProjectBgStyle(p.code)">
-                    {{ getInitials(p.name) }}
-                  </div>
-                  <div class="kanban-info">
-                    <div class="kanban-name">{{ p.name }}</div>
-                    <div class="kanban-code">{{ p.code }}</div>
-                  </div>
-                </div>
-                <div class="kanban-card-foot">
-                  <span class="kanban-metric"><el-icon><Document /></el-icon> {{ formatNumber(p.recordCount || 0) }}</span>
-                  <span class="kanban-metric"><el-icon><User /></el-icon> {{ getTeamCount(p) }}</span>
-                </div>
-              </div>
+            <div class="kanban-card-name" :title="p.name">{{ p.name }}</div>
+            <div class="kanban-card-metrics">
+              <span class="kanban-metric"><el-icon><User /></el-icon>{{ getTeamCount(p) }}</span>
+              <span class="kanban-metric"><el-icon><Document /></el-icon>{{ formatNumber(p.recordCount || 0) }}</span>
+              <span class="kanban-metric"><el-icon><Folder /></el-icon>{{ formatBytes(p.totalDataSize || 0) }}</span>
             </div>
           </div>
           <div v-if="!kanbanData[col.key]?.length" class="kanban-empty">{{ t('project.list.noData') }}</div>
@@ -197,321 +199,195 @@
       </div>
     </div>
 
-    <!-- 人员负荷矩阵视图 -->
+    <!-- 人员矩阵视图 -->
     <div v-if="viewMode === 'network'" class="matrix-view">
       <!-- 加载状态 -->
       <div v-if="loading" class="matrix-loading">
         <div class="loading-spinner"></div>
         <span>加载中...</span>
       </div>
-
       <!-- 空状态 -->
-      <div v-else-if="matrixData.length === 0" class="matrix-empty">
-        <div class="empty-icon">📊</div>
+      <div v-else-if="matrixPersons.length === 0" class="matrix-empty">
+        <div class="empty-icon">👥</div>
         <div class="empty-text">暂无人员负荷数据</div>
         <div class="empty-hint">请先在项目中添加人员信息</div>
       </div>
-
-      <!-- 矩阵图主区域 -->
-      <div v-else class="matrix-main">
+      <!-- 主内容 -->
+      <template v-else>
         <!-- 顶部标题栏 -->
         <div class="matrix-header">
           <div class="matrix-header-left">
-            <h3 class="matrix-title">人员负荷分布矩阵</h3>
+            <h3 class="matrix-title">人员负荷矩阵</h3>
             <span class="matrix-desc">基于项目数量和重要程度分析人员工作负载</span>
           </div>
-          <div class="matrix-date">{{ currentDate }}</div>
+          <div class="matrix-header-right">
+            <span class="matrix-date">{{ currentDate }}</span>
+            <!-- 视图切换 -->
+            <div class="matrix-view-toggle">
+              <button :class="['toggle-btn', { active: matrixViewType === 'card' }]" @click="switchMatrixView('card')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                卡片矩阵
+              </button>
+              <button :class="['toggle-btn', { active: matrixViewType === 'scatter' }]" @click="switchMatrixView('scatter')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="15" r="2"/><circle cx="12" cy="9" r="2"/><circle cx="18" cy="18" r="2"/><circle cx="5" cy="5" r="2"/><circle cx="17" cy="7" r="2"/></svg>
+                散点图
+              </button>
+            </div>
+          </div>
         </div>
 
-        <!-- 统计卡片 -->
+        <!-- 统计栏 -->
         <div class="matrix-stats">
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--blue">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <div class="mstat-card">
+            <div class="mstat-icon mstat-icon--blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ matrixData.length }}</div>
-              <div class="stat-label">人员总数</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--green">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ matrixStats.totalProjects }}</div>
-              <div class="stat-label">项目总数</div>
+            <div class="mstat-info">
+              <div class="mstat-value">{{ matrixPersons.length }}</div>
+              <div class="mstat-label">人员</div>
             </div>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--orange">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+          <div class="mstat-card">
+            <div class="mstat-icon mstat-icon--green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
             </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ matrixStats.avgWorkload }}%</div>
-              <div class="stat-label">平均负荷</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--red">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ matrixStats.overloadCount }}</div>
-              <div class="stat-label">超负荷人员</div>
+            <div class="mstat-info">
+              <div class="mstat-value">{{ matrixStats.totalProjects }}</div>
+              <div class="mstat-label">参与项目</div>
             </div>
           </div>
-        </div>
-
-        <!-- 矩阵内容区 -->
-        <div class="matrix-content">
-          <!-- Y轴标签 -->
-          <div class="axis-y-container">
-            <span class="axis-label-top">高</span>
-            <span class="axis-label-text">项目重要程度</span>
-            <span class="axis-label-bottom">低</span>
-          </div>
-
-          <!-- 四象限网格 -->
-          <div class="matrix-grid-wrapper">
-            <div class="matrix-grid">
-              <!-- 左上：需关注（高负荷 + 高重要项目） -->
-              <div class="quadrant quadrant--tl">
-                <div class="quadrant-header">
-                  <span class="quadrant-icon">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                  </span>
-                  <span class="quadrant-title">需关注</span>
-                  <span class="quadrant-count">{{ getCriticalPerson().length }}</span>
-                </div>
-                <div class="quadrant-body">
-                  <div
-                    v-for="person in getCriticalPerson()"
-                    :key="person.name"
-                    class="person-node"
-                    @mouseenter="hoveredPerson = person"
-                    @mouseleave="hoveredPerson = null"
-                  >
-                    <div class="node-circle" :style="{ borderColor: '#ea580c' }">
-                      <span class="node-avatar" :style="{ background: '#ea580c' }">{{ person.name.substring(0, 1) }}</span>
-                      <span class="node-badge">{{ person.projectCount }}</span>
-                    </div>
-                    <span class="node-name">{{ person.name }}</span>
-                  </div>
-                  <div v-if="getCriticalPerson().length === 0" class="quadrant-empty">暂无</div>
-                </div>
-              </div>
-
-              <!-- 右上：可分配（低负荷 + 高重要项目） -->
-              <div class="quadrant quadrant--tr">
-                <div class="quadrant-header">
-                  <span class="quadrant-icon">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                  </span>
-                  <span class="quadrant-title">可分配</span>
-                  <span class="quadrant-count">{{ getAvailablePerson().length }}</span>
-                </div>
-                <div class="quadrant-body">
-                  <div
-                    v-for="person in getAvailablePerson()"
-                    :key="person.name"
-                    class="person-node"
-                    @mouseenter="hoveredPerson = person"
-                    @mouseleave="hoveredPerson = null"
-                  >
-                    <div class="node-circle" :style="{ borderColor: '#16a34a' }">
-                      <span class="node-avatar" :style="{ background: '#16a34a' }">{{ person.name.substring(0, 1) }}</span>
-                      <span class="node-badge">{{ person.projectCount }}</span>
-                    </div>
-                    <span class="node-name">{{ person.name }}</span>
-                  </div>
-                  <div v-if="getAvailablePerson().length === 0" class="quadrant-empty">暂无</div>
-                </div>
-              </div>
-
-              <!-- 左下：繁忙中（高负荷 + 普通项目） -->
-              <div class="quadrant quadrant--bl">
-                <div class="quadrant-header">
-                  <span class="quadrant-icon">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  </span>
-                  <span class="quadrant-title">繁忙中</span>
-                  <span class="quadrant-count">{{ getBusyPerson().length }}</span>
-                </div>
-                <div class="quadrant-body">
-                  <div
-                    v-for="person in getBusyPerson()"
-                    :key="person.name"
-                    class="person-node"
-                    @mouseenter="hoveredPerson = person"
-                    @mouseleave="hoveredPerson = null"
-                  >
-                    <div class="node-circle" :style="{ borderColor: '#dc2626' }">
-                      <span class="node-avatar" :style="{ background: '#dc2626' }">{{ person.name.substring(0, 1) }}</span>
-                      <span class="node-badge">{{ person.projectCount }}</span>
-                    </div>
-                    <span class="node-name">{{ person.name }}</span>
-                  </div>
-                  <div v-if="getBusyPerson().length === 0" class="quadrant-empty">暂无</div>
-                </div>
-              </div>
-
-              <!-- 右下：正常（低负荷 + 普通项目） -->
-              <div class="quadrant quadrant--br">
-                <div class="quadrant-header">
-                  <span class="quadrant-icon">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                  </span>
-                  <span class="quadrant-title">正常</span>
-                  <span class="quadrant-count">{{ getNormalPerson().length }}</span>
-                </div>
-                <div class="quadrant-body">
-                  <div
-                    v-for="person in getNormalPerson()"
-                    :key="person.name"
-                    class="person-node"
-                    @mouseenter="hoveredPerson = person"
-                    @mouseleave="hoveredPerson = null"
-                  >
-                    <div class="node-circle" :style="{ borderColor: '#9333ea' }">
-                      <span class="node-avatar" :style="{ background: '#9333ea' }">{{ person.name.substring(0, 1) }}</span>
-                      <span class="node-badge">{{ person.projectCount }}</span>
-                    </div>
-                    <span class="node-name">{{ person.name }}</span>
-                  </div>
-                  <div v-if="getNormalPerson().length === 0" class="quadrant-empty">暂无</div>
-                </div>
-              </div>
+          <div class="mstat-card">
+            <div class="mstat-icon mstat-icon--orange">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
             </div>
-
-            <!-- X轴标签 -->
-            <div class="axis-x-container">
-              <span class="axis-label-left">低</span>
-              <div class="axis-line"></div>
-              <span class="axis-label-center">工作负载（项目数量）</span>
-              <div class="axis-line"></div>
-              <span class="axis-label-right">高</span>
+            <div class="mstat-info">
+              <div class="mstat-value">{{ matrixStats.avgWorkload }}%</div>
+              <div class="mstat-label">平均负荷</div>
+            </div>
+          </div>
+          <div class="mstat-card">
+            <div class="mstat-icon mstat-icon--red">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div class="mstat-info">
+              <div class="mstat-value">{{ matrixStats.overloadCount }}</div>
+              <div class="mstat-label">超负荷</div>
+            </div>
+          </div>
+          <div class="mstat-card">
+            <div class="mstat-icon mstat-icon--purple">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="mstat-info">
+              <div class="mstat-value">{{ matrixStats.idleCount }}</div>
+              <div class="mstat-label">空闲</div>
             </div>
           </div>
         </div>
 
-        <!-- 图例说明 -->
+        <!-- 卡片矩阵视图 -->
+        <div v-show="matrixViewType === 'card'" class="matrix-card-grid">
+          <!-- 四象限 -->
+          <div class="matrix-quadrant" :class="'quadrant--' + q.key" v-for="q in matrixQuadrants" :key="q.key">
+            <div class="quadrant-header">
+              <span class="quadrant-dot" :style="{ background: q.color }"></span>
+              <span class="quadrant-name">{{ q.name }}</span>
+              <span class="quadrant-count">{{ q.persons.length }}人</span>
+            </div>
+            <div class="quadrant-desc">{{ q.desc }}</div>
+            <div class="quadrant-persons" v-if="q.persons.length > 0">
+              <div
+                v-for="person in q.persons"
+                :key="person.name"
+                class="person-bubble"
+                :style="{ background: person.color }"
+                :title="person.name + ' · ' + person.projectCount + '个项目'"
+                @mouseenter="hoveredPerson = person"
+                @mouseleave="hoveredPerson = null"
+              >
+                <span class="person-bubble__name">{{ person.name.substring(0, 1) }}</span>
+                <div class="person-bubble__tooltip">
+                  <div class="tooltip-name">{{ person.name }}</div>
+                  <div class="tooltip-meta">{{ person.projectCount }}个项目 · 负荷{{ person.loadPercent }}%</div>
+                  <div class="tooltip-bar"><div class="tooltip-bar-fill" :style="{ width: person.loadPercent + '%', background: person.color }"></div></div>
+                  <div class="tooltip-role" v-if="person.roles.length">{{ person.roles[0] }}</div>
+                  <div class="tooltip-projects" v-if="person.projects.length">
+                    <div class="tooltip-proj-title">参与项目</div>
+                    <div class="tooltip-proj-item" v-for="p in person.projects" :key="p.name">{{ p.name }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="quadrant-empty" v-else>—</div>
+          </div>
+        </div>
+
+        <!-- 散点图视图 -->
+        <div v-show="matrixViewType === 'scatter'" class="matrix-scatter-wrap">
+          <div ref="matrixChartRef" class="matrix-scatter-canvas"></div>
+        </div>
+
+        <!-- 图例 -->
         <div class="matrix-legend">
-          <div class="legend-section">
-            <div class="legend-title">矩阵说明</div>
-            <div class="legend-desc">基于人员参与项目数量和项目重要程度进行双维度分析</div>
-          </div>
-          <div class="legend-rules">
-            <div class="legend-item">
-              <span class="legend-label">X轴计算：</span>
-              <span class="legend-text">工作负载 = 参与项目数 / 标准容量(8) × 100%，项目数 > 3 为高负荷</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-label">Y轴计算：</span>
-              <span class="legend-text">重要程度 = Σ(项目阶段权重)，运营中=3分，部署中=2分，其他=0分</span>
-            </div>
-          </div>
-          <div class="legend-quadrants">
-            <div class="legend-quadrant">
-              <span class="legend-dot" style="background: #ea580c"></span>
-              <span class="legend-name">需关注</span>
-              <span class="legend-tip">高负荷 + 高重要项目，人手紧张需关注</span>
-            </div>
-            <div class="legend-quadrant">
-              <span class="legend-dot" style="background: #16a34a"></span>
-              <span class="legend-name">可分配</span>
-              <span class="legend-tip">低负荷 + 高重要项目，Capacity 充足可分配</span>
-            </div>
-            <div class="legend-quadrant">
-              <span class="legend-dot" style="background: #dc2626"></span>
-              <span class="legend-name">繁忙中</span>
-              <span class="legend-tip">高负荷 + 普通项目，项目较多需留意</span>
-            </div>
-            <div class="legend-quadrant">
-              <span class="legend-dot" style="background: #9333ea"></span>
-              <span class="legend-name">正常</span>
-              <span class="legend-tip">低负荷 + 普通项目，负荷正常</span>
-            </div>
+          <div class="legend-item" v-for="q in matrixQuadrants" :key="q.key">
+            <span class="legend-dot" :style="{ background: q.color }"></span>
+            <span class="legend-name">{{ q.name }}</span>
+            <span class="legend-desc">{{ q.desc }}</span>
           </div>
         </div>
-
-        <!-- 悬停详情 -->
-        <transition name="fade">
-          <div v-if="hoveredPerson" class="person-detail">
-            <div class="detail-header">
-              <div class="detail-avatar" :style="{ background: hoveredPerson.color }">
-                {{ hoveredPerson.name.substring(0, 1) }}
-              </div>
-              <div class="detail-info">
-                <div class="detail-name">{{ hoveredPerson.name }}</div>
-                <div class="detail-meta">{{ hoveredPerson.projectCount }} 个项目 · 负荷 {{ hoveredPerson.allocationRate }}%</div>
-              </div>
-            </div>
-            <div class="detail-progress">
-              <div class="progress-label">
-                <span>工作负荷</span>
-                <span>{{ hoveredPerson.allocationRate }}%</span>
-              </div>
-              <div class="progress-bar">
-                <div class="progress-fill" :style="{ width: hoveredPerson.allocationRate + '%', background: hoveredPerson.color }"></div>
-              </div>
-            </div>
-            <div class="detail-roles" v-if="hoveredPerson.roles.length">
-              <span v-for="role in hoveredPerson.roles" :key="role" class="role-tag">{{ role }}</span>
-            </div>
-            <div class="detail-projects" v-if="hoveredPerson.projects.length">
-              <div class="projects-title">参与项目</div>
-              <div v-for="project in hoveredPerson.projects" :key="project" class="project-item">
-                <span class="project-dot" :style="{ background: hoveredPerson.color }"></span>
-                {{ project }}
-              </div>
-            </div>
-          </div>
-        </transition>
-      </div>
+      </template>
     </div>
 
-    <!-- 瀑布视图 -->
-    <div v-show="viewMode === 'detail'" class="bento-view">
-      <div class="bento-grid">
+    <!-- 项目拼图视图 (Treemap) -->
+    <div v-show="viewMode === 'detail' && masonryStyle === 'treemap'" class="treemap-view">
+      <div ref="projectTreemapRef" class="treemap-canvas"></div>
+    </div>
+
+    <!-- 项目详情视图 -->
+    <div v-show="viewMode === 'detail' && masonryStyle !== 'treemap'" class="bento-view">
+      <div
+        class="bento-grid"
+        :style="{
+          gridTemplateColumns: gridColumns,
+          gap: currentMasonryStyle.gap + 'px'
+        }"
+      >
         <div
           v-for="(project, idx) in tableData"
           :key="project.id"
           class="bento-card"
+          :class="{ 'is-dragging': draggingCard === idx, 'drag-over': dragOverCard === idx }"
           :style="{ animationDelay: `${idx * 0.04}s` }"
+          draggable="true"
+          @dragstart="onCardDragStart($event, idx)"
+          @dragover="onCardDragOver($event, idx)"
+          @drop="onCardDrop($event, idx)"
+          @dragend="onCardDragEnd"
         >
-          <!-- 左侧阶段色条 -->
-          <div class="bento-stage-bar" :style="{ background: getStageColor(project.stage) }"></div>
-
-          <!-- 卡片顶部 -->
-          <div class="bento-top">
-            <div class="bento-avatar" :style="{ background: getProjectColor(project.code) }">
-              {{ getInitials(project.name) }}
-            </div>
-            <div class="bento-top-info">
-              <div class="bento-name">{{ project.name }}</div>
-              <div class="bento-code" @click.stop="copyCode(project.code)">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                {{ project.code }}
+          <!-- 卡片顶部 — 项目身份区 -->
+          <div class="bento-top" :style="{ borderTop: `3px solid ${getStageColor(project.stage)}` }">
+            <div class="bento-top-left">
+              <div class="bento-avatar" :style="{ background: getProjectColor(project.code) }">
+                {{ getInitials(project.name) }}
               </div>
             </div>
-            <!-- 悬停显示的操作按钮 -->
-            <div class="bento-hover-actions">
-              <el-tooltip content="复制代码" placement="top">
-                <el-button size="small" text @click.stop="copyCode(project.code)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                </el-button>
-              </el-tooltip>
-              <el-tooltip content="编辑" placement="top">
-                <el-button size="small" text @click.stop="openEditFromDetail(project)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                </el-button>
-              </el-tooltip>
-              <el-tooltip content="删除" placement="top">
-                <el-button size="small" text class="btn-delete" @click.stop="handleDelete(project)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </el-button>
-              </el-tooltip>
+            <div class="bento-top-right">
+              <div class="bento-name-row">
+                <span class="bento-name">{{ project.name }}</span>
+                <div class="bento-hover-actions">
+                  <el-tooltip content="编辑" placement="top">
+                    <el-button size="small" text @click.stop="openEditFromDetail(project)">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </el-button>
+                  </el-tooltip>
+                  <el-tooltip content="删除" placement="top">
+                    <el-button size="small" text class="btn-delete" @click.stop="handleDelete(project)">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </el-button>
+                  </el-tooltip>
+                </div>
+              </div>
+              <div class="bento-code" @click.stop="copyCode(project.code)">{{ project.code }}</div>
             </div>
           </div>
 
@@ -535,32 +411,38 @@
               </div>
             </div>
 
+            <div class="bento-divider"></div>
+
             <!-- 项目描述 -->
-            <div class="bento-desc" v-if="project.description">
-              {{ project.description }}
+            <div class="bento-desc-section" v-if="project.description">
+              <div class="bento-desc-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                项目描述
+              </div>
+              <div class="bento-desc">{{ project.description }}</div>
             </div>
 
-            <!-- 项目信息 -->
-            <div class="bento-info-row" v-if="project.companyAddr || project.projectPeriod">
-              <div class="bento-info-item" v-if="project.companyAddr">
-                <el-icon><Location /></el-icon>
-                <span>{{ project.companyAddr }}</span>
+            <!-- 项目周期 & 公司 -->
+            <div class="bento-period-section" v-if="project.projectPeriod || project.companyAddr">
+              <div class="bento-period-label">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                项目周期
               </div>
-              <div class="bento-info-item" v-if="project.projectPeriod">
-                <el-icon><Clock /></el-icon>
-                <span class="info-label">项目时间</span>
-                <span>{{ project.projectPeriod }}</span>
+              <div class="bento-period-row">
+                <span class="bento-period-item" v-if="project.projectPeriod">{{ project.projectPeriod }}</span>
+                <span class="bento-period-item bento-period-item--addr" v-if="project.companyAddr">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  {{ project.companyAddr }}
+                </span>
               </div>
             </div>
 
             <!-- 解决方案 -->
             <div class="bento-solution" v-if="project.solution">
               <div class="bento-solution-label">
-                <el-icon><Connection /></el-icon>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                 {{ t('project.form.solutionLabel') }}
-                <span v-if="project.solutionPerson" class="solution-person">
-                  · {{ project.solutionPerson }}
-                </span>
+                <span v-if="project.solutionPerson" class="solution-person">{{ project.solutionPerson }}</span>
               </div>
               <div class="bento-solution-text">{{ project.solution }}</div>
             </div>
@@ -568,7 +450,7 @@
             <!-- 团队成员 -->
             <div class="bento-team" v-if="getTeamMembers(project).length > 0">
               <div class="bento-team-label">
-                <el-icon><User /></el-icon>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 团队成员
                 <span class="bento-team-count">{{ getTeamMembers(project).length }}</span>
               </div>
@@ -594,8 +476,8 @@
             <!-- 驻场地点 -->
             <div class="bento-stations" v-if="project.onsiteStations && project.onsiteStations.length > 0">
               <div class="bento-stations-label">
-                <el-icon><LocationInformation /></el-icon>
-                {{ t('project.list.onsiteStations') }}
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                驻场地点
                 <span class="bento-station-count">{{ project.onsiteStations.length }}</span>
               </div>
               <div class="bento-station-list">
@@ -604,21 +486,20 @@
                   :key="si"
                   class="bento-station-chip"
                 >
-                  <el-icon><LocationInformation /></el-icon>
                   <span class="station-location">{{ s.location || '—' }}</span>
-                  <span class="station-person bento-member-chip--clickable" v-if="s.person" @click.stop="handlePersonnelClick(s.person)">{{ s.person }}</span>
+                  <span class="station-person" v-if="s.person">{{ s.person }}</span>
                   <span class="station-phone" v-if="s.phone">{{ s.phone }}</span>
                 </div>
               </div>
             </div>
 
-            <!-- 底部时间 -->
+            <!-- 底部 -->
             <div class="bento-footer">
-              <span class="bento-stage-tag" :style="{ background: getStageColor(project.stage) + '20', color: getStageColor(project.stage) }">
+              <span class="bento-stage-tag" :style="{ background: getStageColor(project.stage) + '18', color: getStageColor(project.stage) }">
                 {{ t('project.stage.' + project.stage) }}
               </span>
               <span class="bento-time">
-                <el-icon><Timer /></el-icon>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 {{ formatDate(project.updatedAt) }}
               </span>
             </div>
@@ -894,29 +775,28 @@
         <!-- 基本信息 -->
         <div class="detail-modal-section" v-if="currentDetail.description">
           <div class="modal-section-title">项目描述</div>
-          <div class="modal-section-content">{{ currentDetail.description }}</div>
+          <div class="modal-desc">{{ currentDetail.description }}</div>
         </div>
 
         <!-- 项目信息 -->
-        <div class="detail-modal-section" v-if="currentDetail.companyAddr || currentDetail.projectPeriod || currentDetail.solution">
-          <div class="modal-section-title">{{ t('project.form.projectInfo') }}</div>
-          <div class="modal-info-grid">
-            <div class="modal-info-item" v-if="currentDetail.companyAddr">
-              <el-icon><Location /></el-icon>
-              <span>{{ t('project.form.companyAddr') }}</span>
-              <strong>{{ currentDetail.companyAddr }}</strong>
+        <div class="detail-modal-section" v-if="currentDetail.companyAddr || currentDetail.projectPeriod">
+          <div class="modal-section-title">项目信息</div>
+          <div class="modal-kv-grid">
+            <div class="modal-kv-row" v-if="currentDetail.companyAddr">
+              <span class="modal-kv-label"><el-icon><Location /></el-icon> {{ t('project.form.companyAddr') }}</span>
+              <span class="modal-kv-value">{{ currentDetail.companyAddr }}</span>
             </div>
-            <div class="modal-info-item" v-if="currentDetail.projectPeriod">
-              <el-icon><Clock /></el-icon>
-              <span>{{ t('project.form.projectPeriod') }}</span>
-              <strong>{{ currentDetail.projectPeriod }}</strong>
-            </div>
-            <div class="modal-info-item modal-info-item--full" v-if="currentDetail.solution">
-              <el-icon><Connection /></el-icon>
-              <span>{{ t('project.form.solutionLabel') }}</span>
-              <strong>{{ currentDetail.solution }}</strong>
+            <div class="modal-kv-row" v-if="currentDetail.projectPeriod">
+              <span class="modal-kv-label"><el-icon><Clock /></el-icon> {{ t('project.form.projectPeriod') }}</span>
+              <span class="modal-kv-value">{{ currentDetail.projectPeriod }}</span>
             </div>
           </div>
+        </div>
+
+        <!-- 解决方案 -->
+        <div class="detail-modal-section" v-if="currentDetail.solution">
+          <div class="modal-section-title">{{ t('project.form.solutionLabel') }}</div>
+          <div class="modal-desc">{{ currentDetail.solution }}</div>
         </div>
 
         <!-- 团队成员 -->
@@ -977,8 +857,8 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUser } from '@/composables/useUser'
 import {
-  Grid, Menu, Plus, Search, Document, Cpu, User,
-  Folder, Location, Clock, Connection, LocationInformation, Tickets, Phone, Timer, Loading, ArrowDown,
+  Grid, Menu, Plus, Search, Cpu, User,
+  Folder, Location, Clock, LocationInformation, Tickets, Phone, Timer, Loading, ArrowDown,
   Filter, RefreshLeft
 } from '@element-plus/icons-vue'
 import { ProjectApi, type Project, type CreateProjectReq, type UpdateProjectReq, type OnSiteStation } from '@/api/project'
@@ -1011,7 +891,252 @@ const personnelLoading = ref(false)
 
 // 矩阵图相关
 const matrixChartRef = ref<HTMLElement>()
+const projectTreemapRef = ref<HTMLElement>()
+
+// 矩阵视图类型
+const matrixViewType = ref<'card' | 'scatter'>('card')
+
+// 矩阵数据
+interface MatrixPerson {
+  name: string
+  projectCount: number
+  loadPercent: number       // 负荷百分比
+  hasHighImportance: boolean // 参与高重要项目
+  color: string
+  projects: { name: string; stage: string }[]
+  roles: string[]
+}
+const matrixPersons = ref<MatrixPerson[]>([])
+
+// 矩阵统计数据
+const matrixStats = computed(() => {
+  const persons = matrixPersons.value
+  const totalProjects = new Set(persons.flatMap(p => p.projects.map(pj => pj.name))).size
+  const avgWorkload = persons.length > 0 ? Math.round(persons.reduce((s, p) => s + p.loadPercent, 0) / persons.length) : 0
+  const overloadCount = persons.filter(p => p.loadPercent > 75).length
+  const idleCount = persons.filter(p => p.projectCount === 0).length
+  return { totalProjects, avgWorkload, overloadCount, idleCount }
+})
+
+// 四象限定义
+const matrixQuadrants = computed(() => {
+  const persons = matrixPersons.value
+  return [
+    {
+      key: 'attention',
+      name: '需关注',
+      desc: '高负荷 + 高重要项目',
+      color: '#ea580c',
+      persons: persons.filter(p => p.projectCount > 3 && p.hasHighImportance),
+    },
+    {
+      key: 'assignable',
+      name: '可分配',
+      desc: '低负荷 + 高重要项目',
+      color: '#22c55e',
+      persons: persons.filter(p => p.projectCount <= 3 && p.hasHighImportance && p.projectCount > 0),
+    },
+    {
+      key: 'busy',
+      name: '繁忙中',
+      desc: '高负荷 + 普通项目',
+      color: '#dc2626',
+      persons: persons.filter(p => p.projectCount > 3 && !p.hasHighImportance),
+    },
+    {
+      key: 'normal',
+      name: '正常',
+      desc: '低负荷 + 普通项目',
+      color: '#9333ea',
+      persons: persons.filter(p => p.projectCount <= 3 && p.projectCount > 0 && !p.hasHighImportance),
+    },
+    {
+      key: 'idle',
+      name: '空闲',
+      desc: '无参与项目',
+      color: '#94a3b8',
+      persons: persons.filter(p => p.projectCount === 0),
+    },
+  ]
+})
+
+// 悬停人员
+const hoveredPerson = ref<MatrixPerson | null>(null)
+
+// 视图切换
+const switchMatrixView = (type: 'card' | 'scatter') => {
+  matrixViewType.value = type
+  if (type === 'scatter') {
+    nextTick(() => initMatrixScatterChart())
+  }
+}
+
+// 头像颜色池
+const avatarColors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399', '#00BFA5', '#7C3AED', '#DB2777', '#0ea5e9', '#f97316', '#8b5cf6', '#ec4899']
+const getPersonColor = (name: string) => avatarColors[(name || '').charCodeAt(0) % avatarColors.length]
+
+// 计算矩阵数据
+const calculateMatrixData = (projects: Project[]) => {
+  const personMap = new Map<string, {
+    projectCount: number
+    projects: { name: string; stage: string }[]
+    roles: Set<string>
+    hasHighImportance: boolean
+  }>()
+
+  const roleFieldMap: [string, string][] = [
+    ['projectPerson', '项目负责人'],
+    ['opsPerson', '运维负责人'],
+    ['opsStaffPerson', '运维人员'],
+    ['developerPerson', '开发人员'],
+    ['testerPerson', '测试人员'],
+    ['businessPerson', '业务人员'],
+    ['compliancePerson', '合规人员'],
+    ['securityPerson', '安全人员'],
+    ['networkPerson', '网络人员'],
+    ['solutionPerson', '方案人员'],
+  ]
+
+  projects.forEach(project => {
+    const isHighImportance = project.stage === 'running' || project.stage === 'deploying'
+    roleFieldMap.forEach(([field, roleName]) => {
+      const val = (project as any)[field]
+      if (val && val.trim()) {
+        val.split(/[,，、]/).map((n: string) => n.trim()).filter(Boolean).forEach(personName => {
+          if (!personMap.has(personName)) {
+            personMap.set(personName, { projectCount: 0, projects: [], roles: new Set(), hasHighImportance: false })
+          }
+          const info = personMap.get(personName)!
+          info.projectCount++
+          info.projects.push({ name: project.name, stage: project.stage || '' })
+          info.roles.add(roleName)
+          if (isHighImportance) info.hasHighImportance = true
+        })
+      }
+    })
+  })
+
+  matrixPersons.value = Array.from(personMap.entries()).map(([name, info]) => ({
+    name,
+    projectCount: info.projectCount,
+    loadPercent: Math.min(Math.round((info.projectCount / 6) * 100), 100),
+    hasHighImportance: info.hasHighImportance,
+    color: getPersonColor(name),
+    projects: info.projects,
+    roles: Array.from(info.roles),
+  }))
+}
+
+// 初始化散点图
+const initMatrixScatterChart = async () => {
+  if (!matrixChartRef.value) return
+  if (!echarts) { echarts = await import('echarts') }
+  if (matrixChart) { matrixChart.dispose() }
+  matrixChart = echarts.init(matrixChartRef.value)
+  matrixChart.resize()
+
+  const persons = matrixPersons.value
+  // 坐标：x = 项目数/6*100，y = 高重要?100:0
+  const scatterData = persons.map(p => ({
+    name: p.name,
+    value: [
+      p.projectCount > 0 ? Math.min((p.projectCount / 6) * 100, 100) : 0,
+      p.hasHighImportance ? 80 : p.projectCount === 0 ? -10 : 30,
+      p.projectCount,
+      p.projects,
+    ],
+    itemStyle: { color: p.color, opacity: 0.85, borderColor: '#fff', borderWidth: 2 },
+  }))
+
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#fff',
+      borderColor: '#e0e2ec',
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: [10, 14],
+      textStyle: { color: '#191c23', fontSize: 12 },
+      formatter: (params: any) => {
+        const d = params.data
+        const [x, y, count, projects] = d.value
+        const name = d.name
+        const person = persons.find(p => p.name === name)
+        const rolesStr = person?.roles.join('、') || ''
+        const pjs = (projects as any[]).map((p: any) => `<br/>&nbsp;&nbsp;• ${p.name}`).join('')
+        return `<div style="font-weight:600;margin-bottom:4px">${name}</div><div style="color:#666">角色: ${rolesStr}</div><div style="color:#666">项目数: ${count} 项</div><div style="margin-top:4px;color:#666">项目列表: ${pjs}</div>`
+      }
+    },
+    grid: { left: 64, right: 40, top: 24, bottom: 48 },
+    xAxis: {
+      type: 'value', name: '项目数量',
+      nameLocation: 'middle', nameGap: 32,
+      nameTextStyle: { color: '#6b7280', fontSize: 12 },
+      min: 0, max: 100,
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#9ca3af', fontSize: 11, formatter: (v: number) => Math.round(v / 100 * 6) + '' },
+      splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } },
+    },
+    yAxis: {
+      type: 'value', name: '重要程度',
+      nameLocation: 'middle', nameGap: 44,
+      nameTextStyle: { color: '#6b7280', fontSize: 12 },
+      min: -20, max: 100,
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
+      axisTick: { show: false },
+      axisLabel: { show: false },
+      splitLine: { show: false },
+    },
+    series: [{
+      type: 'scatter',
+      symbolSize: (val: number[]) => Math.min(Math.max(val[2] * 8, 20), 56),
+      data: scatterData,
+      emphasis: {
+        scale: 1.25,
+        itemStyle: { opacity: 1, shadowBlur: 12, shadowColor: 'rgba(0,0,0,0.18)' }
+      },
+      label: {
+        show: true, position: 'inside',
+        formatter: (params: any) => params.data.name.charAt(0),
+        color: '#fff', fontSize: 11, fontWeight: 'bold'
+      }
+    }],
+    // 四象限参考线
+    markLine: {
+      silent: true, symbol: 'none',
+      lineStyle: { type: 'solid', color: '#d1d5db', width: 1.5, type: 'dashed' as any },
+      label: { show: false },
+      data: [{ xAxis: 50 }, { yAxis: 50 }]
+    },
+    // 象限背景色
+    visualMap: { show: false, type: 'continuous' as any }
+  }
+
+  matrixChart.setOption(option)
+  window.addEventListener('resize', () => matrixChart?.resize())
+}
+
+// 加载矩阵视图数据
+const loadNetworkData = async () => {
+  loading.value = true
+  try {
+    const res = await ProjectApi.getKanbanList()
+    const resp = res as any
+    const list: any[] = Array.isArray(resp) ? resp : (Array.isArray(resp?.data) ? resp.data : [])
+    tableData.value = list
+    pagination.total = list.length
+    calculateMatrixData(list)
+    nextTick(() => {
+      if (viewMode.value === 'network' && matrixViewType.value === 'scatter') {
+        initMatrixScatterChart()
+      }
+    })
+  } finally { loading.value = false }
+}
 let matrixChart: any = null
+let projectTreemap: any = null
 let echarts: any = null
 
 // 矩阵数据接口
@@ -1026,11 +1151,8 @@ interface MatrixPersonData {
   roles: string[] // 担任的角色列表
 }
 
-// 矩阵数据
+// 矩阵数据（旧冗余，由 matrixPersons 替代，保留兼容）
 const matrixData = ref<MatrixPersonData[]>([])
-
-// 悬停的人员详情
-const hoveredPerson = ref<MatrixPersonData | null>(null)
 
 // 当前日期
 const currentDate = new Date().toLocaleDateString('zh-CN', {
@@ -1039,52 +1161,84 @@ const currentDate = new Date().toLocaleDateString('zh-CN', {
   day: '2-digit'
 }).replace(/\//g, '-')
 
-// 矩阵统计数据
-const matrixStats = computed(() => {
-  const totalProjects = new Set(matrixData.value.flatMap(p => p.projects)).size
-  const avgWorkload = matrixData.value.length > 0
-    ? Math.round(matrixData.value.reduce((sum, p) => sum + p.allocationRate, 0) / matrixData.value.length)
-    : 0
-  const overloadCount = matrixData.value.filter(p => p.allocationRate > 75).length
-  return { totalProjects, avgWorkload, overloadCount }
-})
-
-// 需关注：高负荷 + 高重要项目
-const getCriticalPerson = () => {
-  return matrixData.value.filter(p => p.projectCount > 3 && p.importanceScore >= 30)
-}
-
-// 可分配：低负荷 + 有高重要项目
-const getAvailablePerson = () => {
-  return matrixData.value.filter(p => p.projectCount <= 3 && p.importanceScore >= 30)
-}
-
-// 繁忙中：高负荷 + 普通项目
-const getBusyPerson = () => {
-  return matrixData.value.filter(p => p.projectCount > 3 && p.importanceScore < 30)
-}
-
-// 正常：低负荷 + 普通项目
-const getNormalPerson = () => {
-  return matrixData.value.filter(p => p.projectCount <= 3 && p.importanceScore < 30)
-}
-
-// 按状态统计
-const getCountByStatus = (status: string) => {
-  switch (status) {
-    case 'overload': return matrixData.value.filter(p => p.projectCount > 5).length
-    case 'busy': return matrixData.value.filter(p => p.projectCount > 3 && p.projectCount <= 5).length
-    case 'normal': return matrixData.value.filter(p => p.projectCount <= 3).length
-    default: return 0
-  }
-}
-
 // 视图切换配置
 const viewTabs = [
   { key: 'detail', label: '项目详情', icon: 'Tickets' },
   { key: 'kanban', label: '阶段看板', icon: 'Menu' },
-  { key: 'network', label: '人员矩阵', icon: 'Grid' },
+  { key: 'network', label: '人员矩阵', icon: 'Cpu' },
 ]
+
+// 拼图风格配置
+const masonryStyle = ref('standard')
+const masonryStyles = [
+  { key: 'tight', label: '紧紧', cols: 5, gap: 4, minWidth: 180, desc: '每行5列，适合大量项目快速浏览' },
+  { key: 'compact', label: '紧凑', cols: 4, gap: 6, minWidth: 200, desc: '每行4列，平衡信息密度' },
+  { key: 'standard', label: '标准', cols: 3, gap: 12, minWidth: 240, desc: '每行3列，平衡美观与信息' },
+  { key: 'relaxed', label: '宽松', cols: 2, gap: 20, minWidth: 320, desc: '每行2列，大气舒适展示' },
+  { key: 'info', label: '信息', cols: 3, gap: 8, minWidth: 220, desc: '每行3列，展示最全信息' },
+  { key: 'treemap', label: '拼图', cols: 0, gap: 0, minWidth: 0, desc: '无缝拼接，矩形块瀑布流' },
+]
+const currentMasonryStyle = computed(() => masonryStyles.find(s => s.key === masonryStyle.value) || masonryStyles[2])
+
+// 卡片拖拽排序
+const draggingCard = ref<number | null>(null)
+const dragOverCard = ref<number | null>(null)
+const isCardDragging = ref(false)
+
+// 窗口宽度（响应式重算用）
+const windowWidth = ref(window.innerWidth)
+
+// 响应式卡片最小宽度（防止14寸屏溢出）
+const cardMinWidth = computed(() => {
+  const style = currentMasonryStyle.value
+  const ww = windowWidth.value
+  if (ww < 768) return Math.max(140, style.minWidth - 60)
+  if (ww < 1024) return Math.max(160, style.minWidth - 40)
+  if (ww < 1280) return Math.max(170, style.minWidth - 20)
+  return style.minWidth
+})
+
+// 网格列配置（响应式）
+const gridColumns = computed(() => {
+  const style = currentMasonryStyle.value
+  const mw = cardMinWidth.value
+  return `repeat(${style.cols}, minmax(${mw}px, 1fr))`
+})
+
+const onCardDragStart = (e: DragEvent, idx: number) => {
+  draggingCard.value = idx
+  isCardDragging.value = true
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(idx))
+  }
+}
+
+const onCardDragOver = (e: DragEvent, idx: number) => {
+  e.preventDefault()
+  if (draggingCard.value !== null && draggingCard.value !== idx) {
+    dragOverCard.value = idx
+  }
+}
+
+const onCardDrop = (e: DragEvent, idx: number) => {
+  e.preventDefault()
+  if (draggingCard.value !== null && draggingCard.value !== idx) {
+    const data = [...tableData.value]
+    const [removed] = data.splice(draggingCard.value, 1)
+    data.splice(idx, 0, removed)
+    tableData.value = data
+  }
+  draggingCard.value = null
+  dragOverCard.value = null
+  isCardDragging.value = false
+}
+
+const onCardDragEnd = () => {
+  draggingCard.value = null
+  dragOverCard.value = null
+  isCardDragging.value = false
+}
 
 const stageOptions = [
   { value: 'planning' },
@@ -1189,9 +1343,12 @@ const onDrop = async (targetColKey: string) => {
   const fromCol = draggingFromCol.value
 
   // 乐观更新：先移动卡片到新列
-  const projectIndex = kanbanData.value[fromCol]?.findIndex(p => p.id === project.id)
-  if (projectIndex !== undefined && projectIndex > -1) {
-    kanbanData.value[fromCol].splice(projectIndex, 1)
+  const colData = kanbanData.value[fromCol]
+  if (colData) {
+    const projectIndex = colData.findIndex(p => p.id === project.id)
+    if (projectIndex > -1) {
+      colData.splice(projectIndex, 1)
+    }
   }
 
   if (!kanbanData.value[targetColKey]) {
@@ -1271,7 +1428,9 @@ const loadUploadStats = async () => {
       totalUploadSize.value = stats.data.totalSize || 0
       totalUploadCount.value = stats.data.totalCount || 0
     }
-  } catch {}
+  } catch (e) {
+    console.error('Failed to load upload stats:', e)
+  }
 }
 
 // 跳转到上传记录页面
@@ -1713,7 +1872,7 @@ interface TeamMemberRow {
 // 可用岗位列表
 const availableRoles = [
   '项目负责人', '运维负责人', '运维人员', '开发人员', '测试人员',
-  '业务人员', '合规人员', '安全人员', '网络人员', '方案人员'
+  '业务人员', '合规人员', '安全人员', '网络人员', '方案人员', '产品人员'
 ]
 
 // 团队成员（动态表格）
@@ -1852,9 +2011,9 @@ const formatNumber = (num: number): string => {
 
 const formatBytes = (bytes: number): string => {
   if (!bytes) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB']
   const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i]
+  return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[Math.min(i, units.length - 1)]
 }
 
 const formatDate = (dateStr: string) => {
@@ -1903,14 +2062,6 @@ const getProjectColor = (code: string) => {
 
 const getProjectBgStyle = (code: string) => {
   return { background: getProjectColor(code) }
-}
-
-const avatarColors = ['#6b5b95', '#4a7c59', '#b87333', '#8b6f5b', '#5b7b8c', '#6b7c8c', '#7a8471', '#a67c52']
-const getAvatarColor = (name: string) => {
-  if (!name) return avatarColors[0]
-  let hash = 0
-  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i)
-  return avatarColors[Math.abs(hash) % avatarColors.length]
 }
 
 const getTeamMembers = (project: Project) => {
@@ -1979,6 +2130,10 @@ const loadData = async () => {
     })
     tableData.value = res.data?.items || res.data || []
     pagination.total = res.data?.total || 0
+    // 如果是拼图风格，初始化 Treemap
+    if (masonryStyle.value === 'treemap') {
+      nextTick(() => initProjectTreemap())
+    }
   } finally { loading.value = false }
 }
 
@@ -2010,8 +2165,8 @@ const loadKanbanData = async () => {
   finally { loading.value = false }
 }
 
-const switchView = (mode: 'detail' | 'kanban' | 'network') => {
-  viewMode.value = mode
+const switchView = (mode: string) => {
+  viewMode.value = mode as any
   if (mode === 'kanban') {
     loadKanbanData()
     loadAllProjectsForStats()
@@ -2025,253 +2180,164 @@ const switchView = (mode: 'detail' | 'kanban' | 'network') => {
   else loadData()
 }
 
-// 加载矩阵视图数据
-const loadNetworkData = async () => {
-  loading.value = true
-  try {
-    const res = await ProjectApi.getKanbanList()
-    const resp = res as any
-    const list: any[] = Array.isArray(resp) ? resp : (Array.isArray(resp?.data) ? resp.data : [])
-    tableData.value = list
-    pagination.total = list.length
-
-    // 计算矩阵数据
-    calculateMatrixData(list)
-  } finally { loading.value = false }
-}
-
-// 计算人员负荷矩阵数据
-const calculateMatrixData = (projects: Project[]) => {
-  // 收集所有人员及其参与的项目
-  const personMap = new Map<string, {
-    projectCount: number
-    projects: Set<string>
-    highImportance: number  // 参与高重要项目的数量
-    roles: Set<string>
-  }>()
-
-  // 人员角色映射
-  const roleFieldMap: [string, string][] = [
-    ['projectPerson', '项目负责人'],
-    ['opsPerson', '运维负责人'],
-    ['opsStaffPerson', '运维人员'],
-    ['developerPerson', '开发人员'],
-    ['testerPerson', '测试人员'],
-    ['businessPerson', '业务人员'],
-    ['compliancePerson', '合规人员'],
-    ['securityPerson', '安全人员'],
-    ['networkPerson', '网络人员'],
-    ['solutionPerson', '方案人员'],
-  ]
-
-  // 项目重要程度权重（根据阶段）
-  const importanceWeight: Record<string, number> = {
-    running: 3,    // 运营中 - 最重要
-    deploying: 2,  // 部署中 - 重要
-    designing: 1,  // 方案中 - 一般
-    planning: 0,   // 待定中 - 低
-    paused: 0,     // 暂定中 - 低
-  }
-
-  // 遍历所有项目，收集人员信息
-  projects.forEach(project => {
-    const weight = importanceWeight[project.stage || 'planning'] || 0
-
-    roleFieldMap.forEach(([field, roleName]) => {
-      const val = (project as any)[field]
-      if (val && val.trim()) {
-        // 支持逗号分隔的多个人员
-        const persons = val.split(/[,，、]/).map((n: string) => n.trim()).filter((n: string) => n)
-        persons.forEach(personName => {
-          if (!personMap.has(personName)) {
-            personMap.set(personName, {
-              projectCount: 0,
-              projects: new Set(),
-              highImportance: 0,
-              roles: new Set(),
-            })
-          }
-          const info = personMap.get(personName)!
-          info.projectCount++
-          info.projects.add(project.name)
-          info.roles.add(roleName)
-          if (weight >= 2) {
-            info.highImportance += weight
-          }
-        })
-      }
-    })
-  })
-
-  // 转换为矩阵数据
-  const maxProjects = 8 // 标准容量
-  matrixData.value = Array.from(personMap.entries()).map(([name, info]) => {
-    const projectCount = info.projectCount
-    // 分配率 = 项目数 / 标准容量 * 100
-    const allocationRate = Math.min((projectCount / maxProjects) * 100, 100)
-
-    // 重要程度分数 = 高重要项目加权分
-    const importanceScore = Math.min(info.highImportance * 10, 100)
-
-    // 重要程度等级
-    let importanceLevel = 'low'
-    if (importanceScore >= 60) {
-      importanceLevel = 'high'
-    } else if (importanceScore >= 30) {
-      importanceLevel = 'middle'
-    }
-
-    // 颜色：繁忙程度
-    let color = '#22c55e' // 正常 - 绿色
-    if (projectCount > 5) {
-      color = '#ef4444' // 过载 - 红色
-    } else if (projectCount > 3) {
-      color = '#f59e0b' // 偏忙 - 黄色
-    }
-
+// ==================== 项目拼图（Treemap） ====================
+const projectTreemapData = computed(() => {
+  if (!tableData.value.length) return []
+  // 使用平方根压缩数值差距，让小块也能看清
+  return tableData.value.map(p => {
+    const raw = Math.max(p.recordCount || 1, 1)
     return {
-      name,
-      projectCount,
-      allocationRate,
-      importanceScore,
-      importanceLevel,
-      color,
-      projects: Array.from(info.projects),
-      roles: Array.from(info.roles),
+      name: p.name,
+      value: Math.pow(raw, 0.55), // 指数 < 1 压缩极差，让小项目也有足够面积
+      rawValue: raw,
+      id: p.id,
+      code: p.code,
+      stage: p.stage,
+      stageName: stageDisplayName(p.stage),
+      recordCount: p.recordCount || 0,
+      totalSize: p.totalDataSize || 0,
+      teamCount: getTeamCount(p),
+      stageColor: getStageColor(p.stage),
     }
   })
+})
 
-  // 更新矩阵图
-  nextTick(() => {
-    if (viewMode.value === 'network') {
-      initMatrixChart()
-    }
-  })
-}
+const initProjectTreemap = async () => {
+  if (!projectTreemapRef.value) return
+  if (!echarts) echarts = await import('echarts')
 
-// 初始化矩阵图
-const initMatrixChart = async () => {
-  if (!matrixChartRef.value) return
+  if (projectTreemap) projectTreemap.dispose()
+  projectTreemap = echarts.init(projectTreemapRef.value)
+  projectTreemap.resize()
 
-  if (!echarts) {
-    echarts = await import('echarts')
-  }
-
-  if (matrixChart) {
-    matrixChart.dispose()
-  }
-  matrixChart = echarts.init(matrixChartRef.value)
-
-  const data = matrixData.value.map(d => ({
-    name: d.name,
-    value: [d.allocationRate, d.importanceScore, d.projectCount],
-    projects: d.projects,
-    roles: d.roles,
-    color: d.color,
-  }))
+  const data = projectTreemapData.value
+  if (!data.length) return
 
   const option = {
-    backgroundColor: 'transparent',
+    backgroundColor: '#f8f7f5',
     tooltip: {
       trigger: 'item',
       backgroundColor: '#fff',
       borderColor: '#e0e2ec',
-      textStyle: { color: '#191c23', fontSize: 12 },
+      borderWidth: 1,
+      textStyle: { color: '#191c23', fontSize: 13, fontFamily: 'Manrope, Inter, sans-serif' },
+      padding: [12, 16],
       formatter: (params: any) => {
         const d = params.data
-        const rolesStr = d.roles.join('、')
-        const projectsStr = d.projects.map((p: string) => `<br/>&nbsp;&nbsp;• ${p}`).join('')
-        return `
-          <div style="font-weight: 600; margin-bottom: 4px;">${d.name}</div>
-          <div style="color: #666;">角色: ${rolesStr}</div>
-          <div style="color: #666;">参与项目: ${d.projectCount} 项</div>
-          <div style="color: #666; margin-top: 4px;">项目列表: ${projectsStr}</div>
-        `
+        return `<div style="font-weight:700;margin-bottom:8px;color:#1c1917;font-size:14px">${d.name}</div>
+          <div style="color:#6b7280;font-size:12px">编号: ${d.code}</div>
+          <div style="color:#6b7280;font-size:12px">阶段: ${d.stageName}</div>
+          <div style="color:#6b7280;font-size:12px">记录: ${d.recordCount} 条 | 大小: ${formatBytes(d.totalSize)}</div>
+          <div style="color:#6b7280;font-size:12px">成员: ${d.teamCount} 人</div>`
       }
-    },
-    grid: {
-      left: 60,
-      right: 40,
-      top: 40,
-      bottom: 60,
-    },
-    xAxis: {
-      type: 'value',
-      name: '分配率 (%)',
-      nameLocation: 'middle',
-      nameGap: 30,
-      nameTextStyle: { color: '#6b7280', fontSize: 12 },
-      min: 0,
-      max: 100,
-      splitNumber: 5,
-      axisLine: { lineStyle: { color: '#e5e7eb' } },
-      axisTick: { show: false },
-      axisLabel: { color: '#9ca3af', fontSize: 11, formatter: '{value}%' },
-      splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } },
-    },
-    yAxis: {
-      type: 'value',
-      name: '重要程度',
-      nameLocation: 'middle',
-      nameGap: 40,
-      nameTextStyle: { color: '#6b7280', fontSize: 12 },
-      min: 0,
-      max: 100,
-      splitNumber: 5,
-      axisLine: { lineStyle: { color: '#e5e7eb' } },
-      axisTick: { show: false },
-      axisLabel: { color: '#9ca3af', fontSize: 11 },
-      splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } },
     },
     series: [{
-      type: 'scatter',
-      symbolSize: (val: number[]) => {
-        // 根据项目数量调整圆圈大小 (最小20, 最大60)
-        return Math.min(Math.max(val[2] * 8, 20), 60)
-      },
-      data,
-      itemStyle: {
-        color: (params: any) => params.data.color,
-        opacity: 0.85,
-        borderColor: '#fff',
-        borderWidth: 2,
-      },
-      emphasis: {
-        scale: 1.3,
-        itemStyle: {
-          opacity: 1,
-          shadowBlur: 10,
-          shadowColor: 'rgba(0,0,0,0.2)',
-        }
-      },
+      type: 'treemap',
+      width: '100%',
+      height: '100%',
+      roam: false,
+      nodeClick: false,
+      breadcrumb: { show: false },
+      // 让方块尽量保持正方形，避免细长条看不清
+      squareRatio: 1,
       label: {
         show: true,
-        position: 'inside',
-        formatter: (params: any) => params.data.name.charAt(0),
-        color: '#fff',
+        fontSize: 14,
+        fontWeight: 'bold',
+        formatter: (params: any) => {
+          const d = params.data
+          // 名称最多显示 10 个字（中文），过长自动截断
+          const name = d.name.length > 10 ? d.name.substring(0, 9) + '…' : d.name
+          const line2 = `{count|${d.recordCount}条 | ${d.stageName || ''}}`
+          return `{name|${name}}\n${line2}`
+        },
+        rich: {
+          name: { fontSize: 15, fontWeight: 'bold', color: '#fff', lineHeight: 24 },
+          count: { fontSize: 11, color: 'rgba(255,255,255,0.85)', lineHeight: 16 },
+        },
+      },
+      upperLabel: {
+        show: true,
+        height: 28,
         fontSize: 12,
         fontWeight: 'bold',
-      }
-    }],
-    // 四个象限的参考线
-    MarkLine: {
-      silent: true,
-      symbol: 'none',
-      lineStyle: { type: 'solid', color: '#d1d5db', width: 1 },
-      data: [{
-        xAxis: 50
+        formatter: (params: any) => {
+          const d = params.data
+          return `{stage|${d.stageName}}  {size|${formatBytes(d.totalSize)}}`
+        },
+        rich: {
+          stage: { fontSize: 12, fontWeight: 'bold', color: 'rgba(255,255,255,0.95)', backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 4, padding: [2, 8, 2, 8] },
+          size: { fontSize: 11, color: 'rgba(255,255,255,0.85)' },
+        }
+      },
+      itemStyle: {
+        borderColor: 'rgba(255,255,255,0.25)',
+        borderWidth: 4,
+        gapWidth: 4,
+        borderRadius: 10,
+      },
+      emphasis: {
+        itemStyle: {
+          shadowBlur: 24,
+          shadowColor: 'rgba(0,0,0,0.3)',
+          borderWidth: 5,
+          borderColor: '#fff',
+        },
+        label: {
+          rich: {
+            name: { fontSize: 16, fontWeight: 'bold' },
+            count: { fontSize: 12 },
+          }
+        }
+      },
+      levels: [{
+        // 最外层容器
+        itemStyle: {
+          borderColor: '#f8f7f5',
+          borderWidth: 8,
+          gapWidth: 8,
+        },
+        upperLabel: { show: false },
+        label: { show: false },
       }, {
-        yAxis: 50
-      }]
-    }
+        // 所有子块
+        colorSaturation: [0.35, 0.55],
+        itemStyle: {
+          borderColor: 'rgba(255,255,255,0.25)',
+          borderWidth: 4,
+          gapWidth: 4,
+          borderRadius: 10,
+        },
+        label: { show: true },
+        upperLabel: { show: true },
+      }],
+      data: data.map(d => {
+        const baseColor = d.stageColor || '#6366f1'
+        return {
+          name: d.name,
+          value: d.value,
+          id: d.id,
+          code: d.code,
+          stageName: d.stageName,
+          recordCount: d.recordCount,
+          totalSize: d.totalSize,
+          teamCount: d.teamCount,
+          itemStyle: { color: baseColor },
+        }
+      }),
+    }]
   }
 
-  matrixChart.setOption(option)
+  projectTreemap.setOption(option)
 
-  // 响应式
-  window.addEventListener('resize', () => {
-    matrixChart?.resize()
+  projectTreemap.on('click', (params: any) => {
+    if (params.data?.id) {
+      const project = tableData.value.find(p => p.id === params.data.id)
+      if (project) openEditFromDetail(project)
+    }
   })
+
+  window.addEventListener('resize', () => { projectTreemap?.resize() })
 }
 
 const handleSearch = () => { pagination.page = 1; loadData() }
@@ -2479,7 +2545,17 @@ const confirmSubmit = async () => {
 
 watch(() => pagination.page, () => loadData())
 watch(() => pagination.pageSize, () => { pagination.page = 1; loadData() })
-onMounted(() => { loadData(); loadAllProjectsForStats(); loadUploadStats() })
+watch(masonryStyle, (val) => {
+  if (val === 'treemap' && tableData.value.length > 0) {
+    nextTick(() => initProjectTreemap())
+  }
+})
+onMounted(() => {
+  loadData()
+  loadAllProjectsForStats()
+  loadUploadStats()
+  window.addEventListener('resize', () => { windowWidth.value = window.innerWidth })
+})
 </script>
 
 <script lang="ts">
@@ -2495,7 +2571,8 @@ $danger: #f56c6c;
 /* 视图切换过渡效果 */
 .bento-view,
 .kanban-board,
-.network-view {
+.network-view,
+.treemap-view {
   transition: opacity 0.2s ease;
 }
 
@@ -2882,602 +2959,276 @@ $danger: #f56c6c;
   letter-spacing: 0.3px;
 }
 
+
 /* ==================== 人员负荷矩阵视图 ==================== */
 .matrix-view {
-  height: calc(100vh - 220px);
-  display: flex;
-  flex-direction: column;
-}
-
-.matrix-main {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  position: relative;
-  min-height: 0;
+  padding: 20px 24px;
 }
 
-/* 矩阵主区域 */
-.matrix-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 24px;
-  min-height: 0;
-}
-
-/* 标题栏 */
 .matrix-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
-.matrix-header-left {
+.matrix-view-toggle {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
-.matrix-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0;
-}
-
-.matrix-desc {
+.toggle-btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
   font-size: 13px;
-  color: #94a3b8;
-}
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 
-.matrix-date {
-  font-size: 13px;
-  color: #94a3b8;
+  &:hover {
+    border-color: #94a3b8;
+    color: #334155;
+  }
+
+  &.active {
+    background: #1e293b;
+    border-color: #1e293b;
+    color: #fff;
+  }
+
+  svg { width: 14px; height: 14px; }
 }
 
 /* 统计卡片 */
 .matrix-stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-.stat-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px 20px;
   display: flex;
-  align-items: center;
-  gap: 14px;
-  border: 1px solid #f1f5f9;
-}
-
-.stat-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &--blue { background: #eff6ff; color: #3b82f6; }
-  &--green { background: #f0fdf4; color: #22c55e; }
-  &--orange { background: #fff7ed; color: #f59e0b; }
-  &--red { background: #fef2f2; color: #dc2626; }
-  &--purple { background: #faf5ff; color: #9333ea; }
-}
-
-.stat-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.stat-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: #1e293b;
-  line-height: 1.2;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-/* 矩阵内容区 */
-.matrix-content {
-  flex: 1;
-  display: flex;
-  gap: 16px;
-  min-height: 0;
-}
-
-/* Y轴标签 */
-.axis-y-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   gap: 12px;
-  padding: 0 8px;
-}
-
-.axis-label-top,
-.axis-label-bottom {
-  font-size: 12px;
-  color: #94a3b8;
-  font-weight: 500;
-}
-
-.axis-label-text {
-  font-size: 13px;
-  color: #64748b;
-  font-weight: 600;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  letter-spacing: 2px;
-}
-
-/* 四象限网格容器 */
-.matrix-grid-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* 四象限网格 */
-.matrix-grid {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 12px;
-  min-height: 0;
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px;
-}
-
-/* X轴标签 */
-.axis-x-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 8px 20px;
-}
-
-.axis-label-left,
-.axis-label-right {
-  font-size: 12px;
-  color: #94a3b8;
-  font-weight: 500;
-}
-
-.axis-label-center {
-  font-size: 13px;
-  color: #64748b;
-  font-weight: 600;
-}
-
-.axis-line {
-  flex: 1;
-  height: 1px;
-  background: #e2e8f0;
-  max-width: 80px;
-}
-
-/* 象限 */
-.quadrant {
-  display: flex;
-  flex-direction: column;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #f1f5f9;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: #e2e8f0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  }
-
-  &--tl {
-    background: #fff7ed;
-    .quadrant-header { background: #ea580c; }
-  }
-
-  &--tr {
-    background: #f0fdf4;
-    .quadrant-header { background: #16a34a; }
-  }
-
-  &--bl {
-    background: #fef2f2;
-    .quadrant-header { background: #dc2626; }
-  }
-
-  &--br {
-    background: #faf5ff;
-    .quadrant-header { background: #9333ea; }
-  }
-}
-
-.quadrant-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  color: #fff;
-}
-
-.quadrant-icon {
-  display: flex;
-  align-items: center;
-}
-
-.quadrant-title {
-  font-size: 14px;
-  font-weight: 700;
-  flex: 1;
-}
-
-.quadrant-count {
-  background: rgba(255, 255, 255, 0.25);
-  padding: 2px 8px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.quadrant-body {
-  flex: 1;
-  padding: 12px;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 12px;
-  overflow-y: auto;
-}
-
-.quadrant-empty {
-  width: 100%;
-  text-align: center;
-  color: #9ca3af;
-  font-size: 13px;
-  padding: 16px;
-}
-
-/* 人员节点 */
-.person-node {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: transform 0.2s;
-
-  &:hover {
-    transform: translateY(-2px);
-  }
-}
-
-.node-circle {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  border: 3px solid;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-}
-
-.node-avatar {
-  font-size: 18px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.node-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  background: #1e293b;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #fff;
-}
-
-.node-name {
-  font-size: 11px;
-  font-weight: 600;
-  color: #334155;
-  text-align: center;
-  max-width: 60px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 图例说明 */
-.matrix-legend {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px 20px;
-  border: 1px solid #f1f5f9;
-}
-
-.legend-section {
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.legend-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 4px;
-}
-
-.legend-desc {
-  font-size: 12px;
-  color: #64748b;
-}
-
-.legend-rules {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.legend-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 11px;
-}
-
-.legend-label {
-  font-weight: 600;
-  color: #475569;
-  white-space: nowrap;
-}
-
-.legend-text {
-  color: #64748b;
-}
-
-.legend-quadrants {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-
-.legend-quadrant {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
   flex-shrink: 0;
-  margin-top: 3px;
 }
 
-.legend-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: #334155;
-  white-space: nowrap;
-}
-
-.legend-tip {
-  font-size: 11px;
-  color: #94a3b8;
-}
-
-/* 悬停详情卡片 */
-.person-detail {
-  position: absolute;
-  top: 160px;
-  right: 36px;
-  width: 260px;
+.mstat-card {
+  flex: 1;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  padding: 16px;
-  z-index: 100;
-  animation: slideIn 0.2s ease-out;
   border: 1px solid #f1f5f9;
-}
-
-@keyframes slideIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.detail-header {
+  border-radius: 10px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+
+  .mstat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .mstat-body { flex: 1; min-width: 0; }
+  .mstat-num {
+    font-size: 20px;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1.1;
+    font-family: 'Manrope', sans-serif;
+  }
+  .mstat-label { font-size: 11px; color: #94a3b8; margin-top: 2px; }
 }
 
-.detail-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+/* 卡片矩阵 */
+.matrix-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.matrix-quadrant {
+  background: #fff;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+
+  .quadrant-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fafafa;
+
+    .quadrant-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      letter-spacing: 0.3px;
+    }
+    .quadrant-count {
+      font-size: 18px;
+      font-weight: 800;
+      color: #1e293b;
+      font-family: 'Manrope', sans-serif;
+    }
+  }
+
+  .quadrant-body {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 60px;
+    max-height: 160px;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar { width: 4px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
+  }
+}
+
+/* 人员气泡 */
+.person-bubble {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.detail-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.detail-meta {
-  font-size: 11px;
-  color: #94a3b8;
-  margin-top: 2px;
-}
-
-.detail-progress {
-  margin-bottom: 12px;
-}
-
-.progress-label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: #64748b;
-  margin-bottom: 4px;
-}
-
-.progress-bar {
-  height: 4px;
-  background: #f1f5f9;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.3s;
-}
-
-.detail-roles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 10px;
-}
-
-.role-tag {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 500;
-}
-
-.detail-projects {
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
   background: #f8fafc;
-  border-radius: 8px;
-  padding: 10px;
-}
-
-.projects-title {
-  font-size: 10px;
-  font-weight: 600;
-  color: #94a3b8;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.project-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 0;
+  border: 1px solid #f1f5f9;
+  cursor: default;
+  transition: all 0.15s;
   font-size: 12px;
-  color: #475569;
+  color: #334155;
+  position: relative;
 
-  &:not(:last-child) {
-    border-bottom: 1px solid #e2e8f0;
+  &:hover {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    transform: translateX(2px);
+  }
+
+  .person-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+  }
+
+  .person-info {
+    flex: 1;
+    min-width: 0;
+    .person-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e293b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .person-meta {
+      font-size: 10px;
+      color: #94a3b8;
+      margin-top: 1px;
+    }
   }
 }
 
-.project-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  flex-shrink: 0;
+/* 散点图 */
+.matrix-scatter-wrap {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  min-height: 280px;
+  position: relative;
+
+  .matrix-scatter-canvas {
+    width: 100%;
+    height: 100%;
+    min-height: 280px;
+  }
 }
 
-/* 空状态 */
+/* 图例 */
+.matrix-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  flex-shrink: 0;
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #64748b;
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+  }
+}
+
+/* 空状态 / 加载 */
 .matrix-empty {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  min-height: 400px;
-  background: #fff;
-  border-radius: 16px;
+  gap: 12px;
+  padding: 40px;
+  color: #94a3b8;
+
+  svg { width: 48px; height: 48px; opacity: 0.5; }
+  p { font-size: 13px; }
 }
 
 .matrix-loading {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  min-height: 400px;
-  background: #fff;
-  border-radius: 16px;
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #e5e7eb;
-  border-top-color: #6366f1;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.empty-icon {
-  font-size: 64px;
-  opacity: 0.4;
-}
-
-.empty-text {
-  font-size: 18px;
-  font-weight: 600;
-  color: #64748b;
-}
-
-.empty-hint {
-  font-size: 14px;
+  gap: 12px;
+  padding: 40px;
   color: #94a3b8;
+
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #94a3b8;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  p { font-size: 13px; }
 }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
 
 /* 看板 */
 
@@ -4056,7 +3807,7 @@ $danger: #f56c6c;
 /* 网格 */
 .project-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
   min-height: 200px;
   position: relative;
@@ -4204,10 +3955,11 @@ $danger: #f56c6c;
   gap: 14px;
   overflow-x: auto;
   padding-bottom: 16px;
+  align-items: flex-start;
 }
 
 .kanban-col {
-  width: 260px;
+  width: 280px;
   flex-shrink: 0;
   background: #fafaf9;
   border-radius: 14px;
@@ -4285,18 +4037,26 @@ $danger: #f56c6c;
 }
 
 .kanban-col-body {
-  padding: 12px;
+  padding: 10px 12px;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: calc(100vh - 380px);
+  flex-wrap: wrap;
+  gap: 8px;
+  align-content: flex-start;
+  min-height: 60px;
+  max-height: calc(100vh - 320px);
   overflow-y: auto;
 }
 
 .kanban-card {
+  width: 140px;
+  min-height: 56px;
   background: #fff;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid #e8e5e1;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   transition: all 0.2s ease;
   cursor: grab;
 
@@ -4304,56 +4064,17 @@ $danger: #f56c6c;
 
   &:hover {
     border-color: #a8a29e;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   }
 
   &--dragging {
     opacity: 0.4;
     border-color: #a8a29e;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 }
 
-.kanban-card-inner {
-  display: flex;
-}
-
-.kanban-card-content {
-  flex: 1;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.kanban-card-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.kanban-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.kanban-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.kanban-name {
-  font-size: 13px;
+.kanban-card-name {
+  font-size: 12px;
   font-weight: 600;
   color: #1c1917;
   white-space: nowrap;
@@ -4361,130 +4082,23 @@ $danger: #f56c6c;
   text-overflow: ellipsis;
 }
 
-.kanban-code {
-  font-size: 11px;
-  color: #a8a29e;
-}
-
-.kanban-tags {
+.kanban-card-metrics {
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 10px;
-}
-
-.kanban-members {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
-  padding: 10px;
-  background: #fafaf9;
-  border-radius: 10px;
-  border: 1px solid #f0ede8;
-}
-
-.kanban-member {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.kanban-member-avatar {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-.kanban-member-name {
-  font-size: 11px;
-  color: #57534e;
-  max-width: 60px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.kanban-member-more {
-  font-size: 11px;
-  color: #a8a29e;
-  padding: 2px 8px;
-  background: #f5f5f4;
-  border-radius: 8px;
-}
-
-.kanban-stations {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 10px;
-  padding: 10px;
-  background: #fafaf9;
-  border-radius: 10px;
-  border: 1px solid #f0ede8;
-}
-
-.kanban-station {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  color: #57534e;
-
-  .el-icon { color: #a8a29e; font-size: 12px; flex-shrink: 0; }
-  span:first-of-type { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-}
-
-.station-phone {
-  font-size: 11px;
-  color: #a8a29e;
-  flex-shrink: 0;
-}
-
-.kanban-station-more {
-  font-size: 11px;
-  color: #a8a29e;
-  padding-left: 20px;
-}
-
-.station-person-opt {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 0;
-
-  small { font-size: 11px; color: #a8a29e; }
-}
-
-.kanban-card-foot {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #f0ede8;
-}
-
-.kanban-actions {
-  display: flex;
-  gap: 4px;
-  margin-left: auto;
+  font-size: 10px;
+  color: #78716c;
 }
 
 .kanban-metric {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #a8a29e;
+  gap: 2px;
+  white-space: nowrap;
 
-  .el-icon { font-size: 12px; }
+  .el-icon {
+    font-size: 11px;
+    color: #a8a29e;
+  }
 }
 
 .kanban-empty {
@@ -4796,89 +4410,153 @@ $danger: #f56c6c;
 /* 瀑布视图 - Bento Cards */
 .bento-view { width: 100%; }
 
+/* 项目拼图视图 */
+.treemap-view {
+  width: 100%;
+  height: calc(100vh - 200px);
+  min-height: 500px;
+  padding: 16px 20px;
+}
+
+.treemap-canvas {
+  width: 100%;
+  height: 100%;
+}
+
 .bento-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
   align-items: start;
 }
 
 .bento-card {
-  background: #fafaf9;
-  border-radius: 16px;
+  background: #ffffff;
+  border-radius: 14px;
   border: 1px solid #e8e5e1;
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   animation: fadeSlideIn 0.4s ease both;
-  position: relative;
+  display: flex;
+  flex-direction: column;
 
   &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
-    border-color: #d4d0c8;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.07);
+    border-color: #d4cfc8;
 
     .bento-hover-actions { opacity: 1; }
     .bento-avatar { transform: scale(1.04); }
   }
+
+  &.is-dragging {
+    opacity: 0.4;
+    transform: scale(0.97);
+    border-style: dashed;
+    border-color: #9ca3af;
+  }
+
+  &.drag-over {
+    border-color: #3b82f6;
+    border-style: dashed;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  }
 }
 
-/* 左侧阶段色条 - 日式细线 */
-.bento-stage-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 3px;
-  height: 100%;
-  opacity: 0.7;
+/* 拼图风格选择器 */
+.masonry-style-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #fff;
+  border: 1px solid #e8e5e1;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.masonry-style-btn {
+  padding: 4px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #78716c;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover { background: #f5f4f2; color: #1c1917; }
+  &.active { background: #1c1917; color: #fff; }
 }
 
 /* 卡片顶部 */
 .bento-top {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 14px;
-  padding: 20px 18px 16px;
+  padding: 16px 18px 14px;
   background: #fff;
   position: relative;
-  border-bottom: 1px solid #f0ede8;
 }
 
-.bento-top-info {
+.bento-top-left {
+  flex-shrink: 0;
+}
+
+.bento-top-right {
   flex: 1;
   min-width: 0;
-  padding-left: 4px;
 }
 
-.bento-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+.bento-name-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  transition: transform 0.25s ease;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .bento-hover-actions {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.bento-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1c1917;
+  line-height: 1.4;
+  letter-spacing: -0.2px;
+  word-break: break-word;
+}
+
+.bento-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s ease;
+}
+
+.bento-hover-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
   opacity: 0;
   transition: opacity 0.2s;
 
   .el-button {
     color: #a8a29e;
-    padding: 5px 7px;
-    background: rgba(250, 250, 249, 0.9);
+    padding: 4px 6px;
 
     &:hover { color: #57534e; background: #f5f5f4; }
   }
@@ -4886,43 +4564,334 @@ $danger: #f56c6c;
   .btn-delete:hover { color: #dc2626; }
 }
 
-/* 卡片主体 */
-.bento-body {
-  padding: 16px 18px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
 /* 项目名称 */
 .bento-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: #1c1917;
   line-height: 1.4;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.2px;
+  word-break: break-word;
 }
 
 .bento-code {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
   font-size: 11px;
   color: #a8a29e;
   cursor: pointer;
-  padding: 3px 8px;
-  border-radius: 6px;
-  margin-top: 4px;
-  transition: all 0.2s;
-  background: #f5f5f4;
+  margin-top: 3px;
+  display: inline-block;
+  transition: color 0.2s;
 
-  .el-icon { color: #d4d0c8; transition: color 0.2s; }
+  &:hover { color: #78716c; }
+}
+
+/* 卡片主体 */
+.bento-body {
+  padding: 14px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #fafaf8;
+}
+
+.bento-divider {
+  height: 1px;
+  background: #e8e5e1;
+  margin: 0 -2px;
+}
+
+/* 核心指标 */
+.bento-metrics {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e8e5e1;
+  border-radius: 10px;
+  padding: 10px 0;
+}
+
+.bento-metric {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.bento-metric-num {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1c1917;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+
+  &--size { font-size: 14px; }
+}
+
+.bento-metric-label {
+  font-size: 10px;
+  color: #a8a29e;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+.bento-metric-sep {
+  width: 1px;
+  height: 28px;
+  background: #e8e5e1;
+}
+
+/* 描述区块 */
+.bento-desc-section { }
+
+.bento-desc-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #a8a29e;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.bento-desc {
+  font-size: 12px;
+  color: #78716c;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 项目周期区块 */
+.bento-period-section { }
+
+.bento-period-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #a8a29e;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.bento-period-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.bento-period-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #57534e;
+  background: #fff;
+  border: 1px solid #e8e5e1;
+  border-radius: 6px;
+  padding: 3px 10px;
+
+  &--addr { color: #78716c; }
+}
+
+/* 解决方案 */
+.bento-solution { }
+
+.bento-solution-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #a8a29e;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.solution-person {
+  color: #78716c;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.bento-solution-text {
+  font-size: 12px;
+  color: #57534e;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 团队成员 */
+.bento-team { }
+
+.bento-team-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #a8a29e;
+  margin-bottom: 7px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.bento-team-count {
+  background: #e8e5e1;
+  color: #78716c;
+  border-radius: 10px;
+  padding: 0 7px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.bento-team-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.bento-member-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #fff;
+  border: 1px solid #e8e5e1;
+  border-radius: 20px;
+  padding: 3px 10px 3px 3px;
+  cursor: default;
+  transition: all 0.18s ease;
 
   &:hover {
-    color: #78716c;
-    background: #f0ede8;
-    .el-icon { color: #78716c; }
+    border-color: #d4cfc8;
+    background: #fafaf8;
   }
+
+  &--clickable {
+    cursor: pointer;
+
+    &:hover {
+      border-color: #a8a29e;
+      background: #f5f5f4;
+    }
+  }
+}
+
+.bento-member-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.bento-member-name {
+  font-size: 11px;
+  color: #44403c;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.bento-member-overflow {
+  display: flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: #f5f5f4;
+  border: 1px dashed #d4cfc8;
+  border-radius: 20px;
+  font-size: 11px;
+  color: #a8a29e;
+  font-weight: 600;
+}
+
+/* 驻场地点 */
+.bento-stations { }
+
+.bento-stations-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #a8a29e;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.bento-station-count {
+  background: #e8e5e1;
+  color: #78716c;
+  border-radius: 10px;
+  padding: 0 7px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.bento-station-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bento-station-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #e8e5e1;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.station-location { color: #44403c; font-weight: 500; flex: 1; }
+.station-person { color: #78716c; padding-left: 6px; border-left: 1px solid #e8e5e1; cursor: pointer; &:hover { color: #409eff; } }
+.station-phone { color: #a8a29e; padding-left: 6px; border-left: 1px solid #e8e5e1; font-size: 10px; }
+
+/* 底部 */
+.bento-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 2px;
+}
+
+.bento-stage-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 12px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.bento-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #a8a29e;
 }
 
 /* 核心指标 - 日式简约风格 */
@@ -4969,50 +4938,68 @@ $danger: #f56c6c;
   background: #e8e5e1;
 }
 
-/* 描述 */
+/* 描述区块 */
+.bento-desc-section {
+  margin-bottom: 10px;
+}
+
+.bento-desc-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #a8a29e;
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+}
+
 .bento-desc {
   font-size: 13px;
   color: #78716c;
-  line-height: 1.7;
+  line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-/* 项目信息行 */
-.bento-info-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+/* 项目周期区块 */
+.bento-period-section {
+  margin-bottom: 8px;
 }
 
-.bento-info-item {
+.bento-period-label {
   display: flex;
   align-items: center;
   gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #a8a29e;
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+}
+
+.bento-period-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bento-period-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   color: #78716c;
   background: #f5f5f4;
-  border-radius: 8px;
-  padding: 5px 10px;
-
-  .el-icon { color: #a8a29e; }
-
-  // 标签样式统一，与团队成员标签对齐
-  .info-label {
-    color: #a8a29e;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.3px;
-    margin-right: 2px;
-  }
+  border-radius: 6px;
+  padding: 4px 10px;
 }
 
 /* 解决方案 */
 .bento-solution {
-  border-left: 3px solid #d6d3d1;
-  padding-left: 14px;
+  margin-bottom: 8px;
 }
 
 .bento-solution-label {
@@ -5020,12 +5007,10 @@ $danger: #f56c6c;
   align-items: center;
   gap: 5px;
   font-size: 11px;
-  color: #a8a29e;
-  margin-bottom: 6px;
   font-weight: 500;
+  color: #a8a29e;
+  margin-bottom: 4px;
   letter-spacing: 0.3px;
-
-  .el-icon { color: #a8a29e; }
 }
 
 .solution-person {
@@ -5049,14 +5034,12 @@ $danger: #f56c6c;
 .bento-team-label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   font-size: 11px;
-  color: #a8a29e;
-  margin-bottom: 10px;
   font-weight: 500;
+  color: #a8a29e;
+  margin-bottom: 8px;
   letter-spacing: 0.3px;
-
-  .el-icon { color: #a8a29e; }
 }
 
 .bento-team-count {
@@ -5330,42 +5313,53 @@ $danger: #f56c6c;
   font-size: 14px;
   font-weight: 600;
   color: #303133;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.modal-section-content {
+.modal-desc {
   font-size: 13px;
   color: #606266;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
-.modal-info-grid {
+.modal-kv-grid {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.modal-kv-row {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: 120px 1fr;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 8px;
+  font-size: 13px;
+
+  &:last-child { border-bottom: none; }
 }
 
-.modal-info-item {
+.modal-kv-label {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: 5px;
   color: #909399;
+  font-size: 12px;
+  white-space: nowrap;
 
-  .el-icon { color: #c0c4cc; }
-  span { flex-shrink: 0; }
-  strong { color: #303133; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-  &--full { grid-column: 1 / -1; }
+  .el-icon { color: #c0c4cc; font-size: 13px; }
 }
 
-.modal-team-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+.modal-kv-value {
+  color: #303133;
+  font-weight: 450;
+  word-break: break-all;
 }
 
 .modal-team-item {
@@ -5452,8 +5446,7 @@ $danger: #f56c6c;
 
 @media (max-width: 1024px) {
   .kpi-cards { grid-template-columns: repeat(4, 1fr); }
-  .modal-info-grid { grid-template-columns: 1fr; }
-  .modal-info-item--full { grid-column: 1; }
+  .modal-kv-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 768px) {

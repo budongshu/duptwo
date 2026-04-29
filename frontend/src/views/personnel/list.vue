@@ -11,6 +11,10 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           {{ t('common.export') }}
         </el-button>
+        <el-button type="warning" @click="showImportDialog">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          {{ t('common.import') }}
+        </el-button>
         <el-button type="primary" @click="handleCreate">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           {{ t('common.create') }}
@@ -18,16 +22,22 @@
       </div>
     </header>
 
-    <!-- 人员统计 -->
-    <div class="person-stats" v-if="!loading && pagination.total > 0">
-      <div class="person-stat" @click="filterByPosition('')">
-        <span class="person-stat-num">{{ pagination.total }}</span>
+    <!-- 人员统计（基于所有数据，不受分页影响） -->
+    <div class="person-stats" v-if="!loading && allPersonnelData.length > 0">
+      <div class="person-stat person-stat--total" @click="filterByPosition('')">
+        <span class="person-stat-num">{{ allPersonnelData.length }}</span>
         <span class="person-stat-label">全部人员</span>
       </div>
       <div class="stat-divider"></div>
-      <div class="person-stat" v-for="s in positionStats" :key="s.position" @click="filterByPosition(s.position)" :style="{ background: s.color.bg }">
-        <span class="person-stat-num" :style="{ color: s.color.text }">{{ s.count }}</span>
-        <span class="person-stat-label" :style="{ color: s.color.text }">{{ s.position }}</span>
+      <div
+        class="person-stat"
+        v-for="s in positionStats"
+        :key="s.position"
+        @click="filterByPosition(s.position)"
+        :style="{ background: s.color?.bg, borderTop: `2px solid ${s.color?.border}` }"
+      >
+        <span class="person-stat-num" :style="{ color: s.color?.text }">{{ s.count }}</span>
+        <span class="person-stat-label" :style="{ color: s.color?.label }">{{ s.position }}</span>
       </div>
     </div>
 
@@ -126,9 +136,14 @@
         style="width: 100%"
       >
         <el-table-column type="selection" width="38" fixed="left" />
-        <el-table-column v-if="isColumnVisible('name')" :label="t('personnel.list.form.nameLabel')" min-width="100" show-overflow-tooltip>
+        <el-table-column v-if="isColumnVisible('name')" :label="t('personnel.list.form.nameLabel')" min-width="110" show-overflow-tooltip>
           <template #default="{ row }">
-            <span class="cell-name">{{ row.name }}</span>
+            <div class="cell-name">
+              <span class="name-avatar" :style="{ background: getAvatarColor(row.name).bg, color: getAvatarColor(row.name).text }">
+                {{ row.name.charAt(0).toUpperCase() }}
+              </span>
+              <span class="name-text">{{ row.name }}</span>
+            </div>
           </template>
         </el-table-column>
         <el-table-column v-if="isColumnVisible('phone')" :label="t('personnel.list.form.phone')" min-width="130">
@@ -212,7 +227,7 @@
           :page-sizes="[10, 20, 50, 100]"
           layout="sizes, prev, pager, next"
           background
-          small
+          size="small"
         />
       </div>
     </div>
@@ -301,8 +316,14 @@
         </div>
 
         <div class="detail-section detail-meta">
-          <span>{{ t('common.createdAt') }}: {{ currentDetail.createdAt }}</span>
-          <span>{{ t('common.updatedAt') }}: {{ currentDetail.updatedAt }}</span>
+          <span class="meta-time">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            {{ t('common.createdAt') }}: {{ formatDateTime(currentDetail.createdAt) }}
+          </span>
+          <span class="meta-time">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            {{ t('common.updatedAt') }}: {{ formatDateTime(currentDetail.updatedAt) }}
+          </span>
         </div>
       </div>
     </el-dialog>
@@ -443,6 +464,143 @@
         </el-button>
       </div>
     </el-drawer>
+
+    <!-- 导入对话框 -->
+    <el-dialog v-model="importDialogVisible" width="560px" destroy-on-close append-to-body class="import-dialog">
+      <template #header>
+        <div class="import-dlg-header">
+          <span class="import-dlg-title">批量导入人员</span>
+          <span class="import-dlg-sub">支持 xlsx 格式，可分批导入</span>
+        </div>
+      </template>
+
+      <!-- 步骤条 -->
+      <div class="import-steps">
+        <div class="step-item" :class="{ 'step-item--active': activeImportStep === 1, 'step-item--done': activeImportStep > 1 }">
+          <div class="step-circle">{{ activeImportStep > 1 ? '✓' : '1' }}</div>
+          <span class="step-label">下载模板</span>
+        </div>
+        <div class="step-line" :class="{ 'step-line--active': activeImportStep > 1 }"></div>
+        <div class="step-item" :class="{ 'step-item--active': activeImportStep === 2, 'step-item--done': activeImportStep > 2 }">
+          <div class="step-circle">{{ activeImportStep > 2 ? '✓' : '2' }}</div>
+          <span class="step-label">上传文件</span>
+        </div>
+        <div class="step-line" :class="{ 'step-line--active': activeImportStep > 2 }"></div>
+        <div class="step-item" :class="{ 'step-item--active': activeImportStep === 3 }">
+          <div class="step-circle">3</div>
+          <span class="step-label">确认导入</span>
+        </div>
+      </div>
+
+      <!-- Step 1: 下载模板 -->
+      <div class="step-panel" v-if="activeImportStep === 1">
+        <div class="step-hint">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>请先下载标准模板，按要求填写后上传</span>
+        </div>
+        <div class="field-guide" v-if="importTemplateFields && importTemplateFields.length > 0">
+          <div class="fg-title">模板字段说明</div>
+          <div class="fg-row" v-for="f in importTemplateFields" :key="f.code">
+            <span class="fg-name" :class="{ 'fg-name--req': f.required }">{{ f.field }}</span>
+            <span class="fg-type">{{ f.type === 'select' ? '下拉选择' : f.type === 'date' ? '日期' : '文本' }}</span>
+            <span class="fg-example" v-if="f.example">示例：{{ f.example }}</span>
+          </div>
+        </div>
+        <div class="step-actions">
+          <button class="btn-outline" @click="downloadTemplate">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            下载模板
+          </button>
+          <button class="btn-primary" @click="activeImportStep = 2">
+            已下载模板，继续
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: 上传文件 -->
+      <div class="step-panel" v-if="activeImportStep === 2">
+        <div class="drop-zone" :class="{ 'drop-zone--selected': selectedFile }">
+          <el-upload
+            ref="uploadRef"
+            :auto-upload="false"
+            :show-file-list="false"
+            :limit="1"
+            accept=".xlsx"
+            :on-change="handleFileChange"
+          >
+            <template #trigger>
+              <div class="drop-zone__inner">
+                <div class="drop-zone__icon" v-if="!selectedFile">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <div class="drop-zone__file" v-if="selectedFile">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span class="drop-zone__fname">{{ selectedFile.name }}</span>
+                </div>
+                <span class="drop-zone__tip" v-if="!selectedFile">点击选择 Excel 文件，或拖拽到此处</span>
+                <span class="drop-zone__tip drop-zone__tip--replace" v-else>点击可重新选择</span>
+              </div>
+            </template>
+          </el-upload>
+        </div>
+        <div class="file-info" v-if="previewInfo">
+          <span class="file-info__ok">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            共 {{ previewInfo.dataRows }} 条有效数据
+          </span>
+          <span class="file-info__sheets" v-if="previewInfo.sheetName">工作表：{{ previewInfo.sheetName }}</span>
+        </div>
+        <div class="step-actions">
+          <button class="btn-ghost" @click="activeImportStep = 1">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            上一步
+          </button>
+          <button class="btn-primary" :disabled="!selectedFile" @click="startImport">
+            开始导入
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3: 导入中 / 结果 -->
+      <div class="step-panel" v-if="activeImportStep === 3">
+        <!-- 导入中 -->
+        <div class="importing-state" v-if="importing">
+          <div class="progress-wrap">
+            <div class="progress-row">
+              <span class="progress-label">正在导入数据...</span>
+              <span class="progress-pct">{{ importProgress }}%</span>
+            </div>
+            <div class="progress-bar"><div class="progress-bar__fill" :style="{ width: importProgress + '%' }"></div></div>
+            <span class="progress-sub">请勿关闭页面</span>
+          </div>
+        </div>
+        <!-- 导入结果 -->
+        <div class="import-result" v-if="!importing && importResult">
+          <div class="res-banner" :class="importResult && importResult.failed > 0 ? 'res-banner--warn' : 'res-banner--ok'">
+            <svg v-if="importResult && importResult.failed === 0" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg v-else-if="importResult" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <div class="res-banner__text">
+              <span class="res-title">导入完成，共 {{ importResult?.total ?? 0 }} 条</span>
+              <span class="res-ok">成功 {{ importResult?.success ?? 0 }} 条</span>
+              <span v-if="importResult && importResult.failed > 0" class="res-fail">失败 {{ importResult.failed }} 条</span>
+            </div>
+          </div>
+          <div class="fail-list" v-if="!importing && importResult && importResult.failRows && importResult.failRows.length > 0">
+            <div class="fail-list__title">失败明细</div>
+            <div class="fail-item" v-for="(f, idx) in importResult.failRows" :key="idx">
+              <span class="fail-item__row">第{{ f.row }}行</span>
+              <span class="fail-item__data">{{ f.data }}</span>
+              <span class="fail-item__reason">{{ f.reason }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="step-actions" v-if="!importing">
+          <button class="btn-primary" @click="closeImportDialog">完成</button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -461,7 +619,18 @@ const trackExport = inject<(success?: boolean) => void>('trackExport')
 const loading = ref(false)
 const exporting = ref(false)
 const submitting = ref(false)
+const importDialogVisible = ref(false)
+const activeImportStep = ref(1)
+const importing = ref(false)
+const importProgress = ref(0)
+const selectedFile = ref<File | null>(null)
+const uploadRef = ref()
+const previewInfo = ref<{ totalRows: number; dataRows: number; sheetName: string } | null>(null)
+const importResult = ref<{ total: number; success: number; failed: number; failRows: { row: number; data: string; reason: string }[] } | null>(null)
+const importTemplateFields = ref<{ field: string; code: string; required: boolean; type: string; options?: string; maxLength?: number; example?: string }[]>([])
 const tableData = ref<Personnel[]>([])
+// 所有人员数据（用于统计，不受当前页筛选影响）
+const allPersonnelData = ref<Personnel[]>([])
 const tableRef = ref()
 const selectedRows = ref<Personnel[]>([])
 const drawerVisible = ref(false)
@@ -565,35 +734,63 @@ const getPositionClass = (position: string) => {
   return position.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '-').toLowerCase()
 }
 
-// 职位颜色配置（16种，足够区分所有岗位）
-const positionColors: Record<string, { bg: string; text: string }> = {
-  '测试工程师':   { bg: '#e6f7ff', text: '#1890ff' },
-  '网络工程师':   { bg: '#f6ffed', text: '#52c41a' },
-  '安全工程师':   { bg: '#fff7e6', text: '#fa8c16' },
-  '开发工程师':   { bg: '#f9f0ff', text: '#722ed1' },
-  '运维工程师':   { bg: '#fff1f0', text: '#f5222d' },
-  '运营人员':     { bg: '#e6fffb', text: '#13c2c2' },
-  '合规专家':     { bg: '#f0f5ff', text: '#597ef7' },
-  '解决方案':     { bg: '#fff0f6', text: '#eb2f96' },
-  '商务人员':     { bg: '#fcffe6', text: '#d4b106' },
-  '成本人员':     { bg: '#e6f7ff', text: '#096dd9' },
-  '驻场人员':     { bg: '#f6ffed', text: '#389e0d' },
-  '驻场人员-ODC': { bg: '#fff7e6', text: '#d46b08' },
-  '项目管理':     { bg: '#f9f0ff', text: '#531dab' },
-  '合规负责人':   { bg: '#fcffe6', text: '#ad8b00' },
-  '产品人员':     { bg: '#e6fffb', text: '#08979c' },
-  '其他人员':     { bg: '#f5f5f5', text: '#595959' },
+// 人员头像颜色（基于姓名 hash，10种颜色）
+const avatarColors = [
+  { bg: '#e6f7ff', text: '#1890ff' },
+  { bg: '#f6ffed', text: '#52c41a' },
+  { bg: '#fff7e6', text: '#fa8c16' },
+  { bg: '#f9f0ff', text: '#722ed1' },
+  { bg: '#fff1f0', text: '#f5222d' },
+  { bg: '#e6fffb', text: '#13c2c2' },
+  { bg: '#f0f5ff', text: '#597ef7' },
+  { bg: '#fff0f6', text: '#eb2f96' },
+  { bg: '#fcffe6', text: '#d4b106' },
+  { bg: '#f5f5f5', text: '#595959' },
+]
+const getAvatarColor = (name: string) => {
+  if (!name) return avatarColors[0]
+  let hash = 0
+  for (let i = 0; i < name.length; i++) { hash = ((hash << 5) - hash) + name.charCodeAt(i) }
+  return avatarColors[Math.abs(hash) % avatarColors.length]
 }
 
-// 职位统计
+const formatDateTime = (timeStr: string) => {
+  if (!timeStr) return '—'
+  const d = new Date(timeStr)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  const ss = String(d.getSeconds()).padStart(2, '0')
+  return `${y}-${m}-${day} ${hh}:${mm}:${ss}`
+}
+
+// 职位颜色配置（浅色主题，实色背景 + 顶部彩边）
+const positionColors: Record<string, { bg: string; border: string; text: string; label: string }> = {
+  '测试工程师':    { bg: '#eff6ff', border: '#3b82f6', text: '#1d4ed8', label: '#3b82f6' },
+  '网络工程师':    { bg: '#ecfeff', border: '#06b6d4', text: '#0e7490', label: '#06b6d4' },
+  '安全工程师':    { bg: '#f5f3ff', border: '#a855f7', text: '#7e22ce', label: '#a855f7' },
+  '开发工程师':    { bg: '#fefce8', border: '#ca8a04', text: '#a16207', label: '#ca8a04' },
+  '运维工程师':    { bg: '#f0fdf4', border: '#22c55e', text: '#15803d', label: '#22c55e' },
+  '运营人员':      { bg: '#fff7ed', border: '#f97316', text: '#c2410c', label: '#f97316' },
+  '合规专家':      { bg: '#f8fafc', border: '#64748b', text: '#475569', label: '#64748b' },
+  '解决方案':      { bg: '#e0f2fe', border: '#0ea5e9', text: '#0369a1', label: '#0ea5e9' },
+  '商务人员':      { bg: '#fdf2f8', border: '#ec4899', text: '#be185d', label: '#ec4899' },
+  '成本人员':      { bg: '#ede9fe', border: '#8b5cf6', text: '#6d28d9', label: '#8b5cf6' },
+  '驻场人员':      { bg: '#dcfce7', border: '#16a34a', text: '#166534', label: '#16a34a' },
+  '驻场人员-ODC':  { bg: '#ccfbf1', border: '#14b8a6', text: '#0f766e', label: '#14b8a6' },
+  '项目管理':      { bg: '#f7fee7', border: '#84cc16', text: '#4d7c0f', label: '#84cc16' },
+  '合规负责人':    { bg: '#fef9c3', border: '#ca8a04', text: '#a16207', label: '#ca8a04' },
+  '产品人员':      { bg: '#e0f2fe', border: '#38bdf8', text: '#0284c7', label: '#38bdf8' },
+  '其他人员':      { bg: '#f5f5f5', border: '#737373', text: '#525252', label: '#737373' },
+}
+
+// 职位统计（基于所有数据，不受分页影响）
 const positionStats = computed(() => {
   const positions = ['测试工程师', '网络工程师', '安全工程师', '开发工程师', '运维工程师', '运营人员', '合规专家', '解决方案', '商务人员', '成本人员', '驻场人员', '驻场人员-ODC', '项目管理', '合规负责人', '产品人员', '其他人员']
   return positions
-    .map(p => ({
-      position: p,
-      count: tableData.value.filter(r => r.position === p).length,
-      color: positionColors[p] || { bg: '#f0f0f0', text: '#666' }
-    }))
+    .map(p => ({ position: p, count: allPersonnelData.value.filter(r => r.position === p).length, color: positionColors[p] }))
     .filter(s => s.count > 0)
 })
 
@@ -656,6 +853,19 @@ watch(selectedUserId, (uid) => {
 const loadData = async () => {
   loading.value = true
   try {
+    // 先加载所有数据用于统计（不使用分页）
+    const allRes = await PersonnelApi.list({
+      page: 1, pageSize: 10000,
+      keyword: searchKeyword.value || undefined,
+      status: searchStatus.value || undefined,
+      onProject: searchOnProject.value || undefined,
+    })
+    if (allRes.code === 200) {
+      // 不受职位筛选影响，用于统计所有人员
+      allPersonnelData.value = allRes.data.items || []
+    }
+
+    // 再加载当前页数据
     const res = await PersonnelApi.list({
       page: pagination.page, pageSize: pagination.pageSize,
       keyword: searchKeyword.value || undefined,
@@ -693,8 +903,95 @@ const handleExport = async () => {
     URL.revokeObjectURL(url)
     ElMessage.success(t('common.exportSuccess'))
     trackExport?.(true)
-  } catch (e: any) { ElMessage.error(e.message || t('common.exportError')) }
+  } catch (e: any) { ElMessage.error((e?.message) || t('common.exportError')) }
   finally { exporting.value = false }
+}
+
+const showImportDialog = async () => {
+  importDialogVisible.value = true
+  importResult.value = null
+  previewInfo.value = null
+  selectedFile.value = null
+  activeImportStep.value = 1
+  importing.value = false
+  importProgress.value = 0
+  try {
+    const res = await PersonnelApi.getImportTemplate()
+    if (res.code === 200) {
+      importTemplateFields.value = res.data.fields || []
+    }
+  } catch {
+    importTemplateFields.value = []
+  }
+}
+
+const downloadTemplate = async () => {
+  try {
+    await PersonnelApi.downloadTemplate()
+  } catch {
+    ElMessage.error('下载模板失败')
+  }
+}
+
+const handleFileChange = async (file: any) => {
+  const rawFile = file.raw || file
+  if (!rawFile) return
+  selectedFile.value = rawFile
+  previewInfo.value = null
+  try {
+    const res = await PersonnelApi.previewImport(rawFile)
+    if (res.code === 200) {
+      if (res.data.error) {
+        ElMessage.warning('未找到有效表头，请确认使用的是标准模板')
+      }
+      previewInfo.value = res.data
+    }
+  } catch (e: any) {
+    ElMessage.error(e.message || '预览失败')
+  }
+}
+
+const startImport = async () => {
+  if (!selectedFile.value) {
+    ElMessage.warning('请先选择文件')
+    return
+  }
+  activeImportStep.value = 3
+  importing.value = true
+  importProgress.value = 0
+  importResult.value = null
+  try {
+    const res = await PersonnelApi.importPersonnel(selectedFile.value, (pct) => {
+      importProgress.value = pct
+    })
+    importResult.value = res.data
+    importProgress.value = 100
+    if (res.data.failed === 0) {
+      ElMessage.success(`导入成功，共 ${res.data.success} 条`)
+    } else {
+      ElMessage.warning(`部分导入成功 ${res.data.success} 条，失败 ${res.data.failed} 条`)
+    }
+    if (res.data.success > 0) {
+      loadData()
+    }
+  } catch (e: any) {
+    ElMessage.error(e.message || '导入失败')
+    importResult.value = { total: 0, success: 0, failed: 0, failRows: [] }
+  } finally {
+    importing.value = false
+  }
+}
+
+const closeImportDialog = () => {
+  importDialogVisible.value = false
+  importing.value = false
+  importProgress.value = 0
+  selectedFile.value = null
+  previewInfo.value = null
+  activeImportStep.value = 1
+  if (importResult.value && importResult.value.success > 0) {
+    loadData()
+  }
 }
 
 const handleCreate = async () => {
@@ -854,10 +1151,10 @@ export default { name: 'PersonnelList' }
 .person-stats {
   display: flex;
   align-items: center;
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 10px;
-  padding: 12px 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 14px 20px;
   margin-bottom: 12px;
   overflow-x: auto;
   gap: 0;
@@ -867,17 +1164,28 @@ export default { name: 'PersonnelList' }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 8px 14px;
+  gap: 5px;
+  padding: 8px 16px;
   cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s;
+  border-radius: var(--radius-md);
+  transition: all 0.18s ease;
   flex-shrink: 0;
-  min-width: 60px;
+  min-width: 64px;
+  border: 1px solid transparent;
+  border-top: 2px solid transparent;
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    filter: brightness(0.95);
+  }
+
+  &--total {
+    padding: 8px 20px;
+    background: #3b82f6;
+
+    .person-stat-num { color: #ffffff; font-size: 20px; }
+    .person-stat-label { color: rgba(255,255,255,0.8); font-size: 11px; }
+
+    &:hover { background: #2563eb; }
   }
 }
 
@@ -885,19 +1193,22 @@ export default { name: 'PersonnelList' }
   font-size: 18px;
   font-weight: 700;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .person-stat-label {
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
+  letter-spacing: 0.2px;
 }
 
 .stat-divider {
   width: 1px;
-  height: 32px;
-  background: #ebeef5;
+  height: 36px;
+  background: var(--color-border-light);
   flex-shrink: 0;
+  margin: 0 4px;
 }
 
 /* ==================== 筛选栏 ==================== */
@@ -1044,6 +1355,15 @@ export default { name: 'PersonnelList' }
   background: var(--color-surface);
   border-top: 1px solid var(--color-border-light);
   flex-shrink: 0;
+}
+
+/* 固定 drawer 高度，不受页面内容影响 */
+.personnel-drawer {
+  height: 100vh !important;
+}
+
+.personnel-drawer :deep(.el-drawer__body) {
+  overflow-y: auto;
 }
 
 /* ==================== 表单样式 ==================== */
@@ -1238,11 +1558,11 @@ export default { name: 'PersonnelList' }
 }
 
 .detail-remark {
-  background: #f8fafc;
+  background: var(--color-surface-2);
   border-radius: 8px;
   padding: 12px;
   font-size: 13px;
-  color: #475569;
+  color: var(--color-text-secondary);
   line-height: 1.6;
 }
 
@@ -1250,21 +1570,26 @@ export default { name: 'PersonnelList' }
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--color-text-muted);
   padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.meta-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  .el-icon { color: var(--color-text-muted); }
 }
 
 /* ==================== 单元格美化 ==================== */
-.cell-name {
-  font-weight: 600;
-  color: var(--color-text-primary);
-  font-size: 13px;
-}
+.cell-name { display: flex; align-items: center; gap: 7px; }
+.name-avatar { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.name-text { font-weight: 500; color: var(--color-text-primary); }
 
 .cell-company {
   color: var(--color-text-secondary);
-  font-size: 13px;
 }
 
 .cell-position {
@@ -1392,4 +1717,74 @@ export default { name: 'PersonnelList' }
 
   .settings-hint { font-size: 11px; color: var(--color-text-muted); }
 }
+
+/* ==================== 导入对话框 ==================== */
+.import-dlg-header { display: flex; flex-direction: column; gap: 2px; padding: 4px 0; }
+.import-dlg-title { font-size: 15px; font-weight: 700; color: #1c1917; }
+.import-dlg-sub { font-size: 12px; color: #78716c; }
+
+.import-steps { display: flex; align-items: center; justify-content: center; padding: 8px 0 20px; gap: 0; }
+.step-item { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+.step-circle { width: 26px; height: 26px; border-radius: 50%; background: #e8e4de; color: #78716c; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.step-item--active .step-circle { background: #409eff; color: #fff; }
+.step-item--done .step-circle { background: #4a7c59; color: #fff; }
+.step-label { font-size: 11px; color: #78716c; }
+.step-item--active .step-label { color: #409eff; font-weight: 600; }
+.step-item--done .step-label { color: #4a7c59; }
+.step-line { flex: 1; height: 2px; background: #e8e4de; margin: 0 8px; margin-bottom: 18px; transition: background 0.2s; }
+.step-line--active { background: #4a7c59; }
+
+.step-panel { display: flex; flex-direction: column; gap: 14px; }
+.step-hint { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #57534e; background: #f7f6f3; padding: 10px 12px; border-radius: 8px; border: 1px solid #e8e4de; }
+
+.field-guide { background: #fafaf9; border: 1px solid #e8e4de; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
+.fg-title { font-size: 12px; font-weight: 600; color: #1c1917; margin-bottom: 4px; }
+.fg-row { display: grid; grid-template-columns: 80px 64px 1fr; gap: 6px; align-items: baseline; }
+.fg-name { font-size: 12px; color: #1c1917; }
+.fg-name--req::after { content: ' *'; color: #ef4444; }
+.fg-type { font-size: 11px; color: #78716c; }
+.fg-example { font-size: 11px; color: #a8a29e; }
+
+.step-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+.btn-primary { display: flex; align-items: center; gap: 5px; padding: 8px 16px; background: #409eff; color: #fff; border: none; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; &:hover { background: #66b1ff; } &:disabled { background: #a0cfff; cursor: not-allowed; } }
+.btn-ghost { display: flex; align-items: center; gap: 5px; padding: 8px 14px; background: #fff; color: #57534e; border: 1px solid #e8e4de; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; &:hover { border-color: #a8a29e; } }
+.btn-outline { display: flex; align-items: center; gap: 5px; padding: 8px 14px; background: #fff; color: #409eff; border: 1px solid #409eff; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; &:hover { background: #f0f7ff; } }
+
+.drop-zone { border: 2px dashed #d4cfc6; border-radius: 10px; transition: all 0.2s; &:hover { border-color: #409eff; background: #f0f7ff; } &.drop-zone--selected { border-color: #4a7c59; border-style: solid; background: #f0fdf4; } }
+.drop-zone__inner { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 20px; cursor: pointer; gap: 10px; }
+.drop-zone__icon { color: #a8a29e; }
+.drop-zone__tip { font-size: 13px; color: #78716c; }
+.drop-zone__tip--replace { color: #4a7c59; font-weight: 500; }
+.drop-zone__file { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.drop-zone__fname { font-size: 13px; color: #1c1917; font-weight: 500; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.file-info { display: flex; align-items: center; gap: 12px; }
+.file-info__ok { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #4a7c59; font-weight: 600; }
+.file-info__sheets { font-size: 11px; color: #a8a29e; }
+
+.importing-state { display: flex; flex-direction: column; gap: 10px; }
+.progress-wrap { display: flex; flex-direction: column; gap: 6px; }
+.progress-row { display: flex; justify-content: space-between; align-items: center; }
+.progress-label { font-size: 13px; color: #1c1917; font-weight: 500; }
+.progress-pct { font-size: 22px; font-weight: 800; color: #1c1917; font-variant-numeric: tabular-nums; }
+.progress-bar { height: 8px; background: #e8e4de; border-radius: 4px; overflow: hidden; }
+.progress-bar__fill { height: 100%; background: linear-gradient(90deg, #409eff, #66b1ff); border-radius: 4px; transition: width 0.3s; }
+.progress-sub { font-size: 11px; color: #a8a29e; }
+
+.import-result { display: flex; flex-direction: column; gap: 12px; }
+.res-banner { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border-radius: 10px; }
+.res-banner--ok { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.res-banner--warn { background: #fffbeb; border: 1px solid #fde68a; }
+.res-banner__text { display: flex; flex-direction: column; gap: 3px; }
+.res-title { font-size: 13px; font-weight: 700; color: #1c1917; }
+.res-ok { font-size: 12px; color: #4a7c59; font-weight: 600; }
+.res-fail { font-size: 12px; color: #dc2626; font-weight: 600; }
+
+.fail-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
+.fail-list__title { font-size: 12px; font-weight: 600; color: #1c1917; padding: 2px 0; }
+.fail-item { display: grid; grid-template-columns: 50px 80px 1fr; gap: 8px; align-items: baseline; padding: 6px 8px; background: #fef2f2; border-radius: 6px; font-size: 11px; }
+.fail-item__row { color: #78716c; }
+.fail-item__data { color: #1c1917; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fail-item__reason { color: #dc2626; }
 </style>

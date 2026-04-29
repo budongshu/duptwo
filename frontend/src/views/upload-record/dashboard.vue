@@ -219,17 +219,19 @@
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c4c9d4" stroke-width="1.5"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="14"/><line x1="10" y1="10" x2="10" y2="14"/><line x1="14" y1="10" x2="14" y2="14"/></svg>
               <span>{{ t('uploadRecord.dashboard.noDiskLabels') }}</span>
             </div>
-            <div v-else class="disk-grid">
-              <div
-                v-for="item in diskLabels"
-                :key="item.diskLabel"
-                class="disk-tile"
-                :class="`disk-tile--${item.status}`"
-                :title="`${item.diskLabel} - ${item.count} ${t('uploadRecord.dashboard.recordCount')} - ${t(getStatusText(item.status))}`"
-              >
-                <div class="disk-tile__inner">
-                  <span class="disk-tile__name">{{ item.diskLabel }}</span>
-                  <span class="disk-tile__count">{{ item.count }}</span>
+            <div v-else class="disk-grid-scroll">
+              <div class="disk-grid">
+                <div
+                  v-for="item in diskLabels"
+                  :key="item.diskLabel"
+                  class="disk-tile"
+                  :class="`disk-tile--${item.status}`"
+                  :title="`${item.diskLabel} - ${item.count} ${t('uploadRecord.dashboard.recordCount')} - ${t(getStatusText(item.status))}`"
+                >
+                  <div class="disk-tile__inner">
+                    <span class="disk-tile__name">{{ item.diskLabel }}</span>
+                    <span class="disk-tile__count">{{ item.count }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -253,49 +255,90 @@
         <div class="panel panel--project card-appear" style="animation-delay: 0.2s">
           <div class="panel__header">
             <span class="panel__title">{{ t('uploadRecord.dashboard.projectDistribution') }}</span>
-            <span class="panel__meta">{{ projectTotal }} {{ t('uploadRecord.dashboard.projectCount') }}</span>
+            <div class="project-header-right">
+              <span class="project-stat">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                {{ projectTotal }} 个项目
+              </span>
+              <span class="project-stat">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                {{ projectTotalSize }}
+              </span>
+            </div>
           </div>
-          <div class="panel__body">
-            <div ref="projectChartRef" class="chart-canvas chart-canvas--bar"></div>
+          <div class="panel__body panel__body--project">
+            <div v-if="projectBarList.length === 0" class="project-empty">暂无数据</div>
+            <div v-else class="project-list">
+              <div v-for="(item, idx) in projectBarList" :key="item.projectName" class="project-row">
+                <span class="project-idx">{{ idx + 1 }}</span>
+                <span class="project-dot" :style="{ background: projectColors[idx % projectColors.length] }"></span>
+                <span class="project-name" :title="item.projectName">{{ item.projectName }}</span>
+                <div class="project-bar">
+                  <div class="project-bar-fill" :style="{ width: item.pct + '%', background: projectColors[idx % projectColors.length] }"></div>
+                </div>
+                <span class="project-value">{{ formatBytes(item.totalSize) }} / {{ item.count }}条</span>
+                <span class="project-pct">{{ item.pct }}%</span>
+              </div>
+            </div>
           </div>
         </div>
 
         <div class="panel panel--datatype card-appear" style="animation-delay: 0.3s">
           <div class="panel__header">
             <span class="panel__title">{{ t('uploadRecord.dashboard.diskLabelDistribution') }}</span>
-            <span class="panel__meta">{{ dataTypeTotal }} {{ t('uploadRecord.dashboard.diskLabelCount') }}</span>
-          </div>
-          <div class="panel__body">
-            <div ref="dataTypeChartRef" class="chart-canvas chart-canvas--bar"></div>
-          </div>
-        </div>
-
-        <div class="panel panel--health card-appear" style="animation-delay: 0.4s">
-          <div class="panel__header">
-            <span class="panel__title">{{ t('uploadRecord.dashboard.processingHealth') }}</span>
-          </div>
-          <div class="panel__body panel__body--health">
-            <div class="health-gauge">
-              <div class="gauge-ring" :style="{ '--pct': successRate }">
-                <svg viewBox="0 0 200 200">
-                  <circle cx="100" cy="100" r="80" fill="none" stroke="#f0f0f5" stroke-width="14"/>
-                  <circle cx="100" cy="100" r="80" fill="none" :stroke="successRate >= 80 ? '#22c55e' : successRate >= 50 ? '#f59e0b' : '#ef4444'" stroke-width="14" stroke-linecap="round" :stroke-dasharray="`${successRate * 5.02} 502`" transform="rotate(-90 100 100)"/>
-                </svg>
-                <div class="gauge-center">
-                  <span class="gauge-value">{{ successRate }}%</span>
-                  <span class="gauge-label">{{ t('uploadRecord.dashboard.ratePercent') }}</span>
-                </div>
+            <div class="dtype-header-right">
+              <div class="dtype-project-select-wrap">
+                <el-select v-model="diskLabelProjectFilter" size="small" class="dtype-project-select" @change="loadFilteredStats()">
+                  <el-option v-for="opt in diskLabelProjectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+                </el-select>
               </div>
+              <div class="dtype-prefix-pills">
+                <button
+                  v-for="opt in diskPrefixOptions"
+                  :key="opt.value"
+                  :class="['dtype-pill', { active: diskLabelPrefix !== 'custom' && diskLabelPrefix === opt.value }]"
+                  @click="diskLabelPrefix = opt.value; updateDataTypeChart()"
+                >{{ opt.label }}</button>
+                <button
+                  :class="['dtype-pill dtype-pill--custom', { active: diskLabelPrefix === 'custom' }]"
+                  @click="diskLabelPrefix = 'custom'; updateDataTypeChart()"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  自定义
+                </button>
+              </div>
+              <div v-if="diskLabelPrefix === 'custom'" class="dtype-custom-input-wrap">
+                <span class="dtype-custom-label">前</span>
+                <input
+                  v-model.number="diskLabelCustomLen"
+                  type="number"
+                  min="3"
+                  max="20"
+                  class="dtype-custom-input"
+                  @change="updateDataTypeChart()"
+                />
+                <span class="dtype-custom-label">位</span>
+              </div>
+              <div class="dtype-mode-toggle">
+                <button :class="['dtype-mode-btn', { active: diskLabelShowMode === 'count' }]" @click="diskLabelShowMode = 'count'; updateDataTypeChart()">条数</button>
+                <button :class="['dtype-mode-btn', { active: diskLabelShowMode === 'size' }]" @click="diskLabelShowMode = 'size'; updateDataTypeChart()">容量</button>
+              </div>
+              <span class="panel__meta">{{ dataTypeTotal }} {{ t('uploadRecord.dashboard.diskLabelCount') }}</span>
             </div>
-            <div class="health-bars">
-              <div v-for="item in (statistics.byStatus || [])" :key="item.status" class="health-bar-item">
-                <div class="health-bar-item__header">
-                  <span class="health-bar-item__name">{{ t(getStatusText(item.status)) }}</span>
-                  <span class="health-bar-item__count">{{ item.count }}</span>
+          </div>
+          <div class="panel__body panel__body--dtype">
+            <div v-if="diskLabelList.length === 0" class="dtype-empty">暂无数据</div>
+            <div v-else class="dtype-list">
+              <div v-for="(item, idx) in diskLabelList" :key="item.diskLabel" class="dtype-row">
+                <span class="dtype-idx">{{ idx + 1 }}</span>
+                <span class="dtype-dot" :style="{ background: diskLabelColors[idx % diskLabelColors.length] }"></span>
+                <span class="dtype-name" :title="item.diskLabel">{{ item.diskLabel }}</span>
+                <div class="dtype-bar">
+                  <div class="dtype-bar-fill" :style="{ width: item.pct + '%', background: diskLabelColors[idx % diskLabelColors.length] }"></div>
                 </div>
-                <div class="health-bar-item__track">
-                  <div class="health-bar-item__fill" :style="{ width: getPercent(item.count) + '%', background: statusColors[item.status] }"></div>
-                </div>
+                <span class="dtype-value dtype-count">{{ item.count }} <em>条</em></span>
+                <span class="dtype-value dtype-size">{{ formatBytes(item.totalSize) }}</span>
+                <span class="dtype-pct">{{ item.pct }}%</span>
               </div>
             </div>
           </div>
@@ -374,10 +417,11 @@
               start-placeholder="开始日期"
               end-placeholder="结束日期"
               value-format="YYYY-MM-DD"
+              format="MM-DD"
               :clearable="false"
               size="small"
-              style="width: 100%"
-              @change="loadStatistics"
+              style="width: 100%; min-width: 140px"
+              @change="handleDateRangeChange"
             />
           </div>
         </div>
@@ -479,6 +523,7 @@ import type { UploadRecordStatistics, UploadRecord } from '@/api/upload-record'
 import { UploadRecordApi } from '@/api/upload-record'
 import { ProjectApi } from '@/api/project'
 import { useI18n } from 'vue-i18n'
+import { setGlobalFilter, getGlobalFilterParams } from '@/composables/useGlobalFilter'
 
 const { t } = useI18n()
 
@@ -494,6 +539,9 @@ const timePresets = [
   { key: 'today' as const, label: t('uploadRecord.dashboard.timePresetToday') },
   { key: 'week' as const, label: t('uploadRecord.dashboard.timePresetWeek') },
   { key: 'month' as const, label: t('uploadRecord.dashboard.timePresetMonth') },
+  { key: 'quarter' as const, label: '近3月' },
+  { key: 'halfYear' as const, label: '近半年' },
+  { key: 'year' as const, label: '近1年' },
   { key: 'all' as const, label: t('uploadRecord.dashboard.timePresetAll') }
 ]
 
@@ -504,6 +552,9 @@ const setTimeRange = (key: typeof activeTimePreset.value) => {
     case 'today': dateRange.value = [fmt(today), fmt(today)]; break
     case 'week': { const d = new Date(today); d.setDate(d.getDate() - 6); dateRange.value = [fmt(d), fmt(today)]; break }
     case 'month': { const d = new Date(today); d.setDate(d.getDate() - 29); dateRange.value = [fmt(d), fmt(today)]; break }
+    case 'quarter': { const d = new Date(today); d.setMonth(d.getMonth() - 3); dateRange.value = [fmt(d), fmt(today)]; break }
+    case 'halfYear': { const d = new Date(today); d.setMonth(d.getMonth() - 6); dateRange.value = [fmt(d), fmt(today)]; break }
+    case 'year': { const d = new Date(today); d.setFullYear(d.getFullYear() - 1); dateRange.value = [fmt(d), fmt(today)]; break }
     case 'all': dateRange.value = []; break
   }
 }
@@ -511,7 +562,9 @@ const setTimeRange = (key: typeof activeTimePreset.value) => {
 const setTimePreset = (key: typeof activeTimePreset.value) => {
   activeTimePreset.value = key
   setTimeRange(key)
-  loadStatistics()
+  loadFilteredStats()
+  loadRecentRecords()
+  loadTrendData()
 }
 
 const searchProjectName = ref('')
@@ -519,6 +572,36 @@ const searchDiskLabel = ref('')
 const searchStatus = ref('')
 const searchUploader = ref('')
 const projectList = ref<{ name: string; code: string }[]>([])
+
+const formatBytes = (bytes: number): string => {
+  if (!bytes || bytes === 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[Math.min(i, units.length - 1)]
+}
+
+// 格式化日期为 MM-DD（友好显示）
+const formatAxisDate = (dateStr: string): string => {
+  if (!dateStr) return ''
+  // dateStr 格式：2026-04-02 或 2026-04-02T00:00:00+08:00
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return dateStr.slice(5)
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${m}-${day}`
+}
+
+// 格式化 tooltip 日期为 YYYY-MM-DD
+const formatTooltipDate = (dateStr: string): string => {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return dateStr
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 const diskLabelOptions = ref<string[]>([])
 const uploaderOptions = ref<string[]>([])
 const filterDrawerVisible = ref(false)
@@ -539,13 +622,53 @@ const weekTrend = ref(0)
 const monthTrend = ref(0)
 
 const statusColors: Record<string, string> = { completed: '#22c55e', pending: '#f59e0b', processing: '#3b82f6', failed: '#ef4444' }
+const diskLabelColors = ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#a855f7', '#84cc16']
+const diskLabelList = ref<{ diskLabel: string; count: number; totalSize: number; pct: string }[]>([])
+const diskLabelPrefix = ref<number | 'custom'>(0)
+const diskLabelCustomLen = ref(3)
+const diskLabelShowMode = ref<'count' | 'size'>('count')
+const diskLabelProjectFilter = ref<string>('all')
+const diskLabelProjectOptions = computed(() => {
+  const projects = projectList.value.map((p: any) => ({ label: p.name || '(空项目)', value: p.name || '' }))
+  return [{ label: '全部项目', value: 'all' }, ...projects]
+})
+const diskPrefixOptions = [
+  { label: '全标签', value: 0 },
+  { label: '前1位', value: 1 },
+  { label: '前2位', value: 2 },
+]
+const projectColors = ['#8b5cf6', '#7c3aed', '#6d28d9', '#a78bfa', '#5b21b6', '#4c1d95', '#3b0764', '#c4b5fd', '#a855f7', '#9333ea', '#ec4899', '#f97316']
 const getStatusText = (status: string) => ({ completed: 'status.completed', pending: 'status.pending', processing: 'status.processing', failed: 'status.failed' })[status] || status
 const getStatusClass = (status: string) => `badge--${({ completed: 'success', pending: 'warning', processing: 'info', failed: 'danger' })[status] || 'info'}`
 const getPercent = (count: number) => { const arr = statistics.byStatus || []; const total = arr.reduce((s, i) => s + i.count, 0); return total ? Math.round((count / total) * 100) : 0 }
 const successRate = computed(() => { if (statistics.totalCount === 0) return 0; const arr = statistics.byStatus || []; const completed = arr.find(s => s.status === 'completed'); return completed ? Math.round((completed.count / statistics.totalCount) * 100) : 0 })
 const totalTrendCount = computed(() => (statistics.trend || []).reduce((s, t) => s + t.count, 0))
-const dataTypeTotal = computed(() => (statistics.byDiskLabel || []).length)
+const dataTypeTotal = computed(() => {
+  const all = statistics.byDiskLabel || []
+  if (diskLabelPrefix.value === 0) {
+    return all.length
+  }
+  const prefixLen: number = diskLabelPrefix.value === 'custom'
+    ? (diskLabelCustomLen.value || 3)
+    : (diskLabelPrefix.value as number)
+  // 返回唯一前缀分组数量
+  const prefixes = new Set<string>()
+  for (const d of all) {
+    const label = (d.diskLabel || '').trim()
+    // 标签长度小于前缀长度时，用整个标签作为分组键
+    if (label.length >= prefixLen) {
+      prefixes.add(label.substring(0, prefixLen))
+    } else if (label.length > 0) {
+      prefixes.add(label)
+    }
+  }
+  return prefixes.size
+})
 const projectTotal = computed(() => (statistics.byProject || []).length)
+const projectTotalSize = computed(() => {
+  const total = (statistics.byProject || []).reduce((s: number, p: any) => s + (p.totalSize || 0), 0)
+  return formatBytes(total)
+})
 
 // 将后端返回的累计趋势数据转换为每日增量
 const trendDaily = computed(() => {
@@ -563,11 +686,10 @@ const trendDaily = computed(() => {
 })
 const formatTime = (timeStr: string) => { const d = new Date(timeStr); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 
-let trendChart: any = null, dataTypeChart: any = null, projectChart: any = null
+let trendChart: any = null
+const projectBarList = ref<{ projectName: string; count: number; totalSize: number; pct: string }[]>([])
 
 const trendChartRef = ref<HTMLElement>()
-const dataTypeChartRef = ref<HTMLElement>()
-const projectChartRef = ref<HTMLElement>()
 
 // 每日上传统计日期范围（独立控制）
 const trendTimeKey = ref('today')
@@ -593,20 +715,22 @@ const getTrendDateRange = (): [string, string] => {
 const loadTrendData = async () => {
   try {
     const params: Record<string, any> = {}
-    if (trendCustomRange.value?.length === 2) {
+    // 优先使用每日上传统计面板自己的时间选择器
+    if (trendTimeKey.value === 'custom' && trendCustomRange.value?.length === 2) {
       params.startDate = trendCustomRange.value[0]
       params.endDate = trendCustomRange.value[1]
     } else {
       const range = getTrendDateRange()
-      if (range[0]) params.startDate = range[0]
-      if (range[1]) params.endDate = range[1]
+      if (range[0] && range[1]) {
+        params.startDate = range[0]
+        params.endDate = range[1]
+      }
+      // 若未选择时间，不传参数，后端返回所有数据
     }
     const res = await UploadRecordApi.statistics(params)
     const data = res.data || {}
     statistics.trend = data.trend || []
-    statistics.byDiskLabel = data.byDiskLabel || []
-    statistics.byProject = data.byProject || []
-    updateAllCharts()
+    updateTrendChart()
   } catch (error) { console.error('Failed to load trend data:', error) }
 }
 const setTrendTime = (key: string) => {
@@ -637,6 +761,7 @@ const getDiskDateRange = (): [string, string] => {
     case '3d': { const d = new Date(today); d.setDate(d.getDate() - 2); return [fmt(d), fmt(today)] }
     case '7d': { const d = new Date(today); d.setDate(d.getDate() - 6); return [fmt(d), fmt(today)] }
     case '30d': { const d = new Date(today); d.setDate(d.getDate() - 29); return [fmt(d), fmt(today)] }
+    case 'custom': return diskCustomRange.value ? [diskCustomRange.value[0], diskCustomRange.value[1]] : ['', '']
     default: return ['', '']
   }
 }
@@ -650,19 +775,17 @@ const loadDiskLabels = async () => {
     if (s) params.startDate = s
     if (e) params.endDate = e
     const res = await UploadRecordApi.diskLabels(params)
-    diskLabels.value = res.data || []
+    diskLabels.value = (res.data || []).map((d: any) => ({ ...d, diskLabel: (d.diskLabel || '').trim() }))
   } catch { diskLabels.value = [] }
   finally { diskLabelsLoading.value = false }
 }
 const diskLabelTotal = computed(() => diskLabels.value.length)
 
 const initCharts = async () => {
-  if (!trendChartRef.value) return
   echarts = await import('echarts')
-  trendChart = echarts.init(trendChartRef.value)
-  dataTypeChart = echarts.init(dataTypeChartRef.value)
-  projectChart = echarts.init(projectChartRef.value)
-  updateAllCharts()
+  if (trendChartRef.value) trendChart = echarts.init(trendChartRef.value)
+  updateTrendChart()
+  updateProjectChart()
   window.addEventListener('resize', handleResize)
 }
 
@@ -674,58 +797,65 @@ const updateTrendChart = () => {
   const sizes = arr.map((t: any) => t.totalSize)
   const maxCount = Math.max(...counts, 1)
   const maxSize = Math.max(...sizes, 1)
+
+  // 计算趋势参考线（7日均值）
+  const avg = counts.length > 0 ? counts.reduce((a: number, b: number) => a + b, 0) / counts.length : 0
+  const avgLine = counts.map(() => avg)
+
   trendChart.setOption({
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
-      backgroundColor: '#fff',
-      borderColor: '#e0e2ec',
-      textStyle: { color: '#191c23', fontSize: 12 },
-      axisPointer: { type: 'shadow' },
+      backgroundColor: 'rgba(28, 25, 23, 0.92)',
+      borderColor: 'rgba(255,255,255,0.1)',
+      textStyle: { color: '#fff', fontSize: 12, fontFamily: 'Manrope, Inter, sans-serif' },
+      axisPointer: { type: 'line', lineStyle: { color: 'rgba(255,255,255,0.15)', type: 'dashed' } },
       formatter: (params: any) => {
         const d = arr[params[0].dataIndex]
         if (!d) return ''
-        return `${params[0].name}<br/>${params[0].marker} 记录数：${d.count} 条<br/>${params[1].marker} 数据量：${formatFileSizeStatic(d.totalSize)}`
+        return `<div style="padding:4px 0">
+          <div style="font-weight:600;margin-bottom:6px">${formatTooltipDate(params[0].name)}</div>
+          <div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#3b82f6"></span><span>记录数</span><span style="margin-left:auto;font-weight:600">${d.count.toLocaleString()}</span></div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px"><span style="width:8px;height:8px;border-radius:2px;background:#22c55e"></span><span>数据量</span><span style="margin-left:auto;font-weight:600">${formatBytes(d.totalSize)}</span></div>
+        </div>`
       }
     },
     legend: {
       data: ['记录数', '数据量'],
-      top: 2,
-      right: 8,
-      itemWidth: 10,
-      itemHeight: 10,
-      textStyle: { color: '#6b7280', fontSize: 11, fontFamily: 'Manrope, Inter, sans-serif', fontWeight: '500' }
+      top: 4,
+      right: 16,
+      itemWidth: 12,
+      itemHeight: 6,
+      textStyle: { color: '#78716c', fontSize: 11, fontFamily: 'Manrope, Inter, sans-serif' }
     },
-    grid: { top: 38, right: 56, bottom: 24, left: 48, containLabel: false },
+    grid: { top: 40, right: 48, bottom: 20, left: 52 },
     xAxis: {
       type: 'category',
       data: dates,
-      axisLine: { lineStyle: { color: '#e5e7eb', width: 1 } },
+      axisLine: { lineStyle: { color: '#e8e5e1', width: 1 } },
       axisTick: { show: false },
-      axisLabel: { color: '#9ca3af', fontSize: 10, fontFamily: 'Manrope, Inter, sans-serif', formatter: (v: string) => v.slice(5) },
+      axisLabel: { color: '#a8a29e', fontSize: 10, fontFamily: 'Manrope, Inter, sans-serif', formatter: formatAxisDate },
       splitLine: { show: false }
     },
     yAxis: [
       {
         type: 'value',
         name: '',
-        max: Math.ceil(maxCount * 1.15),
-        show: true,
+        max: Math.ceil(maxCount * 1.2),
         position: 'left',
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { color: '#3b82f6', fontSize: 9, fontFamily: 'Manrope, Inter, sans-serif', formatter: (v: number) => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v },
-        splitLine: { lineStyle: { color: '#f3f4f6', width: 1, type: 'dashed' } }
+        axisLabel: { color: '#3b82f6', fontSize: 9, fontFamily: 'Manrope, Inter, sans-serif', formatter: (v: number) => v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'k' : v },
+        splitLine: { lineStyle: { color: '#f5f5f4', width: 1, type: 'dashed' } }
       },
       {
         type: 'value',
         name: '',
-        max: Math.ceil(maxSize * 1.15),
-        show: true,
+        max: Math.ceil(maxSize * 1.2),
         position: 'right',
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { color: '#22c55e', fontSize: 9, fontFamily: 'Manrope, Inter, sans-serif', formatter: (v: number) => formatFileSizeStatic(v) },
+        axisLabel: { color: '#22c55e', fontSize: 9, fontFamily: 'Manrope, Inter, sans-serif', formatter: (v: number) => formatBytes(v) },
         splitLine: { show: false }
       }
     ],
@@ -734,117 +864,121 @@ const updateTrendChart = () => {
         name: '记录数',
         type: 'bar',
         data: counts,
-        barWidth: '30%',
-        barGap: '20%',
+        barWidth: '40%',
+        barMaxWidth: 28,
         yAxisIndex: 0,
-        itemStyle: { color: '#3b82f6', borderRadius: [0, 0, 0, 0] },
-        tooltip: { formatter: (params: any) => `${params.name}<br/>记录数：${params.value} 条` }
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#60a5fa' },
+            { offset: 1, color: '#3b82f6' }
+          ]),
+          borderRadius: [4, 4, 0, 0]
+        },
+        emphasis: {
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: '#93c5fd' },
+              { offset: 1, color: '#60a5fa' }
+            ])
+          }
+        }
       },
       {
         name: '数据量',
-        type: 'bar',
+        type: 'line',
         data: sizes,
-        barWidth: '30%',
-        barGap: '20%',
+        smooth: 0.4,
+        symbol: 'circle',
+        symbolSize: 6,
         yAxisIndex: 1,
-        itemStyle: { color: '#22c55e', borderRadius: [0, 0, 0, 0] },
-        tooltip: { formatter: (params: any) => `${params.name}<br/>数据量：${formatFileSizeStatic(params.value)}` }
+        lineStyle: { color: '#22c55e', width: 2.5 },
+        itemStyle: {
+          color: '#22c55e',
+          borderWidth: 2,
+          borderColor: '#fff'
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(34, 197, 94, 0.2)' },
+            { offset: 1, color: 'rgba(34, 197, 94, 0)' }
+          ])
+        }
       }
     ]
   })
 }
 
 const updateDataTypeChart = () => {
-  if (!dataTypeChart || !echarts) return
   const all = statistics.byDiskLabel || []
-  const arr = all.slice(0, 10)
-  // 反转数组用于显示（从下到上）
-  const reversed = [...arr].reverse()
-  dataTypeChart.setOption({
-    backgroundColor: 'transparent',
-    animation: true,
-    animationDuration: 800,
-    animationEasing: 'cubicOut',
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: '#fff',
-      borderColor: '#e0e2ec',
-      textStyle: { color: '#191c23', fontSize: 12 },
-      axisPointer: { type: 'shadow' },
-      formatter: (params: any) => {
-        const item = params[0]
-        const d = reversed[item.dataIndex]
-        if (!d) return ''
-        return `${d.diskLabel || '(空)'}<br/>${item.marker} ${d.count} 条<br/>数据量: ${formatFileSizeStatic(d.totalSize || 0)}`
-      }
-    },
-    grid: { top: 10, right: 80, bottom: 10, left: 10, containLabel: true },
-    xAxis: { type: 'value', show: false },
-    yAxis: { type: 'category', data: reversed.map((d: any) => d.diskLabel || '(空)'), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#414754', fontSize: 12 } },
-    series: [{
-      type: 'bar',
-      data: reversed.map((d: any) => d.count),
-      barWidth: 14,
-      itemStyle: { borderRadius: [0, 6, 6, 0], color: '#3b82f6' },
-      label: { show: true, position: 'right', color: '#727785', fontSize: 11, formatter: (params: any) => formatFileSizeStatic(reversed[params.dataIndex]?.totalSize || 0) }
-    }]
-  })
+  const sortBySize = diskLabelShowMode.value === 'size'
+  const getVal = (v: number) => v
+
+  let items: { diskLabel: string; count: number; totalSize: number }[]
+
+  if (diskLabelPrefix.value === 0) {
+    // 全标签：直接展示每条原始标签，按所选维度降序，取前20条
+    items = all.map((d: any) => ({ diskLabel: (d.diskLabel || '').trim() || '(空)', count: d.count || 0, totalSize: d.totalSize || 0 }))
+  } else {
+    // 按前缀分组：提取前N位字符，相同前缀的记录合并累加
+    const prefixLen: number = diskLabelPrefix.value === 'custom'
+      ? (diskLabelCustomLen.value || 3)
+      : (diskLabelPrefix.value as number)
+    const groupMap = new Map<string, { count: number; totalSize: number }>()
+    for (const d of all) {
+      const label = d.diskLabel || ''
+      // 标签长度小于前缀长度时，用整个标签作为分组键（不跳过记录）
+      const prefix = label.length >= prefixLen ? label.substring(0, prefixLen) : label.trim().trim()
+      const prev = groupMap.get(prefix) || { count: 0, totalSize: 0 }
+      groupMap.set(prefix, {
+        count: prev.count + (d.count || 0),
+        totalSize: prev.totalSize + (d.totalSize || 0),
+      })
+    }
+    items = Array.from(groupMap.entries())
+      .map(([diskLabel, v]) => ({ diskLabel, count: v.count, totalSize: v.totalSize }))
+  }
+
+  // 计算百分比基数
+  const totalVal = items.reduce((s, d) => s + (sortBySize ? d.totalSize : d.count), 0)
+
+  diskLabelList.value = items
+    .sort((a, b) => (sortBySize ? b.totalSize - a.totalSize : b.count - a.count))
+    .slice(0, 30)
+    .map((d) => ({
+      diskLabel: d.diskLabel,
+      count: d.count,
+      totalSize: d.totalSize,
+      pct: totalVal > 0 ? ((sortBySize ? d.totalSize : d.count) / totalVal * 100).toFixed(1) : '0',
+    }))
 }
 
 const updateProjectChart = () => {
-  if (!projectChart || !echarts) return
   const all = statistics.byProject || []
-  const arr = all.slice(0, 10)
-  const reversed = [...arr].reverse()
-  projectChart.setOption({
-    backgroundColor: 'transparent',
-    animation: true,
-    animationDuration: 800,
-    animationEasing: 'cubicOut',
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: '#fff',
-      borderColor: '#e0e2ec',
-      textStyle: { color: '#191c23', fontSize: 12 },
-      axisPointer: { type: 'shadow' },
-      formatter: (params: any) => {
-        const item = params[0]
-        const p = reversed[item.dataIndex]
-        if (!p) return ''
-        return `${p.projectName || '(空项目)'}<br/>${item.marker} ${p.count} 条<br/>数据量: ${formatFileSizeStatic(p.totalSize || 0)}`
-      }
-    },
-    grid: { top: 10, right: 80, bottom: 10, left: 10, containLabel: true },
-    xAxis: { type: 'value', show: false },
-    yAxis: { type: 'category', data: reversed.map((p: any) => p.projectName || '(空项目)'), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#414754', fontSize: 12 } },
-    series: [{
-      type: 'bar',
-      data: reversed.map((p: any) => p.count),
-      barWidth: 14,
-      itemStyle: { borderRadius: [0, 6, 6, 0], color: '#8b5cf6' },
-      label: { show: true, position: 'right', color: '#727785', fontSize: 11, formatter: (params: any) => formatFileSizeStatic(reversed[params.dataIndex]?.totalSize || 0) }
-    }]
-  })
+  const totalSize = all.reduce((s: number, p: any) => s + (p.totalSize || 0), 0)
+
+  projectBarList.value = all
+    .map((p: any) => ({ projectName: p.projectName || '(空项目)', count: p.count || 0, totalSize: p.totalSize || 0 }))
+    .sort((a, b) => b.totalSize - a.totalSize)
+    .slice(0, 10)
+    .map((p) => ({
+      projectName: p.projectName,
+      count: p.count,
+      totalSize: p.totalSize,
+      pct: totalSize > 0 ? (p.totalSize / totalSize * 100).toFixed(1) : '0',
+    }))
 }
 
-const updateAllCharts = () => { updateTrendChart(); updateDataTypeChart(); updateProjectChart() }
+const updateAllCharts = () => { updateTrendChart(); updateProjectChart() }
 
-const formatFileSizeStatic = (bytes: number): string => {
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i]
-}
+const handleResize = () => { trendChart?.resize() }
 
-const handleResize = () => { trendChart?.resize(); dataTypeChart?.resize(); projectChart?.resize() }
-
-const loadStatistics = async () => {
+const loadGlobalStats = async () => {
   try {
-    // 1. 顶部卡片展示全局汇总（不带筛选条件）
-    const res = await UploadRecordApi.statistics()
+    // 包含全局筛选条件
+    const params = { ...getGlobalFilterParams() }
+    const res = await UploadRecordApi.statistics(params)
     const data = res.data || {}
 
-    // 同步更新统计数据（确保立即显示）
     statistics.todayCount = data.todayCount ?? 0
     statistics.todaySize = data.todaySize ?? 0
     statistics.todaySizeStr = data.todaySizeStr ?? '0 B'
@@ -868,28 +1002,46 @@ const loadStatistics = async () => {
       const pct = Math.round((Math.abs(diff) / base) * 100)
       todayTrend.value = diff >= 0 ? pct : -pct
     }
+  } catch (error) { console.error('Failed to load global stats:', error) }
+}
 
-    // 2. 项目分布、磁盘标签分布跟随页面整体筛选
+// 项目分布跟随整页筛选
+const loadFilteredStats = async () => {
+  try {
     const params: Record<string, any> = {}
+    // 全局筛选优先级最高
+    const globalParams = getGlobalFilterParams()
+    Object.assign(params, globalParams)
+    // 页面本地筛选作为补充（日期范围）
     if (dateRange.value?.length === 2) {
       params.startDate = dateRange.value[0]
       params.endDate = dateRange.value[1]
     } else if (dateRange.value?.length === 1) {
       params.startDate = dateRange.value[0]
     }
-    if (searchProjectName.value) params.projectName = searchProjectName.value
+    // 磁盘标签分布的项目筛选优先于页面全局筛选
+    if (diskLabelProjectFilter.value && diskLabelProjectFilter.value !== 'all') {
+      params.projectName = diskLabelProjectFilter.value
+    } else if (searchProjectName.value) {
+      params.projectName = searchProjectName.value
+    }
     if (searchDiskLabel.value) params.diskLabel = searchDiskLabel.value
     if (searchStatus.value) params.status = searchStatus.value
     if (searchUploader.value) params.uploader = searchUploader.value
 
-    const chartRes = await UploadRecordApi.statistics(params)
-    const chartData = chartRes.data || {}
-    statistics.trend = chartData.trend || []
-    statistics.byDiskLabel = chartData.byDiskLabel || []
-    statistics.byProject = chartData.byProject || []
+    const res = await UploadRecordApi.statistics(params)
+    const data = res.data || {}
+    // 更新累计总量和状态分布（用于成功率计算）
+    statistics.totalCount = data.totalCount ?? 0
+    statistics.totalSize = data.totalSize ?? 0
+    statistics.totalSizeStr = data.totalSizeStr ?? '0 B'
+    statistics.byStatus = data.byStatus || []
+    statistics.byProject = data.byProject || []
+    statistics.byDiskLabel = data.byDiskLabel || []
 
-    updateAllCharts()
-  } catch (error) { console.error('Failed to load statistics:', error) }
+    updateProjectChart()
+    updateDataTypeChart()
+  } catch (error) { console.error('Failed to load filtered stats:', error) }
 }
 
 const loadRecentRecords = async () => {
@@ -906,8 +1058,36 @@ const loadRecentRecords = async () => {
 
 const loadUploaderList = async () => { try { const res = await UploadRecordApi.uploaderList(); uploaderOptions.value = res.data || [] } catch { uploaderOptions.value = [] } }
 const loadProjects = async () => { try { const res = await ProjectApi.getSimpleList(); projectList.value = res.data || [] } catch (error) { console.error('Failed to load projects:', error) } }
-const handleFilterChange = () => { loadStatistics(); loadRecentRecords() }
-const resetFilters = () => { searchProjectName.value = ''; searchDiskLabel.value = ''; searchStatus.value = ''; searchUploader.value = ''; setTimePreset('today'); loadStatistics(); loadRecentRecords() }
+const handleFilterChange = () => {
+  // 将本地筛选条件同步到全局筛选
+  setGlobalFilter({
+    projectName: searchProjectName.value,
+    diskLabel: searchDiskLabel.value,
+    status: searchStatus.value,
+    uploader: searchUploader.value,
+  })
+  loadFilteredStats()
+  loadRecentRecords()
+  loadGlobalStats()
+  loadTrendData()
+}
+// 日期范围变化时重新加载趋势图
+const handleDateRangeChange = () => {
+  loadTrendData()
+  loadFilteredStats()
+  loadGlobalStats()
+}
+const resetFilters = () => {
+  searchProjectName.value = ''
+  searchDiskLabel.value = ''
+  searchStatus.value = ''
+  searchUploader.value = ''
+  clearGlobalFilter()
+  setTimePreset('today')
+  loadFilteredStats()
+  loadRecentRecords()
+  loadGlobalStats()
+}
 
 onMounted(() => {
   setTimeRange('month')
@@ -916,20 +1096,22 @@ onMounted(() => {
   loadProjects()
   loadUploaderList()
   loadDiskLabels()
-  loadStatistics()
+  loadGlobalStats()
+  loadFilteredStats()
   loadTrendData()
   loadRecentRecords()
   refreshTimer = setInterval(() => {
     nextRefresh.value = 30
     const tick = setInterval(() => { nextRefresh.value--; if (nextRefresh.value <= 0) clearInterval(tick) }, 1000)
     loadDiskLabels()
-    loadStatistics()
+    loadGlobalStats()
+    loadFilteredStats()
     loadTrendData()
     loadRecentRecords()
   }, 30000)
 })
 
-onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); trendChart?.dispose(); dataTypeChart?.dispose(); projectChart?.dispose(); window.removeEventListener('resize', handleResize) })
+onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); trendChart?.dispose(); window.removeEventListener('resize', handleResize) })
 </script>
 
 <style scoped lang="scss">
@@ -950,10 +1132,8 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); trendChart?.d
 .filter-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: var(--color-primary-light-9); border: 1px solid rgba(0,94,235,0.2); border-radius: var(--radius-full); font-size: 11.5px; color: var(--color-primary); font-weight: 500; }
 .filter-tag button { border: none; background: none; color: var(--color-primary); cursor: pointer; font-size: 13px; padding: 0; line-height: 1; }
 .filter-tag button:hover { color: var(--color-danger); }
-.stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 20px; }
-@media (max-width: 1100px) { .stats-row { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 700px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
-.stat-card { background: var(--color-surface); border: 1px solid var(--color-border-light); border-radius: 14px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden; position: relative; transition: box-shadow 0.2s ease; display: flex; flex-direction: column; }
+.stats-row { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 20px; }
+.stat-card { flex: 1 1 calc(20% - 14px); min-width: 0; background: var(--color-surface); border: 1px solid var(--color-border-light); border-radius: 14px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden; position: relative; transition: box-shadow 0.2s ease; display: flex; flex-direction: column; }
 .stat-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.07); }
 .skeleton-card .skeleton { background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-50) 50%, var(--gray-100) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; }
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
@@ -970,25 +1150,29 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); trendChart?.d
 .stat-card__trend.trend--down { color: var(--color-danger); background: rgba(239,68,68,0.1); }
 .rate-bar { flex: 1; height: 6px; background: var(--color-surface-3); border-radius: 3px; overflow: hidden; }
 .rate-bar__fill { height: 100%; background: linear-gradient(90deg, #06b6d4, #3b82f6); border-radius: 3px; transition: width 0.6s ease; min-width: 2px; }
-.charts-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; grid-template-rows: auto auto auto; gap: 14px; }
-.panel--trend { grid-column: 1 / 2; grid-row: 1 / 2; }
-.panel--disk { grid-column: 2 / 4; grid-row: 1 / 2; }
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 14px;
+  align-items: start;
+}
+.panel--trend { grid-column: 1 / 2; grid-row: 1 / 2; min-height: 320px; }
+.panel--disk { grid-column: 2 / 3; grid-row: 1 / 2; }
 .panel--project { grid-column: 1 / 2; grid-row: 2 / 3; }
 .panel--datatype { grid-column: 2 / 3; grid-row: 2 / 3; }
-.panel--health { grid-column: 3 / 4; grid-row: 2 / 3; }
-.panel--activity { grid-column: 1 / 4; grid-row: 3 / 4; }
+.panel--activity { grid-column: 1 / 3; grid-row: 3 / 4; }
 @media (max-width: 1100px) {
-  .charts-grid { grid-template-columns: 1fr 1fr; }
+  .charts-grid { grid-template-columns: 1fr; }
   .panel--trend { grid-column: 1 / 2; grid-row: 1 / 2; }
-  .panel--disk { grid-column: 2 / 3; grid-row: 1 / 2; }
-  .panel--project { grid-column: 1 / 2; grid-row: 2 / 3; }
-  .panel--datatype { grid-column: 2 / 3; grid-row: 2 / 3; }
-  .panel--health { grid-column: 1 / 3; }
-  .panel--activity { grid-column: 1 / 3; }
+  .panel--disk { grid-column: 1 / 2; grid-row: 2 / 3; }
+  .panel--project { grid-column: 1 / 2; grid-row: 3 / 4; }
+  .panel--datatype { grid-column: 1 / 2; grid-row: 4 / 5; }
+  .panel--activity { grid-column: 1 / 2; grid-row: 5 / 6; }
 }
 @media (max-width: 700px) {
   .charts-grid { grid-template-columns: 1fr; }
-  .panel--trend, .panel--disk, .panel--project, .panel--datatype, .panel--health, .panel--activity { grid-column: 1 / 2; grid-row: auto; }
+  .panel--trend, .panel--disk, .panel--project, .panel--datatype, .panel--activity { grid-column: 1 / 2; grid-row: auto; }
 }
 .panel { background: var(--color-surface); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid var(--color-border-light); transition: box-shadow 0.2s ease; }
 .panel:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.07); }
@@ -1007,13 +1191,275 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); trendChart?.d
 .panel__body--status { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .panel__body--health { display: flex; align-items: center; gap: 24px; }
 .panel__body--activity { padding: 0; max-height: 280px; overflow-y: auto; }
-.chart-canvas { width: 100%; height: 220px; }
+.chart-canvas { width: 100%; height: 352px; }
 .chart-canvas--donut { height: 180px; width: 180px; }
 .chart-canvas--bar { height: 200px; }
 
+/* 磁盘标签分布 - 列表 */
+.panel__body--dtype { padding: 10px 18px 14px; min-height: 320px; }
+.dtype-empty { color: var(--color-text-muted); font-size: 12px; text-align: center; padding: 20px 0; }
+.dtype-list { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #c1c9d6 transparent; }
+.dtype-list::-webkit-scrollbar { width: 4px; }
+.dtype-list::-webkit-scrollbar-thumb { background: #c1c9d6; border-radius: 10px; }
+
+/* 头部控制区 */
+.dtype-header-right { display: flex; align-items: center; gap: 6px; }
+.dtype-project-select-wrap { }
+.dtype-project-select { width: 130px; }
+
+/* 前缀胶囊按钮组 */
+.dtype-prefix-pills {
+  display: flex;
+  align-items: center;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+}
+
+/* 列表行 */
+.dtype-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-radius: 5px;
+  transition: background 0.12s;
+}
+.dtype-row:hover { background: var(--color-surface-2); }
+.dtype-idx {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+  font-family: 'Manrope', 'Inter', monospace;
+}
+.dtype-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dtype-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  min-width: 120px;
+  max-width: 200px;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dtype-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--color-surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 40px;
+}
+.dtype-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.dtype-value {
+  font-family: 'Manrope', 'Inter', monospace;
+  text-align: right;
+  flex-shrink: 0;
+}
+.dtype-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  width: 42px;
+}
+.dtype-count em { font-style: normal; font-weight: 400; color: var(--color-text-muted); font-size: 10px; }
+.dtype-size { width: 70px; font-size: 11px; color: #6b7280; }
+.dtype-pct {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  width: 42px;
+}
+
+/* 项目分布 - 横向进度条列表 */
+.panel__body--project { padding: 10px 18px 14px; min-height: 320px; }
+.project-empty { color: var(--color-text-muted); font-size: 12px; text-align: center; padding: 20px 0; }
+.project-list { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #c1c9d6 transparent; }
+.project-list::-webkit-scrollbar { width: 4px; }
+.project-list::-webkit-scrollbar-thumb { background: #c1c9d6; border-radius: 10px; }
+.project-header-right { display: flex; align-items: center; gap: 8px; }
+.project-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.project-stat svg { color: var(--color-text-muted); }
+
+/* 项目行 */
+.project-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-radius: 5px;
+  transition: background 0.12s;
+}
+.project-row:hover { background: var(--color-surface-2); }
+.project-idx {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+  font-family: 'Manrope', 'Inter', monospace;
+}
+.project-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.project-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  min-width: 120px;
+  max-width: 240px;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-bar {
+  flex: 1;
+  height: 10px;
+  background: var(--color-surface-3);
+  border-radius: 5px;
+  overflow: hidden;
+  min-width: 40px;
+}
+.project-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.5s ease;
+}
+.project-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  width: 70px;
+  text-align: right;
+  flex-shrink: 0;
+  font-family: 'Manrope', 'Inter', monospace;
+}
+.project-pct {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  width: 40px;
+  text-align: right;
+  flex-shrink: 0;
+  border-radius: 10px;
+  padding: 2px;
+  gap: 1px;
+}
+.dtype-pill {
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  line-height: 1.6;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.dtype-pill:hover { color: var(--color-text-primary); background: rgba(64,158,255,0.08); }
+.dtype-pill.active {
+  color: #fff;
+  background: #409eff;
+  box-shadow: 0 1px 4px rgba(64,158,255,0.35);
+}
+.dtype-pill--custom { border-left: 1px solid rgba(0,0,0,0.06); padding-left: 10px; }
+.dtype-pill--custom svg { flex-shrink: 0; }
+
+/* 自定义位数输入 */
+.dtype-custom-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 2px 6px;
+}
+.dtype-custom-label { font-size: 11.5px; color: var(--color-text-muted); }
+.dtype-custom-input {
+  width: 32px;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-family: 'Manrope', 'Inter', monospace;
+  outline: none;
+}
+.dtype-custom-input::-webkit-inner-spin-button,
+.dtype-custom-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.dtype-custom-input:focus { color: #409eff; }
+
+/* 模式切换：条数 / 容量 */
+.dtype-mode-toggle {
+  display: flex;
+  align-items: center;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 2px;
+}
+.dtype-mode-btn {
+  padding: 3px 9px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.dtype-mode-btn:hover { color: var(--color-text-primary); }
+.dtype-mode-btn.active {
+  color: #fff;
+  background: #6b7280;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+}
+
 /* 磁盘标签状态面板 */
 .panel__body--disk { padding: 0; }
-.disk-grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 16px; }
+.disk-grid-scroll {
+  max-height: 352px;
+  overflow-y: auto;
+  padding: 14px 16px 8px;
+  /* 自定义滚动条 */
+  scrollbar-width: thin;
+  scrollbar-color: #c1c9d6 transparent;
+}
+.disk-grid-scroll::-webkit-scrollbar { width: 5px; }
+.disk-grid-scroll::-webkit-scrollbar-track { background: transparent; }
+.disk-grid-scroll::-webkit-scrollbar-thumb {
+  background: #c1c9d6;
+  border-radius: 10px;
+}
+.disk-grid-scroll::-webkit-scrollbar-thumb:hover { background: #9aa3af; }
+
+.disk-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .disk-tile { width: 64px; height: 64px; border-radius: 10px; cursor: default; transition: transform 0.15s; }
 .disk-tile:hover { transform: scale(1.05); }
 .disk-tile__inner { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 10px; padding: 4px; gap: 2px; }
@@ -1034,7 +1480,6 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); trendChart?.d
 .disk-loading { padding: 14px 16px; }
 .disk-skeleton-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .disk-skeleton { width: 64px; height: 64px; border-radius: 10px; background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-50) 50%, var(--gray-100) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
-@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 .disk-header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .disk-time-group {
   display: inline-flex;
@@ -1144,7 +1589,8 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); trendChart?.d
 .col-disk { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--color-text-secondary); }
 .col-size { font-family: 'Manrope', sans-serif; font-size: 11.5px; font-weight: 600; color: var(--color-text-primary); }
 .row-time { font-size: 11.5px; color: var(--color-text-muted); white-space: nowrap; }
-.status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background-clip: padding-box; }
+.status-badge::after { display: none !important; }
 .status-badge.badge--success { background: var(--color-success-bg); color: var(--color-success-text); }
 .status-badge.badge--warning { background: var(--color-warning-bg); color: var(--color-warning-text); }
 .status-badge.badge--info { background: var(--color-info-bg); color: var(--color-info-text); }
