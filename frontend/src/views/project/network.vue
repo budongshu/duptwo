@@ -258,9 +258,9 @@ const getAvatarColor = (name: string) => {
 
 const formatBytes = (bytes: number): string => {
   if (!bytes) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
   const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i]
+  return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[Math.min(i, units.length - 1)]
 }
 
 const buildGraph = (projects: Project[]) => {
@@ -675,7 +675,7 @@ $primary: #6b5b95;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #1c1917;
+  background: var(--color-page-bg);
   overflow: hidden;
 }
 
@@ -684,8 +684,8 @@ $primary: #6b5b95;
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
-  background: #292524;
-  border-bottom: 1px solid #44403c;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-light);
   flex-shrink: 0;
   gap: 16px;
 }
@@ -698,14 +698,16 @@ $primary: #6b5b95;
 
 .page-title {
   font-size: 18px;
-  font-weight: 600;
-  color: #fafaf9;
+  font-weight: 700;
+  color: var(--color-text-primary);
   margin: 0;
+  font-family: 'Manrope', sans-serif;
+  letter-spacing: -0.3px;
 }
 
 .page-subtitle {
   font-size: 12px;
-  color: #78716c;
+  color: var(--color-text-muted);
 }
 
 .header-actions {
@@ -725,7 +727,7 @@ $primary: #6b5b95;
   width: 100%;
   height: 100%;
   display: block;
-  background: radial-gradient(ellipse at center, #292524 0%, #1c1917 60%);
+  background: var(--color-page-bg);
 }
 
 .graph-loading {
@@ -737,7 +739,7 @@ $primary: #6b5b95;
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  color: #78716c;
+  color: var(--color-text-muted);
   font-size: 14px;
 }
 
@@ -746,14 +748,15 @@ $primary: #6b5b95;
   position: absolute;
   top: 16px;
   left: 16px;
-  background: rgba(41, 37, 36, 0.9);
-  border: 1px solid #44403c;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
   border-radius: 12px;
   padding: 12px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-sm);
 }
 
 .legend-item {
@@ -761,7 +764,7 @@ $primary: #6b5b95;
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  color: #a8a29e;
+  color: var(--color-text-secondary);
 }
 
 .legend-node {
@@ -786,7 +789,7 @@ $primary: #6b5b95;
 .legend-line {
   width: 20px;
   height: 2px;
-  background: #78716c;
+  background: var(--color-border);
   flex-shrink: 0;
 }
 
@@ -796,11 +799,12 @@ $primary: #6b5b95;
   top: 16px;
   right: 16px;
   width: 240px;
-  background: rgba(41, 37, 36, 0.9);
-  border: 1px solid #44403c;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
   border-radius: 12px;
   padding: 14px;
   backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-sm);
   max-height: calc(100vh - 140px);
   overflow-y: auto;
 }
@@ -808,7 +812,8 @@ $primary: #6b5b95;
 .workload-title {
   font-size: 11px;
   font-weight: 600;
-  color: #a8a29e;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 12px;
 }
@@ -828,8 +833,8 @@ $primary: #6b5b95;
   cursor: pointer;
   transition: background 0.2s;
 
-  &:hover { background: rgba(255,255,255,0.05); }
-  &--highlight { background: rgba(107, 91, 149, 0.2); }
+  &:hover { background: var(--gray-50); }
+  &--highlight { background: rgba(107, 91, 149, 0.08); }
 }
 
 .workload-avatar {
@@ -852,11 +857,12 @@ $primary: #6b5b95;
 
 .workload-name {
   font-size: 12px;
-  color: #e7e5e4;
+  color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   margin-bottom: 2px;
+  font-weight: 500;
 }
 
 .workload-count {
@@ -868,18 +874,19 @@ $primary: #6b5b95;
 .workload-num {
   font-size: 14px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--color-text-primary);
+  font-family: 'Manrope', sans-serif;
 }
 
 .workload-unit {
   font-size: 10px;
-  color: #78716c;
+  color: var(--color-text-muted);
 }
 
 .workload-bar {
   width: 40px;
   height: 4px;
-  background: #44403c;
+  background: var(--gray-100);
   border-radius: 2px;
   flex-shrink: 0;
   overflow: hidden;
@@ -925,14 +932,14 @@ $primary: #6b5b95;
   h3 {
     font-size: 16px;
     font-weight: 700;
-    color: #1c1917;
+    color: var(--color-text-primary);
     margin: 0 0 4px 0;
   }
 }
 
 .node-detail-meta {
   font-size: 12px;
-  color: #78716c;
+  color: var(--color-text-secondary);
 }
 
 .node-detail-projects {
@@ -948,13 +955,13 @@ $primary: #6b5b95;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background: #fafaf9;
+  background: var(--gray-50);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
-  border: 1px solid #e8e5e1;
+  border: 1px solid var(--color-border-light);
 
-  &:hover { background: #f5f5f4; border-color: #d4d0c8; }
+  &:hover { background: var(--gray-100); border-color: var(--color-border); }
 }
 
 .ndp-avatar {
@@ -968,7 +975,6 @@ $primary: #6b5b95;
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .ndp-info { flex: 1; }
@@ -976,20 +982,20 @@ $primary: #6b5b95;
 .ndp-name {
   font-size: 13px;
   font-weight: 600;
-  color: #1c1917;
+  color: var(--color-text-primary);
   margin-bottom: 4px;
 }
 
 .ndp-meta { display: flex; gap: 4px; }
 
-.ndp-arrow { color: #d4d0c8; }
+.ndp-arrow { color: var(--color-border); }
 
 .node-detail-stats {
   display: flex;
   gap: 16px;
   margin-bottom: 16px;
   padding: 14px;
-  background: #fafaf9;
+  background: var(--gray-50);
   border-radius: 12px;
 }
 
@@ -1004,12 +1010,13 @@ $primary: #6b5b95;
 .nds-num {
   font-size: 18px;
   font-weight: 700;
-  color: #1c1917;
+  color: var(--color-text-primary);
+  font-family: 'Manrope', sans-serif;
 }
 
 .nds-label {
   font-size: 11px;
-  color: #78716c;
+  color: var(--color-text-muted);
 }
 
 .node-detail-members {
@@ -1023,15 +1030,15 @@ $primary: #6b5b95;
   align-items: center;
   gap: 6px;
   padding: 4px 10px 4px 4px;
-  background: #f5f5f4;
-  border: 1px solid #e8e5e1;
+  background: var(--gray-50);
+  border: 1px solid var(--color-border-light);
   border-radius: 20px;
   cursor: pointer;
   font-size: 12px;
-  color: #44403c;
+  color: var(--color-text-secondary);
   transition: all 0.2s;
 
-  &:hover { background: #f0ede8; border-color: #d4d0c8; }
+  &:hover { background: var(--gray-100); border-color: var(--color-border); }
 }
 
 .ndm-avatar {
