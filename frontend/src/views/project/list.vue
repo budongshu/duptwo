@@ -1106,7 +1106,7 @@ const initMatrixScatterChart = async () => {
     // 四象限参考线
     markLine: {
       silent: true, symbol: 'none',
-      lineStyle: { type: 'solid', color: '#d1d5db', width: 1.5, type: 'dashed' as any },
+      lineStyle: { type: 'dashed', color: '#d1d5db', width: 1.5 },
       label: { show: false },
       data: [{ xAxis: 50 }, { yAxis: 50 }]
     },
