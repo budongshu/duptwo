@@ -1990,6 +1990,7 @@ const handleImport = async () => {
 }
 
 const closeImportDialog = () => {
+  const hadSuccess = importResult.value && importResult.value.success > 0
   importDialogVisible.value = false
   importingDone.value = false
   importProgress.value = 0
@@ -1997,7 +1998,7 @@ const closeImportDialog = () => {
   selectedFile.value = null
   fileList.value = []
   importResult.value = null
-  if (importResult.value && importResult.value.success > 0) {
+  if (hadSuccess) {
     loadRecords()
   }
 }

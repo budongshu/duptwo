@@ -14,25 +14,28 @@
       </div>
     </header>
 
-    <!-- 筛选栏 -->
-    <div class="filter-bar">
-      <el-input v-model="keyword" :placeholder="t('role.list.searchPlaceholder')" clearable @keyup.enter="handleSearch" style="width: 240px">
-        <template #prefix>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <!-- 工具栏 -->
+    <div class="toolbar">
+      <div class="toolbar__search">
+        <div class="search-box">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input v-model="keyword" class="search-input" :placeholder="t('role.list.searchPlaceholder')" @keyup.enter="handleSearch" />
+          <span class="search-kbd">↵</span>
+        </div>
+      </div>
+
+      <div class="toolbar__actions">
+        <template v-if="selectedRows.length > 0">
+          <button class="action-btn action-btn--danger" @click="handleBatchDelete">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            {{ t('common.batchDelete') }} ({{ selectedRows.length }})
+          </button>
         </template>
-      </el-input>
-      <el-button type="primary" @click="handleSearch">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        {{ t('common.search') }}
-      </el-button>
-      <el-button @click="handleReset">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>
-        {{ t('common.reset') }}
-      </el-button>
-      <el-button v-if="selectedRows.length > 0" type="danger" @click="handleBatchDelete">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        {{ t('common.batchDelete') }} ({{ selectedRows.length }})
-      </el-button>
+        <button class="action-btn action-btn--primary" @click="handleCreate">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          {{ t('common.create') }}
+        </button>
+      </div>
     </div>
 
     <!-- 内容卡片 -->
@@ -337,16 +340,121 @@ export default { name: 'RoleList' }
   gap: var(--space-2);
 }
 
-.filter-bar {
+/* ==================== 工具栏 ==================== */
+.toolbar {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  justify-content: space-between;
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   padding: var(--space-3) var(--space-4);
   box-shadow: var(--shadow-xs);
   border: 1px solid var(--color-border-light);
+  gap: var(--space-3);
   flex-wrap: wrap;
+}
+
+.toolbar__search {
+  flex: 1;
+  min-width: 200px;
+  max-width: 360px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0 10px;
+  gap: 8px;
+  transition: all 0.2s;
+
+  &:focus-within {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(0, 94, 235, 0.08);
+  }
+}
+
+.search-icon { color: var(--color-text-muted); flex-shrink: 0; }
+
+.search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  padding: 7px 0;
+  min-width: 0;
+
+  &::placeholder { color: var(--color-text-muted); }
+}
+
+.search-kbd {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  background: var(--gray-100);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  border: 1px solid var(--color-border-light);
+  flex-shrink: 0;
+}
+
+.toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+
+  svg { flex-shrink: 0; }
+
+  &:hover {
+    background: var(--color-surface-2);
+    border-color: var(--color-border);
+    color: var(--color-text-primary);
+  }
+
+  &--primary {
+    background: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+    &:hover { background: #005eea; border-color: #005eea; }
+    svg { stroke: #fff; }
+  }
+
+  &--danger {
+    background: var(--color-danger);
+    color: #fff;
+    border-color: var(--color-danger);
+    &:hover { background: #dc2626; border-color: #dc2626; }
+    svg { stroke: #fff; }
+  }
+
+  &--ghost {
+    background: transparent;
+    color: var(--color-text-secondary);
+    border-color: transparent;
+    &:hover { background: var(--color-surface-2); color: var(--color-text-primary); border-color: var(--color-border); }
+  }
 }
 
 .content-card {
