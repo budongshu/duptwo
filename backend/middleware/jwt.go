@@ -159,7 +159,10 @@ func GetUserID(c *gin.Context) uint {
 	if !exists {
 		return 0
 	}
-	return userID.(uint)
+	if id, ok := userID.(uint); ok {
+		return id
+	}
+	return 0
 }
 
 // GetUsername 从上下文获取用户名
@@ -168,7 +171,10 @@ func GetUsername(c *gin.Context) string {
 	if !exists {
 		return ""
 	}
-	return username.(string)
+	if name, ok := username.(string); ok {
+		return name
+	}
+	return ""
 }
 
 // GetPermissions 从上下文获取权限列表
@@ -177,7 +183,10 @@ func GetPermissions(c *gin.Context) []string {
 	if !exists {
 		return nil
 	}
-	return perms.([]string)
+	if p, ok := perms.([]string); ok {
+		return p
+	}
+	return nil
 }
 
 // HasPermission 检查是否拥有指定权限

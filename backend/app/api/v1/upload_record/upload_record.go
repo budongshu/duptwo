@@ -16,11 +16,13 @@ import (
 
 type UploadRecordApi struct {
 	uploadRecordService *service.UploadRecordService
+	auditService        *service.AuditService
 }
 
 func NewUploadRecordApi() *UploadRecordApi {
 	return &UploadRecordApi{
 		uploadRecordService: service.NewUploadRecordService(),
+		auditService:        service.NewAuditService(),
 	}
 }
 
@@ -126,10 +128,24 @@ func (api *UploadRecordApi) Update(c *gin.Context) {
 func (api *UploadRecordApi) Delete(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 
+	// 先获取记录信息用于日志
+	record, _ := api.uploadRecordService.GetByID(uint(id))
+	serialNo := ""
+	if record != nil {
+		serialNo = record.SerialNo
+	}
+
 	if err := api.uploadRecordService.Delete(uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	// 记录操作日志
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"上传记录", "delete", "UploadRecord", uint(id),
+		serialNo, c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "删除成功"})
 }
@@ -220,14 +236,18 @@ func (api *UploadRecordApi) GetStatistics(c *gin.Context) {
 // @Tags UploadRecord
 // @Description 返回所有磁盘标签及其上传状态：completed全部完成(绿色)，failed全部失败(红色)，mixed部分失败(橙色)，pending处理中(灰色)
 // @Security Bearer
+// @Param projectName query string false "项目名称"
+// @Param diskLabel query string false "磁盘标签"
 // @Param startDate query string false "开始日期"
 // @Param endDate query string false "结束日期"
 // @Success 200 {object} dto.Response
 // @Router /api/v1/upload-records/disk-labels [get]
 func (api *UploadRecordApi) GetDiskLabelStatuses(c *gin.Context) {
+	projectName := c.Query("projectName")
+	diskLabel := c.Query("diskLabel")
 	startDate := c.Query("startDate")
 	endDate := c.Query("endDate")
-	labels, err := api.uploadRecordService.GetDiskLabelStatuses(startDate, endDate)
+	labels, err := api.uploadRecordService.GetDiskLabelStatuses(projectName, diskLabel, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
@@ -336,7 +356,8 @@ func (api *UploadRecordApi) Preview(c *gin.Context) {
 		"磁盘标签":         "diskLabel",
 		"项目名称":        "projectName",
 		"目标路径":        "destPath",
-		"文件大小(字节)":   "fileSize",
+		"文件大小":          "fileSize",
+		"文件大小(字节)":    "fileSize",
 		"上传人":          "uploader",
 		"上传状态":        "status",
 		"备注":           "remark",
@@ -449,7 +470,8 @@ func (api *UploadRecordApi) Import(c *gin.Context) {
 		"磁盘标签":         "diskLabel",
 		"项目名称":        "projectName",
 		"目标路径":        "destPath",
-		"文件大小(字节)":   "fileSize",
+		"文件大小":          "fileSize",
+		"文件大小(字节)":    "fileSize",
 		"上传人":          "uploader",
 		"上传状态":        "status",
 		"备注":           "remark",
@@ -566,4 +588,20 @@ func (api *UploadRecordApi) Export(c *gin.Context) {
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename*=UTF-8''%s", filename))
 	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", data)
+}
+
+// getUserID 获取当前用户ID
+func (api *UploadRecordApi) getUserID(c *gin.Context) uint {
+	if id, exists := c.Get("userId"); exists {
+		return id.(uint)
+	}
+	return 0
+}
+
+// getUsername 获取当前用户名
+func (api *UploadRecordApi) getUsername(c *gin.Context) string {
+	if username, exists := c.Get("username"); exists {
+		return username.(string)
+	}
+	return ""
 }

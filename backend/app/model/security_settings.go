@@ -6,6 +6,20 @@ import "time"
 type SecuritySettings struct {
 	ID uint `json:"id" gorm:"primarykey"`
 
+	// AD域控配置
+	ADEnabled       bool   `json:"adEnabled" gorm:"default:false"`         // 是否启用AD认证
+	ADServer        string `json:"adServer" gorm:"size:256"`                // AD服务器地址
+	ADPort          int    `json:"adPort" gorm:"default:389"`               // 端口
+	ADUseSSL        bool   `json:"adUseSSL" gorm:"default:false"`           // 是否使用LDAPS
+	ADBaseDN        string `json:"adBaseDN" gorm:"size:512"`                // 基准DN
+	ADBindDN        string `json:"adBindDN" gorm:"size:256"`                // 绑定DN
+	ADBindPassword  string `json:"adBindPassword" gorm:"size:256"`           // 绑定密码
+	ADUserFilter    string `json:"adUserFilter" gorm:"size:512"`            // 用户搜索过滤器
+	ADAutoRegister  bool   `json:"adAutoRegister" gorm:"default:false"`      // 自动注册AD用户
+	ADDefaultRoleID uint   `json:"adDefaultRoleID" gorm:"default:0"`        // 默认角色ID
+	ADLastSyncAt    *time.Time `json:"adLastSyncAt" gorm:"default:null"`     // 上次同步时间
+	ADLastSyncCount int    `json:"adLastSyncCount" gorm:"default:0"`        // 上次同步的用户数
+
 	// 登录验证码
 	CaptchaEnabled bool `json:"captchaEnabled" gorm:"default:true"`     // 是否启用登录验证码
 	CaptchaMinLen  int  `json:"captchaMinLen" gorm:"default:3"`         // 验证码最少错误次数后启用

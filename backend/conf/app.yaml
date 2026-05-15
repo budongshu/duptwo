@@ -1,42 +1,40 @@
 # ============================================================
-# datauptwo 后端配置（自动生成）
-# 来源: deploy/config.yaml
+# datauptwo Center 配置 - 生产环境
+# 说明: 中心站点，接收所有 Agent 的数据上报
 # ============================================================
 
 base:
   mode: prod
   port: 18421
-  username: admin
-  password: admin123
+  username: ""                    # 必填：管理员用户名
+  password: ""                    # 必填：管理员密码（请使用强密码）
   version: v1.0.0
   language: zh
-  install_dir: ./data
-  serve_web: true
-  # web_root: 自动推导（开发时为 ./cmd/server/web，release 时为 ./web）
-  # 如需手动指定，可设置绝对路径或相对于配置文件的路径
+  install_dir: ./data_center      # 数据目录（数据库、日志均在此目录下）
+  serve_web: true                # 是否提供 Web 管理界面
 
 database:
+
+  # SQLite 备选（单机部署）
   type: sqlite
-  path: ./data/registry.db
+  path: ./data_center/duptwo.db
 
 log:
-  level: info
+  level: info                   # info / debug / warn / error
   time_zone: Asia/Shanghai
-  log_name: datauptwo
-  max_backup: 30
-  max_size: 100
+  log_name: center              # 日志文件前缀
+  max_backup: 30               # 保留最近 N 天的日志
+  max_size: 100                 # 单个日志文件最大 MB
 
 session:
-  timeout: 7200
-  secret: AJtGnt9enlhfemz9UVlTtMjkuxiNpNIZ
+  timeout: 7200                # 会话超时（秒），建议 2 小时
+  secret: "AJtGnt9enlhfemz9UVlTtMjkuxiNpNIZ"                    # 必填：随机生成的 32+ 字符密钥
 
 cors:
   allow_origins:
-    - "http://localhost"
-    - "http://localhost:8080"
-    - "http://localhost:4004"
-    - "http://duptwo.ecarxmap.com"
-    - "https://duptwo.ecarxmap.com"
+    - "*"
+    - "https://duptwo.your-domain.com"   # 替换为实际域名
+    # - "https://admin.your-domain.com"   # 管理后台域名
   allow_methods:
     - GET
     - POST
@@ -54,19 +52,28 @@ cors:
   max_age: 86400
 
 jwt:
-  secret: E1U4JvPDkPxt8MnsnnF5r7u4ix4bVeCj
+  secret: "E1U4JvPDkPxt8MnsnnF5r7u4ix4bVeCj"                    # 必填：随机生成的 JWT 签名密钥（与 session.secret 不同）
 
 sync:
-  enabled: true
-  mode: "agent"  # center 或 agent
-  center_url: "http://duptwo.bdser.cc"
-  station_id: "sh-local"
-  station_name: "sh-local"
-  interval: "5m"
-  retry_count: 3
-  retry_interval: "1m"
-  proxy:
-    enabled: false
+  # ===== 同步模式 =====
+  mode: center                  # center：中心站点，接收 Agent 推送
+
+  center:
+    heartbeat_timeout: 120      # Agent 心跳超时时间（秒），超过此时间无心跳视为离线
+                                # 建议值：Agent 心跳间隔的 2-3 倍
+  agent:
+    # Agent 模式配置（此处不适用，但字段必须存在）
+    center_url: ""
+    station_id: ""
+    station_name: ""
     url: ""
-    username: ""
-    password: ""
+    interval: "1m"
+    batch_size: 100
+    retry_count: 3
+    retry_interval: "1m"
+    heartbeat_interval: "60s"
+    filter:
+      project_names: []
+    proxy:
+      enabled: false
+      url: ""

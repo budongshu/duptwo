@@ -10,12 +10,28 @@ import (
 
 type SecurityApi struct {
 	securityService *service.SecurityService
+	auditService   *service.AuditService
 }
 
 func NewSecurityApi() *SecurityApi {
 	return &SecurityApi{
 		securityService: service.NewSecurityService(),
+		auditService:   service.NewAuditService(),
 	}
+}
+
+func (api *SecurityApi) getUserID(c *gin.Context) uint {
+	if id, exists := c.Get("userId"); exists {
+		return id.(uint)
+	}
+	return 0
+}
+
+func (api *SecurityApi) getUsername(c *gin.Context) string {
+	if username, exists := c.Get("username"); exists {
+		return username.(string)
+	}
+	return ""
 }
 
 // GetSettings 获取安全设置
@@ -52,6 +68,26 @@ func (api *SecurityApi) UpdateSettings(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: "更新安全设置失败"})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"安全设置", "update", "SecuritySettings", 0,
+		"更新安全设置", c.ClientIP(), c.GetHeader("User-Agent"),
+		map[string]interface{}{
+			"pwdMinLen":            req.PasswordMinLength,
+			"pwdExpiryDays":        req.PasswordExpiryDays,
+			"captchaEnabled":       req.CaptchaEnabled,
+			"registrationEnabled":  req.RegistrationEnabled,
+			"inactiveAutoDisable": req.InactiveAutoDisable,
+			"userLoginMaxAttempts": req.UserLoginMaxAttempts,
+			"userLoginLockMinutes": req.UserLoginLockMinutes,
+			"ipLoginMaxAttempts":   req.IPLoginMaxAttempts,
+			"ipLoginLockMinutes":   req.IPLoginLockMinutes,
+			"ipWhitelist":         req.IPWhitelist,
+			"ipBlacklist":          req.IPBlacklist,
+		},
+	)
+
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "安全设置已更新"})
 }
 
@@ -87,6 +123,13 @@ func (api *SecurityApi) UnlockUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: "解锁用户失败"})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"安全设置", "unlock_user", "SecuritySettings", 0,
+		"解锁用户: "+username, c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
+
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "用户已解锁"})
 }
 
@@ -122,6 +165,13 @@ func (api *SecurityApi) UnlockIP(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: "解锁IP失败"})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"安全设置", "unlock_ip", "SecuritySettings", 0,
+		"解锁IP: "+ip, c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
+
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "IP已解锁"})
 }
 

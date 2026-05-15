@@ -187,7 +187,7 @@ func (s *SecurityService) CheckUserLockout(username string) (locked bool, remain
 	return true, int(remaining.Minutes()), "账号已被锁定，请在" + itoa(int(remaining.Minutes())) + "分钟后重试"
 }
 
-// GetRemainingAttempts 获取用户剩余登录尝试次数
+// GetRemainingAttempts 获取用户剩余登录尝试次数（自动清除过期失败记录）
 func (s *SecurityService) GetRemainingAttempts(username string) (remaining int, maxAttempts int) {
 	settings := s.getSettingsWithDefault()
 	maxAttempts = settings.UserLoginMaxAttempts
@@ -195,6 +195,34 @@ func (s *SecurityService) GetRemainingAttempts(username string) (remaining int, 
 	record, err := s.lockoutRepo.GetByTarget(username, "user")
 	if err != nil || record == nil {
 		return maxAttempts, maxAttempts
+	}
+
+	// 检查失败记录是否已过期（超过锁定时长则自动清除）
+	if record.LockedAt != nil {
+		elapsed := time.Since(*record.LockedAt)
+		if time.Duration(settings.UserLoginLockMinutes)*time.Minute <= elapsed {
+			// 已过锁定时间，自动清除
+			s.lockoutRepo.ResetByTarget(username, "user")
+			return maxAttempts, maxAttempts
+		}
+	}
+
+	// 检查失败次数是否超过锁定阈值（超过则按锁定处理）
+	if record.LockedAt != nil && record.FailCount >= maxAttempts {
+		return 0, maxAttempts
+	}
+
+	// 普通失败记录也检查是否过期（超过锁定时长但未达到锁定阈值）
+	if record.LockedAt == nil && record.FailCount > 0 {
+		// 用 UpdatedAt 检查旧记录是否过期
+		if !record.UpdatedAt.IsZero() {
+			elapsed := time.Since(record.UpdatedAt)
+			if time.Duration(settings.UserLoginLockMinutes)*time.Minute <= elapsed {
+				// 已过有效期，清除旧记录
+				s.lockoutRepo.ResetByTarget(username, "user")
+				return maxAttempts, maxAttempts
+			}
+		}
 	}
 
 	remaining = maxAttempts - record.FailCount
@@ -229,6 +257,13 @@ func (s *SecurityService) RecordLoginFailure(username, ip string) (locked bool, 
 }
 
 func (s *SecurityService) recordFailure(target, lockType string, maxAttempts int) {
+	settings := s.getSettingsWithDefault()
+	lockMinutes := settings.UserLoginLockMinutes
+	if lockType == "ip" {
+		lockMinutes = settings.IPLoginLockMinutes
+	}
+	lockDuration := time.Duration(lockMinutes) * time.Minute
+
 	record, err := s.lockoutRepo.GetByTarget(target, lockType)
 	if err != nil || record == nil {
 		// 无记录，创建
@@ -242,6 +277,28 @@ func (s *SecurityService) recordFailure(target, lockType string, maxAttempts int
 		return
 	}
 
+	// 检查是否已锁定且未解锁
+	if record.Locked && record.LockedAt != nil {
+		elapsed := time.Since(*record.LockedAt)
+		if elapsed < lockDuration {
+			return // 仍在锁定中，不处理失败计数
+		}
+		// 已过锁定时间，解锁并重置计数
+		record.Locked = false
+		record.LockedAt = nil
+		record.FailCount = 0
+		s.lockoutRepo.CreateOrUpdate(record)
+		return
+	}
+
+	// 检查上次失败是否已超时（普通失败计数，超时后自动清除重新计数）
+	if !record.Locked && record.FailCount > 0 {
+		elapsed := time.Since(record.UpdatedAt)
+		if elapsed >= lockDuration {
+			record.FailCount = 0
+		}
+	}
+
 	record.FailCount++
 	if record.FailCount >= maxAttempts {
 		record.Locked = true
@@ -251,6 +308,7 @@ func (s *SecurityService) recordFailure(target, lockType string, maxAttempts int
 	}
 	s.lockoutRepo.CreateOrUpdate(record)
 }
+
 
 // RecordLoginSuccess 登录成功时重置失败计数
 func (s *SecurityService) RecordLoginSuccess(username, ip string) {
