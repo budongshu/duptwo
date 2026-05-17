@@ -1,321 +1,276 @@
-# duptwo 数据登记平台
+# duptwo 数据登记平台 / Data Registry Platform
 
-> **English documentation below / 英文说明往下**
-
----
-
-## 产品简介
-
-**duptwo**（数据登记平台）是一套完整的**多渠道数据采集与管理解决方案**。通过灵活高效的 API 接口实现数据上报，支持 JSON/FormData/Excel 多格式，提供强大的后台管理能力，包括项目管理、人员管理、字段配置、报表导出等核心功能。
-
-适用于企业级数据登记、政务数据采集、项目过程管理等多种场景。
+> **English documentation below**
 
 ---
 
-## 核心功能
+## 产品简介 / Product Overview
 
-| 模块 | 功能说明 |
-|------|---------|
-| **项目管理** | D3.js 可视化网络图、看板/列表/网格视图、项目 Logo |
-| **数据采集** | API 推送/API 拉取、JSON/FormData/Excel 多格式、文件上传 |
-| **人员管理** | 多职位支持、人员统计、人员关联系统用户 |
-| **字段配置** | 7 种字段类型（文本/数字/下拉/多选/日期/时间戳/多行文本） |
-| **用户管理** | RBAC 角色权限、MFA 双因素认证、批量管理 |
-| **数据审计** | 操作日志、登录日志、数据变更追溯 |
-| **安全设置** | 密码策略、会话管理、CORS 配置 |
-| **中英双语** | 全系统中英文切换支持 |
+**duptwo** 是一套完整的**多渠道数据采集与管理解决方案**。通过灵活的 API 接口实现数据上报，支持 JSON/FormData/Excel 多格式，提供项目管理、数据采集、人员管理、字段配置、报表统计、数据审计等核心功能。适用于企业级数据登记、政务数据采集、项目过程管理等多种场景。
+
+**duptwo** is a full-stack data collection and management platform with flexible API support, multi-format upload (JSON/FormData/Excel), project management, D3.js network visualization, RBAC, MFA, and bilingual Chinese/English UI.
 
 ---
 
-## 技术栈
+## 平台功能 / Platform Features
 
-| 层级 | 技术 |
-|------|------|
-| **前端** | Vue 3 + TypeScript + Vite + Pinia + Element Plus |
-| **后端** | Go 1.23 + Gin + GORM |
-| **数据库** | SQLite / MySQL 8.0 / PostgreSQL 16 |
-| **部署** | Docker + Docker Compose + Kubernetes |
+| 模块 / Module | 功能说明 / Description |
+|-------------|---------------------|
+| **项目管理 / Project Management** | 看板/列表/网格视图、D3.js 网络图、项目周期预警 |
+| **数据采集 / Data Collection** | API 推送/API 拉取、JSON/FormData/Excel 多格式、公开上传 |
+| **磁盘标签 / Disk Labels** | 按磁盘标签分组统计、状态分布（完成/失败/混合/待处理） |
+| **数据统计 / Statistics** | 每日/每周/每月趋势图、磁盘标签分布、项目分布 |
+| **人员管理 / Personnel** | 多职位支持、人员负荷矩阵、人员统计 |
+| **字段配置 / Field Config** | 7 种字段类型（文本/数字/下拉/多选/日期/时间戳/多行文本） |
+| **用户管理 / User Management** | RBAC 角色权限、MFA 双因素认证、批量管理、导入导出 |
+| **数据审计 / Audit** | 操作日志、登录日志、数据变更追溯 |
+
+### 技术特性 / Technical Features
+
+- **多数据库 / Multi-database**: SQLite / MySQL 8.0 / PostgreSQL 16 一键切换
+- **中英双语 / Bilingual**: 全系统中文/English 切换
+- **API 文档 / API Docs**: 内置 Swagger（`/swagger`）
+- **健康检查 / Health Check**: `GET /health`
 
 ---
 
-## 快速开始
+## 安全功能 / Security Features
 
-### 🐳 Docker 部署（推荐）
+| 功能 / Feature | 说明 / Description |
+|--------------|-------------------|
+| **密码策略 / Password Policy** | 长度、大小写、数字、特殊字符可配置 |
+| **JWT Token** | 168 小时有效期，支持刷新 |
+| **MFA 双因素 / MFA** | TOTP 验证码（Google Authenticator） |
+| **登录锁定 / Login Lockout** | N 次失败后锁定账户（可配置） |
+| **会话管理 / Session** | 同时在线会话数限制、强制登出 |
 
-**SQLite 轻量版（开发/小规模）：**
+---
+
+## 环境选择 / Environment Selection
+
+| 数据库 / DB | 推荐场景 / Use Case | 数据量 / Data Volume | 运维 / Ops |
+|------------|-------------------|--------------------|-----------|
+| **SQLite** | 开发、个人/小团队 / Dev, small team | < 10万条 / < 100K rows | ⭐ 极简 / Minimal |
+| **MySQL** | 生产环境、多部门协作 / Production | 100万+ / 1M+ rows | ⭐⭐ 中等 / Medium |
+| **PostgreSQL** | 高并发、强一致性 / High concurrency | 无限制 / Unlimited | ⭐⭐ 中等 / Medium |
+
+> 💡 切换数据库只需修改 `conf/app.yaml` 中的 `database.type`，程序自动迁移表结构。
+
+---
+
+## 快速开始 / Quick Start
+
+### 开发/轻量部署 SQLite（推荐个人/小团队）
+
 ```bash
+# 方式一：Docker Compose（推荐）
 git clone https://github.com/budongshu/duptwo.git
-cd duptwo
-./deploy/deploy.sh deploy:sqlite
+cd duptwo/deploy/docker
+docker compose -f docker-compose.sqlite.yml up -d
+
+# 方式二：二进制直接运行
+cd backend
+mkdir -p data logs
+./datauptwo --config conf/app.sqlite.yaml
 ```
 
-**MySQL 生产版：**
-```bash
-./deploy/deploy.sh deploy
-```
+访问 http://localhost:18421 | 默认账号：`admin` / `admin123`
 
-**PostgreSQL 生产版：**
+### 生产环境部署 MySQL
+
 ```bash
-./deploy/deploy.sh build
+# Docker Compose
 cd deploy/docker
+docker compose -f docker-compose.mysql.yml up -d
+
+# 或 Helm（Kubernetes）
+cd deploy/kubernetes/helm-duptwo
+helm install duptwo . -n duptwo --create-namespace \
+  --set mysql.externalHost=your-mysql-host \
+  --set mysql.password=your_password
+```
+
+访问 http://localhost:80 | 默认账号：`admin` / `admin123`
+
+---
+
+## 详细部署文档 / Detailed Deployment Guides
+
+### [1. SQLite 开发/轻量部署 →](DEPLOY.md#开发轻量部署sqlite)
+
+适用于：开发调试、个人使用、小团队内部协作
+
+```bash
+# Docker
+docker compose -f docker-compose.sqlite.yml up -d
+
+# 二进制
+cd backend && ./datauptwo --config conf/app.sqlite.yaml
+```
+
+### [2. MySQL 生产部署 →](DEPLOY.md#生产环境部署mysql)
+
+适用于：多用户并发访问、数据量大、需要定时备份
+
+```bash
+# Docker
+docker compose -f docker-compose.mysql.yml up -d
+
+# 二进制 + MySQL
+mysql -u root -p -e "CREATE DATABASE duptwo DEFAULT CHARSET utf8mb4;"
+./datauptwo --config conf/app.mysql.yaml
+```
+
+### [3. Docker 完整部署 →](DEPLOY.md#docker-部署)
+
+```bash
+cd deploy/docker
+
+# 构建自定义镜像
+docker build -t duptwo:latest .
+
+# 推送
+docker tag duptwo:latest your-registry.com/duptwo:latest
+docker push your-registry.com/duptwo:latest
+
+# SQLite
+docker compose -f docker-compose.sqlite.yml up -d
+
+# MySQL
+docker compose -f docker-compose.mysql.yml up -d
+
+# PostgreSQL
 docker compose -f docker-compose.postgres.yml up -d
+
+# 查看日志
+docker compose logs -f
+
+# 停止
+docker compose down
 ```
 
-> 访问 http://localhost:80
-> 默认账号：`admin` / `admin123`
-
-### ⚙️ 二进制部署
+### [4. Kubernetes 部署 →](DEPLOY.md#kubernetes-部署)
 
 ```bash
-# 下载 release 包
-wget https://github.com/budongshu/duptwo/releases/download/v1.0.0/duptwo-v1.0.0-linux-amd64.tar.gz
-tar -xzf duptwo-v1.0.0-linux-amd64.tar.gz
+# Helm Chart 安装
+cd deploy/kubernetes/helm-duptwo
+helm install duptwo . -n duptwo --create-namespace \
+  --set image.repository=your-registry.com/duptwo \
+  --set database.type=mysql
 
-# 进入 backend 目录运行（二进制依赖 ./cmd/server/web 读取前端文件）
-cd duptwo/backend
+# 查看状态
+kubectl get pods -n duptwo
 
-# 修改配置（必须修改 JWT Secret 和默认密码）
-vim conf/app.yaml
+# 升级
+helm upgrade duptwo . -n duptwo --set image.tag=v1.1.0
 
-# 启动（SQLite 模式）
-./duptwo --config conf/app.yaml
-
-# 或指定端口
-./duptwo --config conf/app.yaml --port 8080
+# 卸载
+helm uninstall duptwo -n duptwo
 ```
 
-### 🔨 从源码构建
+### [5. Nginx 配置 →](DEPLOY.md#nginx-配置)
 
+**反向代理（HTTP）：**
+```nginx
+server {
+    listen 80;
+    server_name duptwo.example.com;
+
+    client_max_body_size 100m;
+
+    location / {
+        proxy_pass http://127.0.0.1:18421;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+    }
+}
+```
+
+**HTTPS 配置 + Let's Encrypt 证书：**
 ```bash
-git clone https://github.com/budongshu/duptwo.git
-cd duptwo
+# 申请证书
+sudo certbot --nginx -d duptwo.example.com
 
-# 构建（前端 + 后端 + Docker 镜像）
-make build-all
-
-# Docker 部署（MySQL）
-make docker-up
-
-# 二进制运行
-cd backend && ./duptwo --config conf/app.yaml
+# 自动续期
+sudo certbot renew --dry-run
 ```
 
----
-
-## 数据库选择指南
-
-| 数据库 | 推荐场景 | 并发能力 | 数据量 | 运维复杂度 |
-|--------|---------|---------|--------|-----------|
-| **SQLite** | 开发、个人/团队内部 | 低 | < 10万条 | ⭐ 极简 |
-| **MySQL** | 生产环境、多部门协作 | 高 | 100万+ | ⭐⭐ 中等 |
-| **PostgreSQL** | 高并发、强一致性需求 | 极高 | 无限制 | ⭐⭐ 中等 |
-
-> 💡 从 SQLite 切换到 MySQL/PostgreSQL：修改 `database.type`，程序自动迁移表结构。
+**关键配置说明：**
+- `client_max_body_size 500m;` — 允许上传大文件
+- `proxy_read_timeout 300s;` — 大文件上传需要延长超时
+- `proxy_buffering off;` — 流式响应（如 Swagger）建议关闭缓冲
 
 ---
 
-## 目录结构
+## 技术栈 / Tech Stack
 
-```
-duptwo/
-├── backend/                  # Go 后端（package: datauptwo）
-│   ├── cmd/server/          # 入口，嵌入前端静态文件
-│   ├── app/api/            # API 处理器
-│   ├── app/service/         # 业务逻辑
-│   ├── app/repo/            # 数据访问层
-│   ├── app/model/           # GORM 模型
-│   ├── app/dto/             # 请求/响应 DTO
-│   ├── conf/                # 配置文件
-│   ├── Makefile             # 构建命令
-│   └── go.mod
-├── frontend/                # Vue 3 前端
-│   ├── src/
-│   ├── vite.config.ts       # 构建到 backend/cmd/server/web
-│   └── package.json
-├── deploy/                  # 部署配置
-│   ├── docker/              # Docker 部署
-│   │   ├── Dockerfile
-│   │   ├── docker-compose.sqlite.yml
-│   │   ├── docker-compose.mysql.yml
-│   │   ├── docker-compose.postgres.yml
-│   │   └── nginx/
-│   ├── kubernetes/           # K8s 部署
-│   └── deploy.sh             # 一键部署脚本
-├── .github/workflows/        # CI/CD
-└── SPEC.md                  # 详细规格说明
-```
+| 层级 / Layer | 技术 / Technology |
+|------------|------------------|
+| **前端 / Frontend** | Vue 3 + TypeScript + Vite + Pinia + Element Plus |
+| **后端 / Backend** | Go 1.23 + Gin + GORM |
+| **数据库 / Database** | SQLite / MySQL 8.0 / PostgreSQL 16 |
+| **部署 / Deployment** | Docker + Docker Compose + Kubernetes + Helm |
 
 ---
 
-## API 接口
+## 环境要求 / Requirements
 
-| 类别 | 路径 | 说明 |
-|------|------|------|
-| 认证 | `POST /api/auth/login` | 用户登录 |
-| 认证 | `POST /api/auth/register` | 用户注册 |
-| 认证 | `POST /api/auth/mfa/verify` | MFA 验证 |
-| 上传 | `POST /public/upload-records` | 公开上传（无需认证）|
-| 上传 | `GET/POST/PUT/DELETE /api/upload-records` | 上传记录 CRUD |
-| 项目 | `GET/POST/PUT/DELETE /api/projects` | 项目管理 |
-| 人员 | `GET/POST/PUT/DELETE /api/personnels` | 人员管理 |
-| 用户 | `GET/POST/PUT/DELETE /api/users` | 用户管理 |
-| 角色 | `GET/POST/PUT/DELETE /api/roles` | 角色管理 |
-| 用户组 | `GET/POST/PUT/DELETE /api/user-groups` | 用户组管理 |
-| 字段 | `GET/POST/PUT/DELETE /api/field-configs` | 字段配置 |
-| 审计 | `GET /api/audit/*` | 日志审计 |
-| 系统 | `GET/PUT /api/admin/*` | 系统配置 |
-| 健康 | `GET /health` | 健康检查 |
-
-> Swagger 文档：http://localhost:18421/swagger
+| 场景 / Scenario | CPU | 内存 / Memory | 磁盘 / Disk |
+|----------------|-----|--------------|-----------|
+| 开发/测试 / Dev | 2核 | 4GB | 20GB |
+| 小规模 SQLite / Small | 2核 | 4GB | 50GB |
+| 中等规模 MySQL / Medium | 4核 | 8GB | 100GB |
+| 大规模生产 / Production | 8核+ | 16GB+ | 200GB+ |
 
 ---
 
-## 安全配置
+## 常见问题 / FAQ
 
-### ⚠️ 生产环境必做
-
-1. **修改 JWT Secret** — 生成 32+ 位随机字符串
-   ```bash
-   # 启动后重置管理员密码
-   ./duptwo reset-admin your_new_password
-   ```
-
-2. **配置 HTTPS** — 使用 Let's Encrypt 或商业证书
-
-3. **配置 CORS** — 仅允许受信任的域名
-   ```yaml
-   cors:
-     allow_origins:
-       - "https://your-domain.com"
-   ```
-
-4. **数据库密码** — MySQL/PostgreSQL 生产环境设置强密码
-
----
-
-## 数据备份
-
-**SQLite：**
-```bash
-# 方式1：Docker 卷
-docker cp duptwo-app:/app/data/registry.db ./backup/
-
-# 方式2：直接复制
-cp -r data data.backup.$(date +%Y%m%d)
-```
-
-**MySQL：**
-```bash
-docker exec duptwo-mysql mysqldump -u root -p'duptwo_root_pass' duptwo > backup_$(date +%Y%m%d).sql
-
-# 恢复
-docker exec -i duptwo-mysql mysql -u root -p'duptwo_root_pass' duptwo < backup_20260401.sql
-```
-
-**PostgreSQL：**
-```bash
-docker exec duptwo-postgres pg_dump -U duptwo duptwo > backup_$(date +%Y%m%d).sql
-
-# 恢复
-docker exec -i duptwo-postgres psql -U duptwo duptwo < backup_20260401.sql
-```
-
----
-
-## 环境要求
-
-| 场景 | CPU | 内存 | 磁盘 |
-|------|-----|------|------|
-| 开发/测试 | 2核 | 4GB | 20GB |
-| 小规模（SQLite） | 2核 | 4GB | 50GB |
-| 中等规模（MySQL/PGSQL） | 4核 | 8GB | 100GB |
-| 大规模生产 | 8核+ | 16GB+ | 200GB+ |
-
----
-
-## 常见问题
-
-**Q: 启动报 `port already in use`**
+**Q: 端口被占用 / Port in use**
 ```bash
 lsof -i :18421
 pkill duptwo
 ```
 
-**Q: 二进制部署如何更新？**
+**Q: 更新版本 / Update version**
 ```bash
 cp -r data data.backup
 pkill duptwo
-mv duptwo duptwo.old
-# 替换新二进制后重启
-./duptwo --config conf/app.yaml
+./datauptwo --config conf/app.yaml
 ```
 
-**Q: 支持 ARM 架构吗？**
+**Q: 修改默认密码 / Change default password**
 ```bash
-# 在 ARM 服务器上直接构建
-cd backend && CGO_ENABLED=1 go build -o duptwo ./cmd/server/main.go
+./datauptwo reset-admin your_new_password
 ```
 
 ---
 
-## 贡献
+## 技术支持 / Support
 
-欢迎提交 Issue 和 Pull Request！
-
----
-
-## License
-
-MIT
+- **GitHub**: https://github.com/budongshu/duptwo
+- **Issues**: https://github.com/budongshu/duptwo/issues
+- **API Docs**: http://localhost:18421/swagger
 
 ---
 
----
-
-# duptwo Data Registry Platform
-
-A full-stack data collection and management platform with flexible API support, multi-database backend (SQLite/MySQL/PostgreSQL), and comprehensive admin capabilities.
-
-### Quick Start
+## 构建 / Build
 
 ```bash
-# SQLite (dev/lightweight)
-git clone https://github.com/budongshu/duptwo.git && cd duptwo
-./deploy/deploy.sh deploy:sqlite
+# 从源码构建（前端 + 后端 + Docker 镜像）
+make build-all
 
-# MySQL (production)
-./deploy/deploy.sh deploy
+# Docker 镜像
+make build-docker
 
-# PostgreSQL (production, high-concurrency)
-cd deploy/docker && docker compose -f docker-compose.postgres.yml up -d
+# 二进制运行
+make run-dev
 ```
 
-Visit http://localhost:80 — Login: `admin` / `admin123`
+---
 
-### Features
-
-- **Multi-format upload**: JSON / FormData / Excel
-- **Project management**: D3.js network graph, kanban/list/grid views
-- **Personnel tracking**: Multi-position support, system user linking
-- **RBAC**: Roles, user groups, granular permissions
-- **MFA**: TOTP-based two-factor authentication
-- **Bilingual**: Full Chinese/English i18n support
-- **Audit logs**: Operation and login trail
-
-### Architecture
-
-```
-User → Nginx (80/443) → Go API (:18421) → SQLite / MySQL / PostgreSQL
-```
-
-### Binary Build
-
-```bash
-make build-all    # Frontend + Backend binary
-make build-docker # Docker image
-```
-
-### Docs
-
-- [Deployment Guide](DEPLOY.md)
-- [API Documentation](http://localhost:18421/swagger)
+**License**: MIT

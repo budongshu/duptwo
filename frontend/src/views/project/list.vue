@@ -170,8 +170,14 @@
           <span class="kanban-title">{{ t('project.stage.' + col.key) }}</span>
           <span class="kanban-stats">
             <span class="kanban-count">{{ kanbanData[col.key]?.length || 0 }}</span>
-            <span class="kanban-records">{{ getStageRecords(col.key) }} {{ t('project.list.records') }}</span>
-            <span class="kanban-size">{{ formatBytes(getStageSize(col.key)) }}</span>
+            <span class="kanban-records">
+              <el-icon><Document /></el-icon>
+              {{ getStageRecords(col.key) }} {{ t('project.list.records') }}
+            </span>
+            <span class="kanban-size">
+              <el-icon><Folder /></el-icon>
+              {{ formatBytes(getStageSize(col.key)) }}
+            </span>
           </span>
           <el-icon class="collapse-icon" :class="{ 'is-collapsed': collapsedStages.includes(col.key) }">
             <ArrowDown />
@@ -189,9 +195,22 @@
           >
             <div class="kanban-card-name" :title="p.name">{{ p.name }}</div>
             <div class="kanban-card-metrics">
-              <span class="kanban-metric"><el-icon><User /></el-icon>{{ getTeamCount(p) }}</span>
-              <span class="kanban-metric"><el-icon><Document /></el-icon>{{ formatNumber(p.recordCount || 0) }}</span>
-              <span class="kanban-metric"><el-icon><Folder /></el-icon>{{ formatBytes(p.totalDataSize || 0) }}</span>
+              <span class="kanban-metric">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                {{ getTeamCount(p) }}
+              </span>
+              <span class="kanban-metric">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                {{ formatNumber(p.recordCount || 0) }}
+              </span>
+              <span class="kanban-metric">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                {{ formatBytes(p.totalDataSize || 0) }}
+              </span>
+            </div>
+            <div v-if="getProjectReminder(p).text" class="kanban-card-reminder" :class="'reminder--' + getProjectReminder(p).level">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {{ getProjectReminder(p).text }}
             </div>
           </div>
           <div v-if="!kanbanData[col.key]?.length" class="kanban-empty">{{ t('project.list.noData') }}</div>
@@ -214,127 +233,304 @@
       </div>
       <!-- 主内容 -->
       <template v-else>
-        <!-- 顶部标题栏 -->
-        <div class="matrix-header">
-          <div class="matrix-header-left">
-            <h3 class="matrix-title">人员负荷矩阵</h3>
-            <span class="matrix-desc">基于项目数量和重要程度分析人员工作负载</span>
-          </div>
-          <div class="matrix-header-right">
-            <span class="matrix-date">{{ currentDate }}</span>
-            <!-- 视图切换 -->
-            <div class="matrix-view-toggle">
-              <button :class="['toggle-btn', { active: matrixViewType === 'card' }]" @click="switchMatrixView('card')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-                卡片矩阵
-              </button>
-              <button :class="['toggle-btn', { active: matrixViewType === 'scatter' }]" @click="switchMatrixView('scatter')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="15" r="2"/><circle cx="12" cy="9" r="2"/><circle cx="18" cy="18" r="2"/><circle cx="5" cy="5" r="2"/><circle cx="17" cy="7" r="2"/></svg>
-                散点图
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 统计栏 -->
-        <div class="matrix-stats">
-          <div class="mstat-card">
-            <div class="mstat-icon mstat-icon--blue">
+        <!-- 矩阵标题栏 -->
+        <div class="matrix-toolbar">
+          <div class="toolbar-left">
+            <div class="matrix-icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
-            <div class="mstat-info">
-              <div class="mstat-value">{{ matrixPersons.length }}</div>
-              <div class="mstat-label">人员</div>
+            <div>
+              <h3 class="matrix-title">人员负荷矩阵</h3>
+              <div class="matrix-subtitle">{{ matrixPersons.length }} 人 · {{ matrixStats.totalProjects }} 项目参与</div>
             </div>
           </div>
-          <div class="mstat-card">
-            <div class="mstat-icon mstat-icon--green">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <div class="toolbar-right">
+            <div class="view-toggle">
+              <button :class="{ active: matrixViewType === 'card' }" @click="switchMatrixView('card')" class="toggle-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                象限
+              </button>
+              <button :class="{ active: matrixViewType === 'scatter' }" @click="switchMatrixView('scatter')" class="toggle-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="17" r="2"/><circle cx="17" cy="7" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="9" cy="9" r="1.5"/><circle cx="15" cy="15" r="1.5"/></svg>
+                散点
+              </button>
             </div>
-            <div class="mstat-info">
-              <div class="mstat-value">{{ matrixStats.totalProjects }}</div>
-              <div class="mstat-label">参与项目</div>
-            </div>
-          </div>
-          <div class="mstat-card">
-            <div class="mstat-icon mstat-icon--orange">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
-            </div>
-            <div class="mstat-info">
-              <div class="mstat-value">{{ matrixStats.avgWorkload }}%</div>
-              <div class="mstat-label">平均负荷</div>
-            </div>
-          </div>
-          <div class="mstat-card">
-            <div class="mstat-icon mstat-icon--red">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            </div>
-            <div class="mstat-info">
-              <div class="mstat-value">{{ matrixStats.overloadCount }}</div>
-              <div class="mstat-label">超负荷</div>
-            </div>
-          </div>
-          <div class="mstat-card">
-            <div class="mstat-icon mstat-icon--purple">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            </div>
-            <div class="mstat-info">
-              <div class="mstat-value">{{ matrixStats.idleCount }}</div>
-              <div class="mstat-label">空闲</div>
-            </div>
+            <button class="config-btn" @click="showMatrixConfig = !showMatrixConfig">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              配置
+            </button>
           </div>
         </div>
 
-        <!-- 卡片矩阵视图 -->
-        <div v-show="matrixViewType === 'card'" class="matrix-card-grid">
-          <!-- 四象限 -->
-          <div class="matrix-quadrant" :class="'quadrant--' + q.key" v-for="q in matrixQuadrants" :key="q.key">
-            <div class="quadrant-header">
-              <span class="quadrant-dot" :style="{ background: q.color }"></span>
-              <span class="quadrant-name">{{ q.name }}</span>
-              <span class="quadrant-count">{{ q.persons.length }}人</span>
+        <!-- 配置面板 -->
+        <div v-show="showMatrixConfig" class="matrix-config-panel">
+          <div class="config-row">
+            <span class="config-label">最大项目数阈值</span>
+            <el-slider v-model="matrixConfig.maxProjects" :min="2" :max="12" :step="1" show-input size="small" />
+          </div>
+          <div class="config-row">
+            <span class="config-label">高重要阶段</span>
+            <el-checkbox-group v-model="matrixConfig.highImportanceStages" size="small">
+              <el-checkbox-button v-for="s in stageOptions" :key="s.value" :value="s.value">{{ t('project.stage.' + s.value) }}</el-checkbox-button>
+            </el-checkbox-group>
+          </div>
+          <div class="config-formula">
+            <span class="formula-tag">公式</span>
+            <span class="formula-text">负荷% = min(项目数 ÷ {{ matrixConfig.maxProjects }} × 100, 100)</span>
+          </div>
+        </div>
+
+        <!-- 象限视图 -->
+        <template v-if="matrixViewType === 'card'">
+        <!-- 统计概览 -->
+        <div class="matrix-overview">
+          <div class="overview-stat">
+            <span class="stat-val">{{ matrixPersons.length }}</span>
+            <span class="stat-lbl">人员</span>
+          </div>
+          <div class="overview-sep"></div>
+          <div class="overview-stat">
+            <span class="stat-val">{{ matrixStats.totalProjects }}</span>
+            <span class="stat-lbl">参与项目</span>
+          </div>
+          <div class="overview-sep"></div>
+          <div class="overview-stat">
+            <span class="stat-val warning">{{ matrixStats.overloadCount }}</span>
+            <span class="stat-lbl">超负荷</span>
+          </div>
+          <div class="overview-sep"></div>
+          <div class="overview-stat">
+            <span class="stat-val success">{{ matrixStats.idleCount }}</span>
+            <span class="stat-lbl">空闲</span>
+          </div>
+        </div>
+
+        <!-- 四象限矩阵 -->
+        <div class="matrix-grid">
+          <!-- 象限1：需关注 -->
+          <div class="matrix-cell matrix-cell--attention">
+            <div class="cell-header">
+              <span class="cell-badge warning">需关注</span>
+              <span class="cell-count">{{ getQuadrantPersons('attention').length }}人</span>
             </div>
-            <div class="quadrant-desc">{{ q.desc }}</div>
-            <div class="quadrant-persons" v-if="q.persons.length > 0">
-              <div
-                v-for="person in q.persons"
-                :key="person.name"
-                class="person-bubble"
-                :style="{ background: person.color }"
-                :title="person.name + ' · ' + person.projectCount + '个项目'"
-                @mouseenter="hoveredPerson = person"
-                @mouseleave="hoveredPerson = null"
-              >
-                <span class="person-bubble__name">{{ person.name.substring(0, 1) }}</span>
-                <div class="person-bubble__tooltip">
-                  <div class="tooltip-name">{{ person.name }}</div>
-                  <div class="tooltip-meta">{{ person.projectCount }}个项目 · 负荷{{ person.loadPercent }}%</div>
-                  <div class="tooltip-bar"><div class="tooltip-bar-fill" :style="{ width: person.loadPercent + '%', background: person.color }"></div></div>
-                  <div class="tooltip-role" v-if="person.roles.length">{{ person.roles[0] }}</div>
-                  <div class="tooltip-projects" v-if="person.projects.length">
-                    <div class="tooltip-proj-title">参与项目</div>
-                    <div class="tooltip-proj-item" v-for="p in person.projects" :key="p.name">{{ p.name }}</div>
+            <div class="cell-formula">项目数 &gt; {{ matrixConfig.maxProjects }} + 高重要</div>
+            <div class="cell-persons">
+              <div v-for="p in getQuadrantPersons('attention')" :key="p.name" class="person-chip" :style="{ background: p.color + '15', borderColor: p.color + '40' }">
+                <span class="chip-avatar" :style="{ background: p.color }">{{ p.name.charAt(0) }}</span>
+                <span class="chip-name">{{ p.name }}</span>
+                <span class="chip-meta">{{ p.projectCount }}项</span>
+                <div class="person-tooltip">
+                  <div class="tooltip-header">
+                    <span class="tooltip-avatar" :style="{ background: p.color }">{{ p.name.charAt(0) }}</span>
+                    <div class="tooltip-info">
+                      <div class="tooltip-name">{{ p.name }}</div>
+                      <div class="tooltip-roles">{{ p.roles.slice(0, 2).join('、') || '成员' }}</div>
+                    </div>
+                    <div class="tooltip-load" :class="'load--' + getLoadLevel(p)">
+                      <span class="load-val">{{ getLoadPercent(p) }}%</span>
+                      <span class="load-label">负荷</span>
+                    </div>
+                  </div>
+                  <div class="tooltip-bar-wrap">
+                    <div class="tooltip-bar">
+                      <div class="tooltip-bar-fill" :style="{ width: getLoadPercent(p) + '%', background: p.color }"></div>
+                    </div>
+                  </div>
+                  <div class="tooltip-projects">
+                    <div class="tooltip-proj-title">参与项目 ({{ p.projectCount }})</div>
+                    <div class="tooltip-proj-item" v-for="proj in getPersonProjects(p)" :key="proj.name">
+                      <span class="proj-dot" :style="{ background: getStageColor(proj.stage) }"></span>
+                      <span class="proj-name">{{ proj.name }}</span>
+                    </div>
+                    <div v-if="p.projects.length > 20" class="tooltip-proj-more" :class="{ expanded: matrixExpandedProjects[p.name] }" @click.stop="toggleMatrixProjects(p.name)">
+                      {{ matrixExpandedProjects[p.name] ? '收起' : '+' + (p.projects.length - 20) + ' 更多' }}
+                    </div>
                   </div>
                 </div>
               </div>
+              <div v-if="getQuadrantPersons('attention').length === 0" class="cell-empty">—</div>
             </div>
-            <div class="quadrant-empty" v-else>—</div>
+          </div>
+
+          <!-- 象限2：可分配 -->
+          <div class="matrix-cell matrix-cell--assignable">
+            <div class="cell-header">
+              <span class="cell-badge success">可分配</span>
+              <span class="cell-count">{{ getQuadrantPersons('assignable').length }}人</span>
+            </div>
+            <div class="cell-formula">项目数 ≤ {{ matrixConfig.maxProjects }} + 高重要</div>
+            <div class="cell-persons">
+              <div v-for="p in getQuadrantPersons('assignable')" :key="p.name" class="person-chip" :style="{ background: p.color + '15', borderColor: p.color + '40' }">
+                <span class="chip-avatar" :style="{ background: p.color }">{{ p.name.charAt(0) }}</span>
+                <span class="chip-name">{{ p.name }}</span>
+                <span class="chip-meta">{{ p.projectCount }}项</span>
+                <div class="person-tooltip">
+                  <div class="tooltip-header">
+                    <span class="tooltip-avatar" :style="{ background: p.color }">{{ p.name.charAt(0) }}</span>
+                    <div class="tooltip-info">
+                      <div class="tooltip-name">{{ p.name }}</div>
+                      <div class="tooltip-roles">{{ p.roles.slice(0, 2).join('、') || '成员' }}</div>
+                    </div>
+                    <div class="tooltip-load" :class="'load--' + getLoadLevel(p)">
+                      <span class="load-val">{{ getLoadPercent(p) }}%</span>
+                      <span class="load-label">负荷</span>
+                    </div>
+                  </div>
+                  <div class="tooltip-bar-wrap">
+                    <div class="tooltip-bar">
+                      <div class="tooltip-bar-fill" :style="{ width: getLoadPercent(p) + '%', background: p.color }"></div>
+                    </div>
+                  </div>
+                  <div class="tooltip-projects">
+                    <div class="tooltip-proj-title">参与项目 ({{ p.projectCount }})</div>
+                    <div class="tooltip-proj-item" v-for="proj in getPersonProjects(p)" :key="proj.name">
+                      <span class="proj-dot" :style="{ background: getStageColor(proj.stage) }"></span>
+                      <span class="proj-name">{{ proj.name }}</span>
+                    </div>
+                    <div v-if="p.projects.length > 20" class="tooltip-proj-more" :class="{ expanded: matrixExpandedProjects[p.name] }" @click.stop="toggleMatrixProjects(p.name)">
+                      {{ matrixExpandedProjects[p.name] ? '收起' : '+' + (p.projects.length - 20) + ' 更多' }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-if="getQuadrantPersons('assignable').length === 0" class="cell-empty">—</div>
+            </div>
+          </div>
+
+          <!-- 象限3：繁忙中 -->
+          <div class="matrix-cell matrix-cell--busy">
+            <div class="cell-header">
+              <span class="cell-badge danger">繁忙中</span>
+              <span class="cell-count">{{ getQuadrantPersons('busy').length }}人</span>
+            </div>
+            <div class="cell-formula">项目数 &gt; {{ matrixConfig.maxProjects }} + 普通</div>
+            <div class="cell-persons">
+              <div v-for="p in getQuadrantPersons('busy')" :key="p.name" class="person-chip" :style="{ background: p.color + '15', borderColor: p.color + '40' }">
+                <span class="chip-avatar" :style="{ background: p.color }">{{ p.name.charAt(0) }}</span>
+                <span class="chip-name">{{ p.name }}</span>
+                <span class="chip-meta">{{ p.projectCount }}项</span>
+                <div class="person-tooltip">
+                  <div class="tooltip-header">
+                    <span class="tooltip-avatar" :style="{ background: p.color }">{{ p.name.charAt(0) }}</span>
+                    <div class="tooltip-info">
+                      <div class="tooltip-name">{{ p.name }}</div>
+                      <div class="tooltip-roles">{{ p.roles.slice(0, 2).join('、') || '成员' }}</div>
+                    </div>
+                    <div class="tooltip-load" :class="'load--' + getLoadLevel(p)">
+                      <span class="load-val">{{ getLoadPercent(p) }}%</span>
+                      <span class="load-label">负荷</span>
+                    </div>
+                  </div>
+                  <div class="tooltip-bar-wrap">
+                    <div class="tooltip-bar">
+                      <div class="tooltip-bar-fill" :style="{ width: getLoadPercent(p) + '%', background: p.color }"></div>
+                    </div>
+                  </div>
+                  <div class="tooltip-projects">
+                    <div class="tooltip-proj-title">参与项目 ({{ p.projectCount }})</div>
+                    <div class="tooltip-proj-item" v-for="proj in getPersonProjects(p)" :key="proj.name">
+                      <span class="proj-dot" :style="{ background: getStageColor(proj.stage) }"></span>
+                      <span class="proj-name">{{ proj.name }}</span>
+                    </div>
+                    <div v-if="p.projects.length > 20" class="tooltip-proj-more" :class="{ expanded: matrixExpandedProjects[p.name] }" @click.stop="toggleMatrixProjects(p.name)">
+                      {{ matrixExpandedProjects[p.name] ? '收起' : '+' + (p.projects.length - 20) + ' 更多' }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-if="getQuadrantPersons('busy').length === 0" class="cell-empty">—</div>
+            </div>
+          </div>
+
+          <!-- 象限4：正常 -->
+          <div class="matrix-cell matrix-cell--normal">
+            <div class="cell-header">
+              <span class="cell-badge normal">正常</span>
+              <span class="cell-count">{{ getQuadrantPersons('normal').length }}人</span>
+            </div>
+            <div class="cell-formula">项目数 ≤ {{ matrixConfig.maxProjects }} + 普通</div>
+            <div class="cell-persons">
+              <div v-for="p in getQuadrantPersons('normal')" :key="p.name" class="person-chip" :style="{ background: p.color + '15', borderColor: p.color + '40' }">
+                <span class="chip-avatar" :style="{ background: p.color }">{{ p.name.charAt(0) }}</span>
+                <span class="chip-name">{{ p.name }}</span>
+                <span class="chip-meta">{{ p.projectCount }}项</span>
+                <div class="person-tooltip">
+                  <div class="tooltip-header">
+                    <span class="tooltip-avatar" :style="{ background: p.color }">{{ p.name.charAt(0) }}</span>
+                    <div class="tooltip-info">
+                      <div class="tooltip-name">{{ p.name }}</div>
+                      <div class="tooltip-roles">{{ p.roles.slice(0, 2).join('、') || '成员' }}</div>
+                    </div>
+                    <div class="tooltip-load" :class="'load--' + getLoadLevel(p)">
+                      <span class="load-val">{{ getLoadPercent(p) }}%</span>
+                      <span class="load-label">负荷</span>
+                    </div>
+                  </div>
+                  <div class="tooltip-bar-wrap">
+                    <div class="tooltip-bar">
+                      <div class="tooltip-bar-fill" :style="{ width: getLoadPercent(p) + '%', background: p.color }"></div>
+                    </div>
+                  </div>
+                  <div class="tooltip-projects">
+                    <div class="tooltip-proj-title">参与项目 ({{ p.projectCount }})</div>
+                    <div class="tooltip-proj-item" v-for="proj in getPersonProjects(p)" :key="proj.name">
+                      <span class="proj-dot" :style="{ background: getStageColor(proj.stage) }"></span>
+                      <span class="proj-name">{{ proj.name }}</span>
+                    </div>
+                    <div v-if="p.projects.length > 20" class="tooltip-proj-more" :class="{ expanded: matrixExpandedProjects[p.name] }" @click.stop="toggleMatrixProjects(p.name)">
+                      {{ matrixExpandedProjects[p.name] ? '收起' : '+' + (p.projects.length - 20) + ' 更多' }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-if="getQuadrantPersons('normal').length === 0" class="cell-empty">—</div>
+            </div>
           </div>
         </div>
+
+        <!-- 空闲人员单独展示 -->
+        <div v-if="getQuadrantPersons('idle').length > 0" class="matrix-idle-section">
+          <div class="idle-header">
+            <span class="idle-badge">空闲</span>
+            <span class="idle-count">{{ getQuadrantPersons('idle').length }}人 · 无参与项目</span>
+          </div>
+          <div class="idle-persons">
+            <div v-for="p in getQuadrantPersons('idle')" :key="p.name" class="person-chip person-chip--idle">
+              <span class="chip-avatar chip-avatar--idle">{{ p.name.charAt(0) }}</span>
+              <span class="chip-name">{{ p.name }}</span>
+            </div>
+          </div>
+        </div>
+        </template>
 
         <!-- 散点图视图 -->
-        <div v-show="matrixViewType === 'scatter'" class="matrix-scatter-wrap">
-          <div ref="matrixChartRef" class="matrix-scatter-canvas"></div>
-        </div>
-
-        <!-- 图例 -->
-        <div class="matrix-legend">
-          <div class="legend-item" v-for="q in matrixQuadrants" :key="q.key">
-            <span class="legend-dot" :style="{ background: q.color }"></span>
-            <span class="legend-name">{{ q.name }}</span>
-            <span class="legend-desc">{{ q.desc }}</span>
+        <template v-if="matrixViewType === 'scatter'">
+          <div class="matrix-scatter-container">
+            <div class="scatter-legend">
+              <div class="legend-item">
+                <span class="legend-dot" style="background: #409eff;"></span>
+                <span>需关注 (高负荷+高重要)</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-dot" style="background: #67c23a;"></span>
+                <span>正常 (正常负荷)</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-dot" style="background: #e6a23c;"></span>
+                <span>可分配 (低负荷+高重要)</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-dot" style="background: #f56c6c;"></span>
+                <span>繁忙 (高负荷+普通)</span>
+              </div>
+            </div>
+            <div ref="matrixChartRef" class="matrix-scatter-chart"></div>
+            <div class="scatter-axis-labels">
+              <div class="axis-x-label">← 项目少 / 项目多 →</div>
+              <div class="axis-y-label">低重要 ↑ 高重要</div>
+            </div>
           </div>
-        </div>
+        </template>
       </template>
     </div>
 
@@ -435,6 +631,10 @@
                   {{ project.companyAddr }}
                 </span>
               </div>
+              <div class="bento-period-warning" v-if="getProjectDeadlineWarning(project.projectPeriod)">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {{ getProjectDeadlineWarning(project.projectPeriod) }}
+              </div>
             </div>
 
             <!-- 解决方案 -->
@@ -456,7 +656,7 @@
               </div>
               <div class="bento-team-list">
                 <div
-                  v-for="member in getDisplayMembers(project, 6).visible"
+                  v-for="member in getVisibleMembers(project)"
                   :key="member"
                   class="bento-member-chip bento-member-chip--clickable"
                   :title="member + ' · ' + getMemberRole(project, member)"
@@ -467,8 +667,13 @@
                   </div>
                   <span class="bento-member-name">{{ member }}</span>
                 </div>
-                <div class="bento-member-overflow" v-if="getDisplayMembers(project, 6).overflow > 0">
-                  +{{ getDisplayMembers(project, 6).overflow }}
+                <div
+                  v-if="hasOverflowMembers(project)"
+                  class="bento-member-overflow"
+                  :class="{ 'is-expanded': memberExpanded[project.id] }"
+                  @click.stop="toggleMemberExpand(project.id)"
+                >
+                  {{ memberExpanded[project.id] ? '收起' : '+' + (getTeamMembers(project).length - memberDisplayLimit) }}
                 </div>
               </div>
             </div>
@@ -918,50 +1123,26 @@ const matrixStats = computed(() => {
   return { totalProjects, avgWorkload, overloadCount, idleCount }
 })
 
-// 四象限定义
-const matrixQuadrants = computed(() => {
-  const persons = matrixPersons.value
-  return [
-    {
-      key: 'attention',
-      name: '需关注',
-      desc: '高负荷 + 高重要项目',
-      color: '#ea580c',
-      persons: persons.filter(p => p.projectCount > 3 && p.hasHighImportance),
-    },
-    {
-      key: 'assignable',
-      name: '可分配',
-      desc: '低负荷 + 高重要项目',
-      color: '#22c55e',
-      persons: persons.filter(p => p.projectCount <= 3 && p.hasHighImportance && p.projectCount > 0),
-    },
-    {
-      key: 'busy',
-      name: '繁忙中',
-      desc: '高负荷 + 普通项目',
-      color: '#dc2626',
-      persons: persons.filter(p => p.projectCount > 3 && !p.hasHighImportance),
-    },
-    {
-      key: 'normal',
-      name: '正常',
-      desc: '低负荷 + 普通项目',
-      color: '#9333ea',
-      persons: persons.filter(p => p.projectCount <= 3 && p.projectCount > 0 && !p.hasHighImportance),
-    },
-    {
-      key: 'idle',
-      name: '空闲',
-      desc: '无参与项目',
-      color: '#94a3b8',
-      persons: persons.filter(p => p.projectCount === 0),
-    },
-  ]
-})
-
 // 悬停人员
 const hoveredPerson = ref<MatrixPerson | null>(null)
+
+// 人员项目展开状态
+const matrixExpandedProjects = ref<Record<string, boolean>>({})
+
+// 切换人员项目展开/折叠
+const toggleMatrixProjects = (personName: string) => {
+  matrixExpandedProjects.value[personName] = !matrixExpandedProjects.value[personName]
+}
+
+// 获取人员显示的项目列表（根据展开状态）
+const getPersonProjects = (p: MatrixPerson) => {
+  const isExpanded = matrixExpandedProjects.value[p.name] || false
+  const maxVisible = 20
+  if (isExpanded || p.projects.length <= maxVisible) {
+    return p.projects
+  }
+  return p.projects.slice(0, maxVisible)
+}
 
 // 视图切换
 const switchMatrixView = (type: 'card' | 'scatter') => {
@@ -974,6 +1155,29 @@ const switchMatrixView = (type: 'card' | 'scatter') => {
 // 头像颜色池
 const avatarColors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399', '#00BFA5', '#7C3AED', '#DB2777', '#0ea5e9', '#f97316', '#8b5cf6', '#ec4899']
 const getPersonColor = (name: string) => avatarColors[(name || '').charCodeAt(0) % avatarColors.length]
+
+// 矩阵配置（可调整）
+const showMatrixConfig = ref(false)
+const matrixConfig = reactive({
+  maxProjects: 6,
+  highImportanceStages: ['running', 'deploying'] as string[],
+})
+
+// 获取象限人员
+const getQuadrantPersons = (key: string) => {
+  const persons = matrixPersons.value
+  const max = matrixConfig.maxProjects
+  const highStages = matrixConfig.highImportanceStages
+  const hasHighImportance = (p: MatrixPerson) => p.projects.some(proj => highStages.includes(proj.stage))
+  switch (key) {
+    case 'attention': return persons.filter(p => p.projectCount > max && hasHighImportance(p))
+    case 'assignable': return persons.filter(p => p.projectCount <= max && hasHighImportance(p) && p.projectCount > 0)
+    case 'busy': return persons.filter(p => p.projectCount > max && !hasHighImportance(p))
+    case 'normal': return persons.filter(p => p.projectCount <= max && p.projectCount > 0 && !hasHighImportance(p))
+    case 'idle': return persons.filter(p => p.projectCount === 0)
+    default: return []
+  }
+}
 
 // 计算矩阵数据
 const calculateMatrixData = (projects: Project[]) => {
@@ -991,6 +1195,9 @@ const calculateMatrixData = (projects: Project[]) => {
     ['developerPerson', '开发人员'],
     ['testerPerson', '测试人员'],
     ['businessPerson', '业务人员'],
+    ['business2Person', '商务人员'],
+    ['businessCostPerson', '成本人员'],
+    ['productPerson', '产品人员'],
     ['compliancePerson', '合规人员'],
     ['securityPerson', '安全人员'],
     ['networkPerson', '网络人员'],
@@ -998,7 +1205,7 @@ const calculateMatrixData = (projects: Project[]) => {
   ]
 
   projects.forEach(project => {
-    const isHighImportance = project.stage === 'running' || project.stage === 'deploying'
+    const isHighImportance = matrixConfig.highImportanceStages.includes(project.stage || '')
     roleFieldMap.forEach(([field, roleName]) => {
       const val = (project as any)[field]
       if (val && val.trim()) {
@@ -1019,7 +1226,7 @@ const calculateMatrixData = (projects: Project[]) => {
   matrixPersons.value = Array.from(personMap.entries()).map(([name, info]) => ({
     name,
     projectCount: info.projectCount,
-    loadPercent: Math.min(Math.round((info.projectCount / 6) * 100), 100),
+    loadPercent: Math.min(Math.round((info.projectCount / matrixConfig.maxProjects) * 100), 100),
     hasHighImportance: info.hasHighImportance,
     color: getPersonColor(name),
     projects: info.projects,
@@ -1036,36 +1243,87 @@ const initMatrixScatterChart = async () => {
   matrixChart.resize()
 
   const persons = matrixPersons.value
-  // 坐标：x = 项目数/6*100，y = 高重要?100:0
-  const scatterData = persons.map(p => ({
-    name: p.name,
-    value: [
-      p.projectCount > 0 ? Math.min((p.projectCount / 6) * 100, 100) : 0,
-      p.hasHighImportance ? 80 : p.projectCount === 0 ? -10 : 30,
-      p.projectCount,
-      p.projects,
-    ],
-    itemStyle: { color: p.color, opacity: 0.85, borderColor: '#fff', borderWidth: 2 },
-  }))
+  const max = matrixConfig.maxProjects
+  // 坐标：x = 项目数/max*100，y = 高重要?75:普通?50:0
+  const scatterData = persons.map(p => {
+    let quadrant: 'attention' | 'busy' | 'assignable' | 'normal' | 'idle' = 'idle'
+    if (p.projectCount === 0) {
+      quadrant = 'idle'
+    } else if (p.projectCount > max && p.hasHighImportance) {
+      quadrant = 'attention'
+    } else if (p.projectCount > max) {
+      quadrant = 'busy'
+    } else if (p.hasHighImportance) {
+      quadrant = 'assignable'
+    } else {
+      quadrant = 'normal'
+    }
+    const quadrantColors = {
+      attention: '#409eff',
+      busy: '#f56c6c',
+      assignable: '#e6a23c',
+      normal: '#67c23a',
+      idle: '#909399',
+    }
+    return {
+      name: p.name,
+      value: [
+        p.projectCount > 0 ? Math.min((p.projectCount / max) * 100, 100) : 0,
+        p.hasHighImportance ? 75 : p.projectCount === 0 ? 0 : 50,
+        p.projectCount,
+        p.projects,
+        p.roles,
+        p.loadPercent,
+      ],
+      itemStyle: {
+        color: quadrantColors[quadrant],
+        opacity: 0.9,
+        borderColor: '#fff',
+        borderWidth: 2
+      },
+      quadrant,
+    }
+  })
+
+  // 四象限背景
+  const xSplit = (max / max) * 100
+  const ySplit = 62.5
 
   const option = {
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'item',
       backgroundColor: '#fff',
-      borderColor: '#e0e2ec',
+      borderColor: '#e8e5e1',
       borderWidth: 1,
-      borderRadius: 8,
-      padding: [10, 14],
-      textStyle: { color: '#191c23', fontSize: 12 },
+      borderRadius: 12,
+      padding: [12, 14],
+      textStyle: { color: '#1c1917', fontSize: 12 },
       formatter: (params: any) => {
         const d = params.data
-        const [x, y, count, projects] = d.value
+        const [x, y, count, projects, roles, loadPct] = d.value
         const name = d.name
         const person = persons.find(p => p.name === name)
-        const rolesStr = person?.roles.join('、') || ''
-        const pjs = (projects as any[]).map((p: any) => `<br/>&nbsp;&nbsp;• ${p.name}`).join('')
-        return `<div style="font-weight:600;margin-bottom:4px">${name}</div><div style="color:#666">角色: ${rolesStr}</div><div style="color:#666">项目数: ${count} 项</div><div style="margin-top:4px;color:#666">项目列表: ${pjs}</div>`
+        const rolesStr = (roles as string[]).slice(0, 3).join('、') || '成员'
+        const pjs = (projects as any[]).slice(0, 5).map((p: any) => `<br/>&nbsp;&nbsp;<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${getStageColor(p.stage)};margin-right:4px"></span>${p.name}`).join('')
+        return `<div style="min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="width:32px;height:32px;border-radius:8px;background:${params.color};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px">${name.charAt(0)}</span>
+            <div>
+              <div style="font-weight:600;color:#1c1917">${name}</div>
+              <div style="color:#78716c;font-size:11px">${rolesStr}</div>
+            </div>
+            <div style="margin-left:auto;text-align:right">
+              <div style="font-weight:700;color:${loadPct > 75 ? '#f56c6c' : loadPct > 50 ? '#e6a23c' : '#67c23a'}">${loadPct}%</div>
+              <div style="color:#78716c;font-size:10px">负荷</div>
+            </div>
+          </div>
+          <div style="height:4px;background:#f5f4f2;border-radius:2px;margin-bottom:8px">
+            <div style="height:100%;width:${loadPct}%;background:${params.color};border-radius:2px"></div>
+          </div>
+          <div style="color:#78716c">参与 ${count} 个项目</div>
+          <div style="margin-top:6px">${pjs}${count > 5 ? '<br/>&nbsp;&nbsp;...' : ''}</div>
+        </div>`
       }
     },
     grid: { left: 64, right: 40, top: 24, bottom: 48 },
@@ -1074,28 +1332,28 @@ const initMatrixScatterChart = async () => {
       nameLocation: 'middle', nameGap: 32,
       nameTextStyle: { color: '#6b7280', fontSize: 12 },
       min: 0, max: 100,
-      axisLine: { lineStyle: { color: '#e5e7eb' } },
+      axisLine: { lineStyle: { color: '#e8e5e1' } },
       axisTick: { show: false },
-      axisLabel: { color: '#9ca3af', fontSize: 11, formatter: (v: number) => Math.round(v / 100 * 6) + '' },
+      axisLabel: { color: '#9ca3af', fontSize: 11, formatter: (v: number) => Math.round(v / 100 * max) + '' },
       splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } },
     },
     yAxis: {
       type: 'value', name: '重要程度',
       nameLocation: 'middle', nameGap: 44,
       nameTextStyle: { color: '#6b7280', fontSize: 12 },
-      min: -20, max: 100,
-      axisLine: { lineStyle: { color: '#e5e7eb' } },
+      min: -10, max: 100,
+      axisLine: { lineStyle: { color: '#e8e5e1' } },
       axisTick: { show: false },
       axisLabel: { show: false },
       splitLine: { show: false },
     },
     series: [{
       type: 'scatter',
-      symbolSize: (val: number[]) => Math.min(Math.max(val[2] * 8, 20), 56),
+      symbolSize: (val: number[]) => Math.min(Math.max(val[2] * 8, 20), 52),
       data: scatterData,
       emphasis: {
-        scale: 1.25,
-        itemStyle: { opacity: 1, shadowBlur: 12, shadowColor: 'rgba(0,0,0,0.18)' }
+        scale: 1.3,
+        itemStyle: { opacity: 1, shadowBlur: 16, shadowColor: 'rgba(0,0,0,0.15)' }
       },
       label: {
         show: true, position: 'inside',
@@ -1108,10 +1366,8 @@ const initMatrixScatterChart = async () => {
       silent: true, symbol: 'none',
       lineStyle: { type: 'dashed', color: '#d1d5db', width: 1.5 },
       label: { show: false },
-      data: [{ xAxis: 50 }, { yAxis: 50 }]
+      data: [{ xAxis: xSplit }, { yAxis: ySplit }]
     },
-    // 象限背景色
-    visualMap: { show: false, type: 'continuous' as any }
   }
 
   matrixChart.setOption(option)
@@ -1175,10 +1431,65 @@ const masonryStyles = [
   { key: 'compact', label: '紧凑', cols: 4, gap: 6, minWidth: 200, desc: '每行4列，平衡信息密度' },
   { key: 'standard', label: '标准', cols: 3, gap: 12, minWidth: 240, desc: '每行3列，平衡美观与信息' },
   { key: 'relaxed', label: '宽松', cols: 2, gap: 20, minWidth: 320, desc: '每行2列，大气舒适展示' },
-  { key: 'info', label: '信息', cols: 3, gap: 8, minWidth: 220, desc: '每行3列，展示最全信息' },
   { key: 'treemap', label: '拼图', cols: 0, gap: 0, minWidth: 0, desc: '无缝拼接，矩形块瀑布流' },
 ]
 const currentMasonryStyle = computed(() => masonryStyles.find(s => s.key === masonryStyle.value) || masonryStyles[2])
+
+// 根据布局风格动态计算成员展示数量
+// 标准和宽松：超过16个才折叠；紧紧和紧凑：超过6个折叠
+const memberDisplayLimit = computed(() => {
+  const style = currentMasonryStyle.value
+  if (style.key === 'standard' || style.key === 'relaxed') {
+    return 16 // 标准和宽松：默认显示16个
+  }
+  return 5 // 紧紧和紧凑：默认显示5个
+})
+
+// 成员折叠状态
+const memberExpanded = ref<Record<number, boolean>>({})
+
+// 点击展开/收起成员
+const toggleMemberExpand = (projectId: number) => {
+  memberExpanded.value[projectId] = !memberExpanded.value[projectId]
+}
+
+// 获取实际显示的成员（考虑折叠状态）
+const getVisibleMembers = (project: Project) => {
+  const members = getTeamMembers(project)
+  const limit = memberDisplayLimit.value
+  const isExpanded = memberExpanded.value[project.id] || false
+
+  // 标准和宽松模式：默认全部显示，超过16个才需要折叠
+  const style = currentMasonryStyle.value
+  if (style.key === 'standard' || style.key === 'relaxed') {
+    if (members.length <= 16) {
+      return members // 16个以内全部显示
+    }
+    if (isExpanded) {
+      return members // 展开状态，显示全部
+    }
+    return members.slice(0, 16) // 折叠状态，显示前16个
+  }
+
+  // 紧紧和紧凑模式：超过5个折叠
+  if (members.length <= 5) {
+    return members
+  }
+  if (isExpanded) {
+    return members
+  }
+  return members.slice(0, 5)
+}
+
+// 判断是否有更多成员需要折叠
+const hasOverflowMembers = (project: Project) => {
+  const members = getTeamMembers(project)
+  const style = currentMasonryStyle.value
+  if (style.key === 'standard' || style.key === 'relaxed') {
+    return members.length > 16
+  }
+  return members.length > 5
+}
 
 // 卡片拖拽排序
 const draggingCard = ref<number | null>(null)
@@ -1295,6 +1606,22 @@ const getStageHeight = (stageKey: string) => {
   return Math.round((getStageCount(stageKey) / max) * 100)
 }
 
+// 项目截止日期预警（距到期≤30天时提示）
+const getProjectDeadlineWarning = (projectPeriod: string | undefined): string | null => {
+  if (!projectPeriod) return null
+  const parts = projectPeriod.split(' ~ ')
+  if (parts.length < 2) return null
+  const endDateStr = parts[parts.length - 1].trim()
+  if (!endDateStr) return null
+  const endDate = new Date(endDateStr)
+  if (isNaN(endDate.getTime())) return null
+  const now = new Date()
+  const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  if (daysLeft < 0) return '项目已到期'
+  if (daysLeft <= 30) return `距到期仅剩 ${daysLeft} 天`
+  return null
+}
+
 // 获取阶段颜色
 const getStageColor = (stage: string) => {
   const col = kanbanColumns.find(c => c.key === stage)
@@ -1371,6 +1698,8 @@ const onDrop = async (targetColKey: string) => {
       developerPerson: project.developerPerson,
       testerPerson: project.testerPerson,
       businessPerson: project.businessPerson,
+      business2Person: (project as any).business2Person || '',
+      businessCostPerson: project.businessCostPerson || '',
       compliancePerson: project.compliancePerson,
       opsStaffPerson: project.opsStaffPerson,
       solution: project.solution,
@@ -1444,7 +1773,7 @@ const workLoadStats = computed(() => {
   // 收集所有项目相关人员
   const personSet = new Set<string>()
   tableData.value.forEach(p => {
-    const fields = ['projectPerson', 'opsPerson', 'opsStaffPerson', 'developerPerson', 'testerPerson', 'businessPerson', 'compliancePerson', 'securityPerson', 'networkPerson', 'solutionPerson']
+    const fields = ['projectPerson', 'opsPerson', 'opsStaffPerson', 'developerPerson', 'testerPerson', 'businessPerson', 'business2Person', 'businessCostPerson', 'productPerson', 'compliancePerson', 'securityPerson', 'networkPerson', 'solutionPerson']
     fields.forEach(field => {
       const val = (p as any)[field]
       if (val) {
@@ -1858,8 +2187,8 @@ const onLinkLeave = () => {
 
 const form = reactive<CreateProjectReq & { id?: number }>({
   name: '', code: '', description: '', status: 'active', stage: 'planning', sort: 0,
-  projectPerson: '', opsPerson: '', opsStaffPerson: '', developerPerson: '', testerPerson: '', businessPerson: '',
-  compliancePerson: '', securityPerson: '', networkPerson: '',
+  endDate: '', projectPerson: '', opsPerson: '', opsStaffPerson: '', developerPerson: '', testerPerson: '', businessPerson: '',
+  business2Person: '', businessCostPerson: '', productPerson: '', compliancePerson: '', securityPerson: '', networkPerson: '',
   solution: '', solutionPerson: '', companyAddr: '', projectPeriod: '', onsiteStations: [],
 })
 
@@ -1872,7 +2201,8 @@ interface TeamMemberRow {
 // 可用岗位列表
 const availableRoles = [
   '项目负责人', '运维负责人', '运维人员', '开发人员', '测试人员',
-  '业务人员', '合规人员', '安全人员', '网络人员', '方案人员', '产品人员'
+  '业务人员', '合规人员', '安全人员', '网络人员', '方案人员', '产品人员',
+  '商务人员', '成本人员'
 ]
 
 // 团队成员（动态表格）
@@ -1897,6 +2227,9 @@ const syncTeamMembersToForm = () => {
   form.developerPerson = ''
   form.testerPerson = ''
   form.businessPerson = ''
+  form.business2Person = ''
+  form.businessCostPerson = ''
+  form.productPerson = ''
   form.compliancePerson = ''
   form.securityPerson = ''
   form.networkPerson = ''
@@ -1913,6 +2246,9 @@ const syncTeamMembersToForm = () => {
       case '开发人员': form.developerPerson = membersStr; break
       case '测试人员': form.testerPerson = membersStr; break
       case '业务人员': form.businessPerson = membersStr; break
+      case '商务人员': form.business2Person = membersStr; break
+      case '成本人员': form.businessCostPerson = membersStr; break
+      case '产品人员': form.productPerson = membersStr; break
       case '合规人员': form.compliancePerson = membersStr; break
       case '安全人员': form.securityPerson = membersStr; break
       case '网络人员': form.networkPerson = membersStr; break
@@ -1931,6 +2267,9 @@ const syncFormToTeamMembers = () => {
     ['开发人员', 'developerPerson'],
     ['测试人员', 'testerPerson'],
     ['业务人员', 'businessPerson'],
+    ['商务人员', 'business2Person'],
+    ['成本人员', 'businessCostPerson'],
+    ['产品人员', 'productPerson'],
     ['合规人员', 'compliancePerson'],
     ['安全人员', 'securityPerson'],
     ['网络人员', 'networkPerson'],
@@ -2070,7 +2409,7 @@ const getTeamMembers = (project: Project) => {
   const members: string[] = []
   const fields: (keyof Project)[] = [
     'projectPerson', 'opsPerson', 'opsStaffPerson', 'developerPerson',
-    'testerPerson', 'businessPerson', 'compliancePerson', 'securityPerson',
+    'testerPerson', 'businessPerson', 'business2Person', 'businessCostPerson', 'productPerson', 'compliancePerson', 'securityPerson',
     'networkPerson', 'solutionPerson'
   ]
   fields.forEach(field => {
@@ -2088,6 +2427,51 @@ const getTeamMembers = (project: Project) => {
 }
 
 const getTeamCount = (project: Project) => getTeamMembers(project).length
+
+// 获取负荷百分比
+const getLoadPercent = (p: MatrixPerson) => Math.min(Math.round((p.projectCount / matrixConfig.maxProjects) * 100), 100)
+
+// 获取负荷等级
+const getLoadLevel = (p: MatrixPerson): 'low' | 'medium' | 'high' | 'overload' => {
+  const load = getLoadPercent(p)
+  if (load > 100) return 'overload'
+  if (load > 75) return 'high'
+  if (load > 50) return 'medium'
+  return 'low'
+}
+
+// 获取项目到期提醒信息
+const getProjectReminder = (project: Project): { text: string; level: 'warning' | 'danger' | 'expired' | '' } => {
+  if (!project.endDate) return { text: '', level: '' }
+
+  const now = new Date()
+  const endDate = new Date(project.endDate)
+  const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+  // 不同阶段提前提醒的天数配置
+  const reminderDays: Record<string, number> = {
+    planning: 30,    // 方案阶段提前30天提醒
+    designing: 30,   // 设计阶段提前30天提醒
+    deploying: 14,   // 部署阶段提前14天提醒
+    running: 7,      // 运营阶段提前7天提醒
+    paused: 7,       // 暂停阶段提前7天提醒
+  }
+
+  const stage = project.stage || 'running'
+  const threshold = reminderDays[stage] || 30
+
+  if (daysLeft < 0) {
+    return { text: `已到期${Math.abs(daysLeft)}天`, level: 'expired' }
+  }
+  if (daysLeft <= threshold) {
+    if (daysLeft <= 3) {
+      return { text: `仅剩${daysLeft}天`, level: 'danger' }
+    }
+    return { text: `还剩${daysLeft}天`, level: 'warning' }
+  }
+
+  return { text: '', level: '' }
+}
 
 // 返回最多 displayLimit 个成员，及溢出数量
 const getDisplayMembers = (project: Project, displayLimit = 5) => {
@@ -2429,7 +2813,7 @@ const handleEdit = async (row: Project) => {
     projectPerson: row.projectPerson || '', opsPerson: row.opsPerson || '',
     opsStaffPerson: row.opsStaffPerson || '',
     developerPerson: row.developerPerson || '', testerPerson: row.testerPerson || '',
-    businessPerson: row.businessPerson || '', compliancePerson: row.compliancePerson || '',
+    businessPerson: row.businessPerson || '', business2Person: (row as any).business2Person || '', businessCostPerson: row.businessCostPerson || '', productPerson: (row as any).productPerson || '', compliancePerson: row.compliancePerson || '',
     securityPerson: row.securityPerson || '', networkPerson: row.networkPerson || '',
     solution: row.solution || '', solutionPerson: row.solutionPerson || '',
     companyAddr: row.companyAddr || '', projectPeriod: row.projectPeriod || '',
@@ -2467,7 +2851,7 @@ const handleCreate = async () => {
   Object.assign(form, {
     id: undefined, name: '', code: '', description: '', status: 'active', stage: 'planning', sort: 0,
     projectPerson: '', opsPerson: '', opsStaffPerson: '', developerPerson: '', testerPerson: '', businessPerson: '',
-    compliancePerson: '', securityPerson: '', networkPerson: '',
+    business2Person: '', businessCostPerson: '', productPerson: '', compliancePerson: '', securityPerson: '', networkPerson: '',
     solution: '', solutionPerson: '', companyAddr: '', projectPeriod: '', onsiteStations: [],
   })
   teamMembers.value = [] // 重置团队成员
@@ -2966,233 +3350,523 @@ $danger: #f56c6c;
 .matrix-view {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px 24px;
+  gap: 14px;
+  padding: 16px 20px;
+  overflow: visible;
+  min-width: 0;
 }
 
-.matrix-header {
+/* 工具栏 */
+.matrix-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
+  min-width: 0;
 }
 
-.matrix-view-toggle {
-  display: flex;
-  gap: 6px;
-}
-
-.toggle-btn {
-  padding: 6px 16px;
-  border-radius: 6px;
-  border: 1.5px solid #e2e8f0;
-  background: #fff;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-
-  &:hover {
-    border-color: #94a3b8;
-    color: #334155;
-  }
-
-  &.active {
-    background: #1e293b;
-    border-color: #1e293b;
-    color: #fff;
-  }
-
-  svg { width: 14px; height: 14px; }
-}
-
-/* 统计卡片 */
-.matrix-stats {
-  display: flex;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.mstat-card {
-  flex: 1;
-  background: #fff;
-  border: 1px solid #f1f5f9;
-  border-radius: 10px;
-  padding: 14px 16px;
+.toolbar-left {
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-
-  .mstat-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    flex-shrink: 0;
-  }
-
-  .mstat-body { flex: 1; min-width: 0; }
-  .mstat-num {
-    font-size: 20px;
-    font-weight: 800;
-    color: #1e293b;
-    line-height: 1.1;
-    font-family: 'Manrope', sans-serif;
-  }
-  .mstat-label { font-size: 11px; color: #94a3b8; margin-top: 2px; }
 }
 
-/* 卡片矩阵 */
-.matrix-card-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+.toolbar-right {
+  display: flex;
+  align-items: center;
   gap: 10px;
 }
 
-.matrix-quadrant {
-  background: #fff;
-  border: 1px solid #f1f5f9;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-
-  .quadrant-header {
-    padding: 10px 14px;
-    border-bottom: 1px solid #f1f5f9;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #fafafa;
-
-    .quadrant-title {
-      font-size: 12px;
-      font-weight: 600;
-      color: #475569;
-      letter-spacing: 0.3px;
-    }
-    .quadrant-count {
-      font-size: 18px;
-      font-weight: 800;
-      color: #1e293b;
-      font-family: 'Manrope', sans-serif;
-    }
-  }
-
-  .quadrant-body {
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-height: 60px;
-    max-height: 160px;
-    overflow-y: auto;
-
-    &::-webkit-scrollbar { width: 4px; }
-    &::-webkit-scrollbar-track { background: transparent; }
-    &::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
-  }
-}
-
-/* 人员气泡 */
-.person-bubble {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: #f8fafc;
-  border: 1px solid #f1f5f9;
-  cursor: default;
-  transition: all 0.15s;
-  font-size: 12px;
-  color: #334155;
-  position: relative;
-
-  &:hover {
-    background: #f1f5f9;
-    border-color: #e2e8f0;
-    transform: translateX(2px);
-  }
-
-  .person-avatar {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 700;
-    color: #fff;
-    flex-shrink: 0;
-    text-shadow: 0 1px 1px rgba(0,0,0,0.1);
-  }
-
-  .person-info {
-    flex: 1;
-    min-width: 0;
-    .person-name {
-      font-size: 12px;
-      font-weight: 600;
-      color: #1e293b;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .person-meta {
-      font-size: 10px;
-      color: #94a3b8;
-      margin-top: 1px;
-    }
-  }
-}
-
-/* 散点图 */
-.matrix-scatter-wrap {
-  flex: 1;
-  background: #fff;
-  border: 1px solid #f1f5f9;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  min-height: 280px;
-  position: relative;
-
-  .matrix-scatter-canvas {
-    width: 100%;
-    height: 100%;
-    min-height: 280px;
-  }
-}
-
-/* 图例 */
-.matrix-legend {
+.matrix-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #6b5b95 0%, #8b7bb5 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(107, 91, 149, 0.25);
+}
+
+.matrix-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1c1917;
+  margin: 0 0 3px 0;
+  letter-spacing: -0.3px;
+}
+
+.matrix-subtitle {
+  font-size: 11px;
+  color: #78716c;
+  font-weight: 500;
+}
+
+/* 视图切换按钮 */
+.view-toggle {
+  display: flex;
+  background: #fafaf9;
+  border: 1px solid #e8e5e1;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #78716c;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover { background: #f5f4f2; color: #1c1917; }
+  &.active { background: #1c1917; color: #fff; }
+}
+
+.config-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #e8e5e1;
+  background: #fff;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #78716c;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover { border-color: #d4cfc8; color: #1c1917; }
+}
+
+/* 配置面板 */
+.matrix-config-panel {
+  background: #fff;
+  border: 1px solid #e8e5e1;
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.config-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.config-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #78716c;
+  min-width: 90px;
+}
+
+.config-formula {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fafaf9;
+  border: 1px solid #e8e5e1;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.formula-tag {
+  font-weight: 700;
+  color: #6b5b95;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+.formula-text {
+  color: #78716c;
+  font-family: 'Manrope', monospace;
+}
+
+/* 统计概览 */
+.matrix-overview {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: #fff;
+  border: 1px solid #e8e5e1;
+  border-radius: 14px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+.overview-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 20px;
+  gap: 2px;
+}
+
+.overview-sep {
+  width: 1px;
+  height: 36px;
+  background: #e8e5e1;
+  flex-shrink: 0;
+}
+
+.stat-val {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1c1917;
+  font-family: 'Manrope', sans-serif;
+  line-height: 1;
+
+  &.warning { color: #b45309; }
+  &.success { color: #4a7c59; }
+  &.danger { color: #dc2626; }
+}
+
+.stat-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  color: #78716c;
+  text-transform: uppercase;
+}
+
+/* 四象限网格 */
+.matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.matrix-cell {
+  background: #fff;
+  border: 1px solid #e8e5e1;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    border-color: #d4cfc8;
+  }
+
+  &--attention { border-left: 3px solid #b45309; }
+  &--assignable { border-left: 3px solid #4a7c59; }
+  &--busy { border-left: 3px solid #dc2626; }
+  &--normal { border-left: 3px solid #6b5b95; }
+}
+
+.cell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cell-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #fafaf9;
+  color: #1c1917;
+
+  &.warning { background: #fef3c7; color: #b45309; }
+  &.success { background: #dcfce7; color: #166534; }
+  &.danger { background: #fee2e2; color: #dc2626; }
+  &.normal { background: #f3e8ff; color: #6b21a8; }
+}
+
+.cell-count {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1c1917;
+  font-family: 'Manrope', sans-serif;
+}
+
+.cell-formula {
+  font-size: 10px;
+  color: #78716c;
+}
+
+.cell-persons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 32px;
+}
+
+.cell-empty {
+  font-size: 12px;
+  color: #78716c;
+  padding: 4px 0;
+}
+
+/* 人员芯片 - 匹配项目详情卡片风格 */
+.person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px 5px 5px;
+  border-radius: 10px;
+  border: 1px solid #e8e5e1;
+  font-size: 11px;
+  cursor: default;
+  background: #fafaf9;
+  transition: all 0.2s;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    border-color: #d4cfc8;
+  }
+
+  &--idle {
+    background: #f5f5f4;
+    border-color: #e8e5e1;
+    color: #78716c;
+  }
+}
+
+.chip-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
   flex-shrink: 0;
 
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: #64748b;
+  &--idle { background: #78716c; }
+}
 
-    .legend-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
-  }
+.chip-name {
+  font-weight: 600;
+  color: #1c1917;
+}
+
+.chip-meta {
+  font-size: 10px;
+  color: #78716c;
+}
+
+/* 人员详情悬浮卡片 */
+.person-tooltip {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  min-width: 220px;
+  background: #fff;
+  border: 1px solid #e8e5e1;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  padding: 12px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.person-chip:hover .person-tooltip {
+  display: block;
+}
+
+.tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tooltip-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.tooltip-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tooltip-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1c1917;
+}
+
+.tooltip-roles {
+  font-size: 10px;
+  color: #78716c;
+  margin-top: 2px;
+}
+
+.tooltip-load {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+
+  &.load--low { background: #dcfce7; color: #166534; }
+  &.load--medium { background: #fef3c7; color: #b45309; }
+  &.load--high { background: #fed7aa; color: #c2410c; }
+  &.load--overload { background: #fee2e2; color: #dc2626; }
+}
+
+.load-val {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  font-family: 'Manrope', sans-serif;
+}
+
+.load-label {
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.tooltip-bar-wrap {
+  margin-bottom: 8px;
+}
+
+.tooltip-bar {
+  height: 4px;
+  background: #f5f5f4;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.tooltip-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.tooltip-projects {
+  border-top: 1px solid #e8e5e1;
+  padding-top: 8px;
+}
+
+.tooltip-proj-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: #78716c;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.tooltip-proj-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.proj-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.proj-name {
+  font-size: 11px;
+  color: #1c1917;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tooltip-proj-more {
+  font-size: 10px;
+  color: #409eff;
+  margin-top: 4px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.tooltip-proj-more:hover {
+  background: #f0f9ff;
+  color: #2563eb;
+}
+
+.tooltip-proj-more.expanded {
+  color: #78716c;
+  background: #fafaf9;
+}
+
+.tooltip-proj-more.expanded:hover {
+  background: #f5f4f2;
+  color: #57534e;
+}
+
+/* 空闲区域 */
+.matrix-idle-section {
+  background: #fff;
+  border: 1px solid #e8e5e1;
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.idle-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.idle-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #f5f5f4;
+  color: #78716c;
+}
+
+.idle-count {
+  font-size: 12px;
+  color: #78716c;
+}
+
+.idle-persons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 /* 空状态 / 加载 */
@@ -3203,10 +3877,9 @@ $danger: #f56c6c;
   justify-content: center;
   gap: 12px;
   padding: 40px;
-  color: #94a3b8;
+  color: #78716c;
 
-  svg { width: 48px; height: 48px; opacity: 0.5; }
-  p { font-size: 13px; }
+  .empty-icon { font-size: 48px; opacity: 0.5; }
 }
 
 .matrix-loading {
@@ -3216,21 +3889,175 @@ $danger: #f56c6c;
   justify-content: center;
   gap: 12px;
   padding: 40px;
-  color: #94a3b8;
+  color: #78716c;
 
   .loading-spinner {
     width: 32px;
     height: 32px;
-    border: 3px solid #e2e8f0;
-    border-top-color: #94a3b8;
+    border: 3px solid #e8e5e1;
+    border-top-color: #6b5b95;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
-  p { font-size: 13px; }
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* 散点图视图 */
+.matrix-scatter-container {
+  background: #fff;
+  border: 1px solid #e8e5e1;
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.scatter-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f5f4f2;
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #78716c;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+}
+
+.matrix-scatter-chart {
+  width: 100%;
+  height: 400px;
+}
+
+.scatter-axis-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #78716c;
+
+  .axis-x-label { text-align: center; }
+  .axis-y-label {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+  }
+}
+
+/* 拼图风格选择器 */
+.masonry-style-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #fff;
+  border: 1px solid #e8e5e1;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.masonry-style-btn {
+  padding: 4px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #78716c;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover { background: #f5f4f2; color: #1c1917; }
+  &.active { background: #1c1917; color: #fff; }
+
+  &--idle {
+    background: var(--color-surface-2) !important;
+    border-color: var(--color-border) !important;
+  }
+}
+
+/* 空闲区域 */
+.matrix-idle-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+}
+
+.idle-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.idle-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+}
+
+.idle-count {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.idle-persons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* 空状态 / 加载 */
+.matrix-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: var(--color-text-muted);
+
+  .empty-icon { font-size: 48px; opacity: 0.5; }
+}
+
+.matrix-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: var(--color-text-muted);
+
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* 看板 */
 
@@ -3953,19 +4780,18 @@ $danger: #f56c6c;
 
 /* 看板 - 日式美学 */
 .kanban-board {
-  display: flex;
+  display: inline-flex;
   gap: 14px;
-  overflow-x: auto;
   padding-bottom: 16px;
   align-items: flex-start;
 }
 
 .kanban-col {
-  width: 280px;
+  width: 260px;
   flex-shrink: 0;
-  background: #fafaf9;
+  background: var(--color-surface-2);
   border-radius: 14px;
-  border: 1px solid #e8e5e1;
+  border: 1px solid var(--color-border-light);
   transition: all 0.2s;
 
   &--collapsed {
@@ -3975,8 +4801,8 @@ $danger: #f56c6c;
   }
 
   &--dragover {
-    border-color: #a8a29e;
-    background-color: #f5f5f4;
+    border-color: var(--color-primary);
+    background-color: var(--color-primary-light-9);
   }
 }
 
@@ -3984,8 +4810,8 @@ $danger: #f56c6c;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 16px;
-  border-bottom: 1px solid #f0ede8;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border-light);
   cursor: pointer;
   user-select: none;
 }
@@ -3998,40 +4824,50 @@ $danger: #f56c6c;
 }
 
 .kanban-title {
-  flex: 1;
   font-size: 13px;
-  font-weight: 600;
-  color: #44403c;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  max-width: 90px;
 }
 
 .kanban-stats {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .kanban-count {
-  background: #f5f5f4;
-  padding: 2px 8px;
-  border-radius: 6px;
+  background: var(--color-surface);
+  padding: 2px 6px;
+  border-radius: 4px;
   font-weight: 600;
-  color: #78716c;
-}
-
-.kanban-records {
-  color: #a8a29e;
-}
-
-.kanban-size {
-  color: #a8a29e;
-  font-weight: 500;
+  color: var(--color-text-secondary);
   font-size: 11px;
 }
 
+.kanban-records {
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.kanban-size {
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-size: 10px;
+}
+
 .collapse-icon {
-  color: #d4d0c8;
+  color: var(--color-text-muted);
   transition: transform 0.2s;
+  flex-shrink: 0;
 
   &.is-collapsed {
     transform: rotate(-90deg);
@@ -4050,35 +4886,34 @@ $danger: #f56c6c;
 }
 
 .kanban-card {
-  width: 140px;
-  min-height: 56px;
+  width: 100%;
+  min-height: 52px;
   background: #fff;
   border-radius: 8px;
-  border: 1px solid #e8e5e1;
+  border: 1px solid var(--color-border-light);
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  transition: all 0.2s ease;
   cursor: grab;
-
-  &:active { cursor: grabbing; }
+  transition: all 0.15s ease;
 
   &:hover {
-    border-color: #a8a29e;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transform: translateY(-1px);
   }
 
   &--dragging {
-    opacity: 0.4;
-    border-color: #a8a29e;
+    opacity: 0.5;
+    cursor: grabbing;
   }
 }
 
 .kanban-card-name {
   font-size: 12px;
   font-weight: 600;
-  color: #1c1917;
+  color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4088,7 +4923,8 @@ $danger: #f56c6c;
   display: flex;
   gap: 6px;
   font-size: 10px;
-  color: #78716c;
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
 }
 
 .kanban-metric {
@@ -4097,9 +4933,42 @@ $danger: #f56c6c;
   gap: 2px;
   white-space: nowrap;
 
-  .el-icon {
-    font-size: 11px;
-    color: #a8a29e;
+  svg {
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+  }
+}
+
+.kanban-card-reminder {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 4px;
+  margin-top: 2px;
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  &.reminder--warning {
+    color: #b45309;
+    background: #fef3c7;
+    svg { stroke: #b45309; }
+  }
+
+  &.reminder--danger {
+    color: #dc2626;
+    background: #fee2e2;
+    svg { stroke: #dc2626; }
+  }
+
+  &.reminder--expired {
+    color: #7f1d1d;
+    background: #fecaca;
+    svg { stroke: #7f1d1d; }
   }
 }
 
@@ -4671,6 +5540,20 @@ $danger: #f56c6c;
 /* 项目周期区块 */
 .bento-period-section { }
 
+.bento-period-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  padding: 3px 8px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 5px;
+  font-size: 10px;
+  color: #92400e;
+  font-weight: 500;
+}
+
 .bento-period-label {
   display: flex;
   align-items: center;
@@ -4701,6 +5584,20 @@ $danger: #f56c6c;
   padding: 3px 10px;
 
   &--addr { color: #78716c; }
+}
+
+.bento-period-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  padding: 3px 8px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 5px;
+  font-size: 10px;
+  color: #92400e;
+  font-weight: 500;
 }
 
 /* 解决方案 */
@@ -4823,6 +5720,23 @@ $danger: #f56c6c;
   font-size: 11px;
   color: #a8a29e;
   font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #e7e5e0;
+    color: #78716c;
+  }
+
+  &.is-expanded {
+    background: #e0f2fe;
+    border-color: #7dd3fc;
+    color: #0284c7;
+  }
+
+  &.is-expanded:hover {
+    background: #bae6fd;
+  }
 }
 
 /* 驻场地点 */
@@ -4997,6 +5911,20 @@ $danger: #f56c6c;
   background: #f5f5f4;
   border-radius: 6px;
   padding: 4px 10px;
+}
+
+.bento-period-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  padding: 3px 8px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 5px;
+  font-size: 10px;
+  color: #92400e;
+  font-weight: 500;
 }
 
 /* 解决方案 */
