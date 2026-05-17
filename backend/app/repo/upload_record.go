@@ -4,6 +4,7 @@ import (
 	"datauptwo/app/dto"
 	"datauptwo/app/model"
 	"datauptwo/global"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -153,7 +154,52 @@ func (r *UploadRecordRepo) List(req dto.UploadRecordListReq) ([]model.UploadReco
 	}
 
 	if req.Keyword != "" {
-		db = db.Where("dest_path LIKE ? OR remark LIKE ?", "%"+req.Keyword+"%", "%"+req.Keyword+"%")
+		k := "%" + req.Keyword + "%"
+		db = db.Where("serial_no LIKE ? OR dest_path LIKE ? OR remark LIKE ? OR disk_label LIKE ? OR project_name LIKE ? OR uploader LIKE ? OR status LIKE ?",
+			k, k, k, k, k, k, k)
+	}
+
+	if req.SerialNo != "" {
+		db = db.Where("serial_no LIKE ?", "%"+req.SerialNo+"%")
+	}
+
+	if req.DestPath != "" {
+		db = db.Where("dest_path LIKE ?", "%"+req.DestPath+"%")
+	}
+
+	// 排序
+	order := "created_at DESC"
+	if req.SortField != "" {
+		dir := "ASC"
+		if req.SortOrder == "desc" {
+			dir = "DESC"
+		}
+		switch req.SortField {
+		case "diskLabel":
+			order = "disk_label " + dir
+		case "projectName":
+			order = "project_name " + dir
+		case "fileSize":
+			order = "file_size " + dir
+		case "status":
+			order = "status " + dir
+		case "createdAt":
+			order = "created_at " + dir
+		default:
+			// 动态字段排序：data 是 JSON 字符串，根据数据库类型提取字段
+			if req.SortField != "" {
+				var jsonExpr string
+				switch global.DBType() {
+				case "pgsql":
+					jsonExpr = fmt.Sprintf("data->>'%s'", req.SortField)
+				default: // sqlite, mysql
+					jsonExpr = fmt.Sprintf("json_extract(data, '$.%s')", req.SortField)
+				}
+				order = jsonExpr + " " + dir
+			} else {
+				order = "created_at DESC"
+			}
+		}
 	}
 
 	// 计数
@@ -163,7 +209,7 @@ func (r *UploadRecordRepo) List(req dto.UploadRecordListReq) ([]model.UploadReco
 
 	// 分页查询
 	offset := (req.Page - 1) * req.PageSize
-	if err := db.Offset(offset).Limit(req.PageSize).Order("created_at DESC").Find(&records).Error; err != nil {
+	if err := db.Offset(offset).Limit(req.PageSize).Order(order).Find(&records).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -285,24 +331,46 @@ func (r *UploadRecordRepo) CountByDiskLabel(filters ...StatisticsFilter) ([]dto.
 	return results, err
 }
 
-// GetDiskLabelStatusAll 获取所有磁盘标签及其状态（支持日期范围）
-func (r *UploadRecordRepo) GetDiskLabelStatusAll(startDate, endDate string) ([]dto.DiskLabelStatus, error) {
+// GetDiskLabelStatusAll 获取所有磁盘标签及其状态（支持日期范围 + 项目/标签筛选）
+func (r *UploadRecordRepo) GetDiskLabelStatusAll(filters ...StatisticsFilter) ([]dto.DiskLabelStatus, error) {
 	var results []dto.DiskLabelStatus
 	db := global.DB.Model(&model.UploadRecord{}).
-		Select("disk_label, COUNT(*) as count").
+		Select("disk_label, COUNT(*) as count, COALESCE(SUM(file_size), 0) as total_size").
 		Where("is_deleted = 0 AND disk_label != '' AND disk_label IS NOT NULL")
-	if startDate != "" {
-		db = db.Where("created_at >= ?", startDate+" 00:00:00")
+	if len(filters) > 0 {
+		f := filters[0]
+		if f.ProjectName != "" {
+			db = db.Where("project_name = ?", f.ProjectName)
+		}
+		if f.DiskLabel != "" {
+			db = db.Where("disk_label = ?", f.DiskLabel)
+		}
+		if f.StartDate != "" {
+			db = db.Where("created_at >= ?", f.StartDate+" 00:00:00")
+		}
+		if f.EndDate != "" {
+			db = db.Where("created_at <= ?", f.EndDate+" 23:59:59")
+		}
 	}
-	if endDate != "" {
-		db = db.Where("created_at <= ?", endDate+" 23:59:59")
+	type row struct {
+		DiskLabel string
+		Count    int64
+		TotalSize int64
 	}
-	err := db.Group("disk_label").Order("count DESC").Scan(&results).Error
-	return results, err
+	var rows []row
+	err := db.Group("disk_label").Order("count DESC").Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	results = make([]dto.DiskLabelStatus, len(rows))
+	for i, r := range rows {
+		results[i] = dto.DiskLabelStatus{DiskLabel: r.DiskLabel, Count: r.Count, TotalSize: r.TotalSize}
+	}
+	return results, nil
 }
 
-// GetDiskLabelStatusDetail 获取每个磁盘标签下各状态的详细数量（支持日期范围）
-func (r *UploadRecordRepo) GetDiskLabelStatusDetail(startDate, endDate string) (map[string]map[string]int64, error) {
+// GetDiskLabelStatusDetail 获取每个磁盘标签下各状态的详细数量（支持日期范围 + 项目/标签筛选）
+func (r *UploadRecordRepo) GetDiskLabelStatusDetail(filters ...StatisticsFilter) (map[string]map[string]int64, error) {
 	type result struct {
 		DiskLabel string `gorm:"column:disk_label"`
 		Status    string `gorm:"column:status"`
@@ -312,11 +380,20 @@ func (r *UploadRecordRepo) GetDiskLabelStatusDetail(startDate, endDate string) (
 	db := global.DB.Model(&model.UploadRecord{}).
 		Select("disk_label, status, COUNT(*) as count").
 		Where("is_deleted = 0 AND disk_label != '' AND disk_label IS NOT NULL")
-	if startDate != "" {
-		db = db.Where("created_at >= ?", startDate+" 00:00:00")
-	}
-	if endDate != "" {
-		db = db.Where("created_at <= ?", endDate+" 23:59:59")
+	if len(filters) > 0 {
+		f := filters[0]
+		if f.ProjectName != "" {
+			db = db.Where("project_name = ?", f.ProjectName)
+		}
+		if f.DiskLabel != "" {
+			db = db.Where("disk_label = ?", f.DiskLabel)
+		}
+		if f.StartDate != "" {
+			db = db.Where("created_at >= ?", f.StartDate+" 00:00:00")
+		}
+		if f.EndDate != "" {
+			db = db.Where("created_at <= ?", f.EndDate+" 23:59:59")
+		}
 	}
 	err := db.Group("disk_label, status").Order("disk_label").Scan(&rows).Error
 	if err != nil {
@@ -395,8 +472,6 @@ func (r *UploadRecordRepo) CountByProject(filters ...StatisticsFilter) ([]dto.Pr
 
 // GetTrend 获取每日趋势
 func (r *UploadRecordRepo) GetTrend(startDate, endDate string, filters ...StatisticsFilter) ([]dto.DailyTrend, error) {
-	// 去掉 is_deleted=0 过滤，累计曲线反映所有上传行为
-	// 用子查询实现累计：外层取日期列表，内层累计该日期之前（含）所有记录
 	filterSQL := ""
 	filterArgs := []interface{}{}
 	if len(filters) > 0 {
@@ -411,21 +486,20 @@ func (r *UploadRecordRepo) GetTrend(startDate, endDate string, filters ...Statis
 		}
 	}
 
-	// 子查询 filterSQL 参数与日期参数交叉追加（3个子查询各需一份）
-	allArgs := []interface{}{startDate, endDate + " 23:59:59"} // date subquery args
-	allArgs = append(allArgs, filterArgs...)                  // date subquery filter
-	allArgs = append(allArgs, filterArgs...)                  // count subquery filter
-	allArgs = append(allArgs, filterArgs...)                  // size subquery filter
-
 	query := `
-		SELECT d.date,
-		       (SELECT COUNT(*) FROM upload_records WHERE date(created_at) <= d.date` + filterSQL + `) as count,
-		       (SELECT COALESCE(SUM(file_size), 0) FROM upload_records WHERE date(created_at) <= d.date` + filterSQL + `) as total_size
-		FROM (SELECT DISTINCT date(created_at) as date FROM upload_records WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)` + filterSQL + `) d
-		ORDER BY d.date ASC
+		SELECT date(created_at) as date,
+		       COUNT(*) as count,
+		       COALESCE(SUM(file_size), 0) as total_size
+		FROM upload_records
+		WHERE is_deleted = 0 AND date(created_at) >= date(?) AND date(created_at) <= date(?)` + filterSQL + `
+		GROUP BY date(created_at)
+		ORDER BY date ASC
 	`
 
-	rows, err := global.DB.Raw(query, allArgs...).Rows()
+	args := []interface{}{startDate, endDate}
+	args = append(args, filterArgs...)
+
+	rows, err := global.DB.Raw(query, args...).Rows()
 	if err != nil {
 		return nil, err
 	}
@@ -488,7 +562,12 @@ func (r *UploadRecordRepo) ListAllForExport(req dto.UploadRecordListReq) ([]mode
 		db = db.Where("date(created_at) <= date(?)", req.EndDate)
 	}
 	if req.Keyword != "" {
-		db = db.Where("dest_path LIKE ? OR remark LIKE ?", "%"+req.Keyword+"%", "%"+req.Keyword+"%")
+		k := "%" + req.Keyword + "%"
+		db = db.Where("serial_no LIKE ? OR dest_path LIKE ? OR remark LIKE ? OR disk_label LIKE ? OR project_name LIKE ? OR uploader LIKE ? OR status LIKE ?",
+			k, k, k, k, k, k, k)
+	}
+	if req.SerialNo != "" {
+		db = db.Where("serial_no LIKE ?", "%"+req.SerialNo+"%")
 	}
 
 	if err := db.Order("created_at DESC").Find(&records).Error; err != nil {
@@ -498,7 +577,9 @@ func (r *UploadRecordRepo) ListAllForExport(req dto.UploadRecordListReq) ([]mode
 	return records, nil
 }
 
-// GetRecordsSince 获取指定时间之后或指定SerialNo之后的记录（用于增量同步）
+// GetRecordsSince 获取增量同步记录。
+// 断点逻辑：收录 (created_at > lastSyncAt) OR (serial_no > lastSerialNo) 的记录，
+// 即：时间上更新的，或同时间但序号更靠后的。两者都用则通过 OR 避免漏录。
 func (r *UploadRecordRepo) GetRecordsSince(lastSyncAt *time.Time, lastSerialNo string, projectNames []string, limit int) ([]model.UploadRecord, error) {
 	var records []model.UploadRecord
 
@@ -509,13 +590,14 @@ func (r *UploadRecordRepo) GetRecordsSince(lastSyncAt *time.Time, lastSerialNo s
 		db = db.Where("project_name IN ?", projectNames)
 	}
 
-	// 时间过滤（断点恢复）
-	if lastSyncAt != nil {
+	// 增量同步条件：created_at 或 serial_no 任一超出断点即收录
+	// lastSyncAt 为 nil 时只用 serial_no；lastSerialNo 为空时只用 created_at
+	switch {
+	case lastSyncAt != nil && lastSerialNo != "":
+		db = db.Where("created_at > ? OR serial_no > ?", lastSyncAt, lastSerialNo)
+	case lastSyncAt != nil:
 		db = db.Where("created_at > ?", lastSyncAt)
-	}
-
-	// 或者 SerialNo 过滤（用于同时间的断点）
-	if lastSerialNo != "" {
+	case lastSerialNo != "":
 		db = db.Where("serial_no > ?", lastSerialNo)
 	}
 

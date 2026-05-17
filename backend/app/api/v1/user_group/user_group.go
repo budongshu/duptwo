@@ -1,23 +1,40 @@
 package user_group
 
 import (
-	"datauptwo/app/dto"
-	"datauptwo/app/service"
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"datauptwo/app/dto"
+	"datauptwo/app/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 type UserGroupApi struct {
-	groupService *service.UserGroupService
+	groupService  *service.UserGroupService
+	auditService *service.AuditService
 }
 
 func NewUserGroupApi() *UserGroupApi {
 	return &UserGroupApi{
-		groupService: service.NewUserGroupService(),
+		groupService:  service.NewUserGroupService(),
+		auditService: service.NewAuditService(),
 	}
+}
+
+func (api *UserGroupApi) getUserID(c *gin.Context) uint {
+	if id, exists := c.Get("userId"); exists {
+		return id.(uint)
+	}
+	return 0
+}
+
+func (api *UserGroupApi) getUsername(c *gin.Context) string {
+	if username, exists := c.Get("username"); exists {
+		return username.(string)
+	}
+	return ""
 }
 
 // Create 创建用户组
@@ -40,6 +57,12 @@ func (api *UserGroupApi) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"用户组管理", "create", "UserGroup", group.ID,
+		group.Name, c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "创建成功", Data: group})
 }
@@ -125,6 +148,12 @@ func (api *UserGroupApi) Update(c *gin.Context) {
 		return
 	}
 
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"用户组管理", "update", "UserGroup", req.ID,
+		"", c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
+
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "更新成功", Data: group})
 }
 
@@ -142,6 +171,12 @@ func (api *UserGroupApi) Delete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"用户组管理", "delete", "UserGroup", uint(id),
+		"", c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "删除成功"})
 }
@@ -165,6 +200,13 @@ func (api *UserGroupApi) BatchDelete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"用户组管理", "batch_delete", "UserGroup", 0,
+		fmt.Sprintf("批量删除 %d 个用户组", len(req.IDs)), c.ClientIP(), c.GetHeader("User-Agent"),
+		map[string]interface{}{"ids": req.IDs},
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: fmt.Sprintf("成功删除 %d 个用户组", len(req.IDs))})
 }

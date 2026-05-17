@@ -37,6 +37,7 @@ type UserGroup struct {
 	Name        string `json:"name" gorm:"size:64;not null"`
 	Code        string `json:"code" gorm:"size:64;uniqueIndex;not null"`
 	Description string `json:"description" gorm:"size:256"`
+	RoleID      uint   `json:"roleId" gorm:"default:0"` // 绑定的角色
 	IsDeleted   bool   `json:"-" gorm:"default:false"`
 	Sort        int    `json:"sort" gorm:"default:0"`
 }
@@ -51,6 +52,8 @@ type UserGroupResp struct {
 	Name        string    `json:"name"`
 	Code        string    `json:"code"`
 	Description string    `json:"description"`
+	RoleID      uint      `json:"roleId"`
+	RoleName    string    `json:"roleName"`
 	Sort        int       `json:"sort"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`

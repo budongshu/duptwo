@@ -1,0 +1,240 @@
+[2026-04-23 00:00:22] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:00:28] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:00:57] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:01:21] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:01:27] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:01:57] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:02:20] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:02:26] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:02:55] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:03:20] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:03:25] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:03:55] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:04:20] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:04:25] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:04:55] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:05:20] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:05:25] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:09:26] [INFO] Starting Data Registry server...
+[2026-04-23 00:09:26] [INFO] Database(sqlite) initialized successfully
+[2026-04-23 00:09:26] [INFO] Default role updated: 管理员
+[2026-04-23 00:09:26] [INFO] Default role updated: 数据操作员
+[2026-04-23 00:09:26] [INFO] Default role updated: 项目管理员
+[2026-04-23 00:09:27] [INFO] Default role updated: 审计账号
+[2026-04-23 00:09:27] [INFO] Default role updated: 普通查看者
+[2026-04-23 00:09:27] [INFO] Security settings already exist, skipping initialization
+[2026-04-23 00:09:27] [INFO] Data initialization completed
+[2026-04-23 00:09:27] [INFO] [CenterProbe] 启动主动探测循环，间隔: 1m0s
+[2026-04-23 00:09:27] [INFO] Server listening on :18421
+[2026-04-23 00:09:27] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:09:30] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:09:30] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:10:37] [WARN] [CenterProbe] 本地测试Agent [local-agent-test] 不可达: Get "http://localhost:18422/health": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+[2026-04-23 00:11:36] [WARN] [CenterProbe] 本地测试Agent [local-agent-test] 不可达: Get "http://localhost:18422/health": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+[2026-04-23 00:12:27] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:12:34] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:13:04] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:13:27] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:13:34] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:14:04] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:14:26] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:14:34] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:15:04] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:15:26] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:15:34] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:16:04] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:16:26] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:16:34] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:17:04] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:17:26] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:17:34] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:18:03] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:18:26] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:18:33] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:19:03] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:19:26] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:19:33] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:20:03] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:20:26] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:20:33] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:21:03] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:21:26] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:21:33] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:22:03] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:22:26] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:22:33] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:23:03] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:23:26] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:23:33] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:24:03] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:24:21] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:24:25] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:24:25] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:24:33] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:24:38] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:25:03] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:25:25] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:25:25] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:25:33] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:26:03] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:26:25] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:26:25] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:26:32] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:27:02] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:27:24] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:27:24] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:27:32] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:28:02] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:28:23] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:28:24] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:28:31] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:29:01] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:29:57] [INFO] Starting Data Registry server...
+[2026-04-23 00:29:57] [INFO] Database(sqlite) initialized successfully
+[2026-04-23 00:29:58] [INFO] Default role updated: 管理员
+[2026-04-23 00:29:58] [INFO] Default role updated: 数据操作员
+[2026-04-23 00:29:58] [INFO] Default role updated: 项目管理员
+[2026-04-23 00:29:58] [INFO] Default role updated: 审计账号
+[2026-04-23 00:29:58] [INFO] Default role updated: 普通查看者
+[2026-04-23 00:29:58] [INFO] Security settings already exist, skipping initialization
+[2026-04-23 00:29:58] [INFO] Data initialization completed
+[2026-04-23 00:29:58] [INFO] [CenterProbe] 启动主动探测循环，间隔: 1m0s
+[2026-04-23 00:29:58] [INFO] Server listening on :18421
+[2026-04-23 00:29:58] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:29:58] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:30:06] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:30:06] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:30:30] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:30:58] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:30:58] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:30:59] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:31:40] [INFO] Starting Data Registry server...
+[2026-04-23 00:31:40] [INFO] Database(sqlite) initialized successfully
+[2026-04-23 00:31:41] [INFO] Default role updated: 管理员
+[2026-04-23 00:31:41] [INFO] Default role updated: 数据操作员
+[2026-04-23 00:31:41] [INFO] Default role updated: 项目管理员
+[2026-04-23 00:31:41] [INFO] Default role updated: 审计账号
+[2026-04-23 00:31:41] [INFO] Default role updated: 普通查看者
+[2026-04-23 00:31:41] [INFO] Security settings already exist, skipping initialization
+[2026-04-23 00:31:41] [INFO] Data initialization completed
+[2026-04-23 00:31:41] [INFO] [CenterProbe] 启动主动探测循环，间隔: 1m0s
+[2026-04-23 00:31:41] [INFO] Server listening on :18421
+[2026-04-23 00:31:41] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:31:41] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:31:48] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:31:41.437768489 +0800 CST m=+0.906732087
+[2026-04-23 00:31:48] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:31:59] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:31:41.437768489 +0800 CST m=+0.906732087
+[2026-04-23 00:31:59] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:32:11] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=57acb7de1b8a62da0b6b953a16117f5bcff4eb83d8d685106af27a1136a834d1，缓存中共 2 个站点，缓存时间=2026-04-23 00:31:41.437768489 +0800 CST m=+0.906732087
+[2026-04-23 00:32:11] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:32:28] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:31:41.437768489 +0800 CST m=+0.906732087
+[2026-04-23 00:32:28] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:32:40] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:32:40] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:32:58] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:31:41.437768489 +0800 CST m=+0.906732087
+[2026-04-23 00:32:58] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:33:27] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:31:41.437768489 +0800 CST m=+0.906732087
+[2026-04-23 00:33:27] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:33:40] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:33:40] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:33:57] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:31:41.437768489 +0800 CST m=+0.906732087
+[2026-04-23 00:33:57] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:43:36] [INFO] Starting Data Registry server...
+[2026-04-23 00:43:36] [INFO] Database(sqlite) initialized successfully
+[2026-04-23 00:43:36] [INFO] Default role updated: 管理员
+[2026-04-23 00:43:36] [INFO] Default role updated: 数据操作员
+[2026-04-23 00:43:37] [INFO] Default role updated: 项目管理员
+[2026-04-23 00:43:37] [INFO] Default role updated: 审计账号
+[2026-04-23 00:43:37] [INFO] Default role updated: 普通查看者
+[2026-04-23 00:43:37] [INFO] Security settings already exist, skipping initialization
+[2026-04-23 00:43:37] [INFO] Data initialization completed
+[2026-04-23 00:43:37] [INFO] [ApiKeyCache] 加载站点 hash=dcbcbae56fba783697f4ebb66bcfc9049962ea436c7152cfc09ddbce0e9dd8a7 name=本地测试Agent code=local-agent-test api_key=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7
+[2026-04-23 00:43:37] [INFO] [ApiKeyCache] 加载站点 hash=566f848ff7a3f65f9e84fde8429e740797d6055e4951e692af432c99331657be name=测试重新注册 code=test-re-register api_key=57acb7de1b8a62da0b6b953a16117f5bcff4eb83d8d685106af27a1136a834d1
+[2026-04-23 00:43:37] [INFO] [CenterProbe] 启动主动探测循环，间隔: 1m0s
+[2026-04-23 00:43:37] [INFO] Server listening on :18421
+[2026-04-23 00:43:37] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:43:37] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:43:58] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:43:37.244811402 +0800 CST m=+0.840486243
+[2026-04-23 00:43:58] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:44:28] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:43:37.244811402 +0800 CST m=+0.840486243
+[2026-04-23 00:44:28] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:44:36] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:44:36] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:44:57] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:43:37.244811402 +0800 CST m=+0.840486243
+[2026-04-23 00:44:57] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:45:36] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:45:36] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:45:55] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:43:37.244811402 +0800 CST m=+0.840486243
+[2026-04-23 00:45:55] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:46:24] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:43:37.244811402 +0800 CST m=+0.840486243
+[2026-04-23 00:46:24] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:46:34] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:46:35] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:46:54] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:43:37.244811402 +0800 CST m=+0.840486243
+[2026-04-23 00:46:54] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:47:23] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:43:37.244811402 +0800 CST m=+0.840486243
+[2026-04-23 00:47:23] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:47:33] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:47:33] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:47:53] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:43:37.244811402 +0800 CST m=+0.840486243
+[2026-04-23 00:47:53] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:48:22] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:43:37.244811402 +0800 CST m=+0.840486243
+[2026-04-23 00:48:22] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:48:32] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:48:32] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:48:52] [INFO] [ApiKeyCache] 缓存已过期，触发刷新，loadedAt=2026-04-23 00:43:37.244811402 +0800 CST m=+0.840486243
+[2026-04-23 00:48:52] [INFO] [ApiKeyCache] 加载站点 hash=dcbcbae56fba783697f4ebb66bcfc9049962ea436c7152cfc09ddbce0e9dd8a7 name=本地测试Agent code=local-agent-test api_key=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7
+[2026-04-23 00:48:52] [INFO] [ApiKeyCache] 加载站点 hash=566f848ff7a3f65f9e84fde8429e740797d6055e4951e692af432c99331657be name=测试重新注册 code=test-re-register api_key=57acb7de1b8a62da0b6b953a16117f5bcff4eb83d8d685106af27a1136a834d1
+[2026-04-23 00:48:52] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:48:52.150663594 +0800 CST m=+321.026851238
+[2026-04-23 00:48:52] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:49:21] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:48:52.150663594 +0800 CST m=+321.026851238
+[2026-04-23 00:49:21] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:49:31] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:49:31] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:49:51] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:48:52.150663594 +0800 CST m=+321.026851238
+[2026-04-23 00:49:51] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:50:21] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:48:52.150663594 +0800 CST m=+321.026851238
+[2026-04-23 00:50:21] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:50:30] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:50:30] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:50:50] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:48:52.150663594 +0800 CST m=+321.026851238
+[2026-04-23 00:50:50] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:51:20] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:48:52.150663594 +0800 CST m=+321.026851238
+[2026-04-23 00:51:20] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:51:29] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:51:29] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:51:49] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:48:52.150663594 +0800 CST m=+321.026851238
+[2026-04-23 00:51:49] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:52:19] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:48:52.150663594 +0800 CST m=+321.026851238
+[2026-04-23 00:52:19] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:52:29] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:52:29] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:52:48] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:48:52.150663594 +0800 CST m=+321.026851238
+[2026-04-23 00:52:48] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:53:17] [WARN] [ApiKeyCache] Key 不在缓存中，期望 hash=e22cc3d89c3730a4074b58731b1d17fc01bbb12ace58085112245c397e3413b7，缓存中共 2 个站点，缓存时间=2026-04-23 00:48:52.150663594 +0800 CST m=+321.026851238
+[2026-04-23 00:53:17] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-23 00:53:28] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:53:28] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:54:26] [WARN] [CenterProbe] 本地测试Agent [local-agent-test] 不可达: Get "http://localhost:18422/health": dial tcp 127.0.0.1:18422: connect: connection refused
+[2026-04-23 00:54:26] [WARN] [CenterProbe] 测试重新注册 [test-re-register] 不可达: Get "http://localhost:18422/health": dial tcp 127.0.0.1:18422: connect: connection refused
+[2026-04-23 00:55:25] [WARN] [CenterProbe] 本地测试Agent [local-agent-test] 不可达: Get "http://localhost:18422/health": read tcp 127.0.0.1:44878->127.0.0.1:18422: read: connection reset by peer
+[2026-04-23 00:55:25] [WARN] [CenterProbe] 测试重新注册 [test-re-register] 不可达: Get "http://localhost:18422/health": read tcp 127.0.0.1:44888->127.0.0.1:18422: read: connection reset by peer
+[2026-04-23 00:56:24] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:56:25] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:57:23] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:57:24] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:58:22] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:58:22] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 00:59:22] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 00:59:22] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 01:00:21] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 01:00:21] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 01:01:20] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 01:01:20] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 01:02:19] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 01:02:19] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 01:03:18] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 01:03:18] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 01:04:17] [INFO] [CenterProbe] 测试重新注册 [test-re-register] 在线
+[2026-04-23 01:04:17] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-23 01:04:17] [INFO] [CenterProbe] sh-local10 [sh-local10] 在线

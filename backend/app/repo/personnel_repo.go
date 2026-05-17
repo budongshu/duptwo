@@ -80,6 +80,9 @@ func (r *PersonnelRepo) List(req dto.PersonnelListReq) ([]model.Personnel, int64
 	if req.OnProject != "" {
 		db = db.Where("on_project_status = ?", req.OnProject)
 	}
+	if req.Position != "" {
+		db = db.Where("position = ?", req.Position)
+	}
 
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -146,4 +149,58 @@ func (r *PersonnelRepo) ListForExport(req dto.PersonnelListReq) ([]model.Personn
 
 	err := db.Order("sort ASC, created_at DESC").Find(&personnels).Error
 	return personnels, err
+}
+
+// Statistics 职位统计（后端计算，避免前端加载全量数据）
+func (r *PersonnelRepo) Statistics(req dto.PersonnelListReq) (*dto.PersonnelStatisticsResp, error) {
+	db := global.DB.Model(&model.Personnel{}).Where("is_deleted = ?", false)
+
+	if req.Keyword != "" {
+		db = db.Where("name LIKE ? OR phone LIKE ? OR company LIKE ? OR position LIKE ? OR location LIKE ?",
+			"%"+req.Keyword+"%", "%"+req.Keyword+"%", "%"+req.Keyword+"%", "%"+req.Keyword+"%", "%"+req.Keyword+"%")
+	}
+	if req.Status != "" {
+		db = db.Where("status = ?", req.Status)
+	}
+	if req.OnProject != "" {
+		db = db.Where("on_project_status = ?", req.OnProject)
+	}
+	if req.Position != "" {
+		db = db.Where("position = ?", req.Position)
+	}
+
+	// 总数
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// 如果指定了职位，只统计该职位
+	if req.Position != "" {
+		return &dto.PersonnelStatisticsResp{
+			Total: total,
+			ByPosition: []dto.PositionCount{{Position: req.Position, Count: total}},
+		}, nil
+	}
+
+	// 按职位统计
+	type positionRow struct {
+		Position string
+		Count    int64
+	}
+	var rows []positionRow
+	err := db.Select("COALESCE(NULLIF(TRIM(position), ''), '(空职位)') as position, COUNT(*) as count").
+		Group("COALESCE(NULLIF(TRIM(position), ''), '(空职位)')").
+		Order("count DESC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	byPosition := make([]dto.PositionCount, len(rows))
+	for i, row := range rows {
+		byPosition[i] = dto.PositionCount{Position: row.Position, Count: row.Count}
+	}
+
+	return &dto.PersonnelStatisticsResp{Total: total, ByPosition: byPosition}, nil
 }

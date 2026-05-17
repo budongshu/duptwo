@@ -1,23 +1,40 @@
 package api
 
 import (
-	"datauptwo/app/dto"
-	"datauptwo/app/service"
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"datauptwo/app/dto"
+	"datauptwo/app/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 type FieldConfigApi struct {
 	fieldConfigService *service.FieldConfigService
+	auditService       *service.AuditService
 }
 
 func NewFieldConfigApi() *FieldConfigApi {
 	return &FieldConfigApi{
 		fieldConfigService: service.NewFieldConfigService(),
+		auditService:       service.NewAuditService(),
 	}
+}
+
+func (api *FieldConfigApi) getUserID(c *gin.Context) uint {
+	if id, exists := c.Get("userId"); exists {
+		return id.(uint)
+	}
+	return 0
+}
+
+func (api *FieldConfigApi) getUsername(c *gin.Context) string {
+	if username, exists := c.Get("username"); exists {
+		return username.(string)
+	}
+	return ""
 }
 
 // Create 创建字段配置
@@ -33,6 +50,12 @@ func (api *FieldConfigApi) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"字段配置", "create", "FieldConfig", config.ID,
+		config.Name, c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "创建成功", Data: config})
 }
@@ -75,13 +98,26 @@ func (api *FieldConfigApi) Update(c *gin.Context) {
 		return
 	}
 
-	config, err := api.fieldConfigService.Update(req)
+	// 先获取字段配置信息用于日志
+	oldConfig, _ := api.fieldConfigService.GetByID(req.ID)
+	configName := ""
+	if oldConfig != nil {
+		configName = oldConfig.Name
+	}
+
+	updatedConfig, err := api.fieldConfigService.Update(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "更新成功", Data: config})
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"字段配置", "update", "FieldConfig", req.ID,
+		configName, c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
+
+	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "更新成功", Data: updatedConfig})
 }
 
 // Delete 删除字段配置
@@ -92,6 +128,12 @@ func (api *FieldConfigApi) Delete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"字段配置", "delete", "FieldConfig", uint(id),
+		"", c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "删除成功"})
 }
@@ -108,6 +150,13 @@ func (api *FieldConfigApi) BatchDelete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"字段配置", "batch_delete", "FieldConfig", 0,
+		fmt.Sprintf("批量删除 %d 个字段", len(req.IDs)), c.ClientIP(), c.GetHeader("User-Agent"),
+		map[string]interface{}{"ids": req.IDs},
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: fmt.Sprintf("成功删除 %d 个字段", len(req.IDs))})
 }

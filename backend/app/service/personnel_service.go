@@ -206,3 +206,8 @@ func (s *PersonnelService) ListForExport(req dto.PersonnelListReq) ([]dto.Person
 func (s *PersonnelService) ListAll() ([]dto.PersonnelResp, error) {
 	return s.personnelRepo.ListAll()
 }
+
+// Statistics 获取人员统计（总数 + 职位分布）
+func (s *PersonnelService) Statistics(req dto.PersonnelListReq) (*dto.PersonnelStatisticsResp, error) {
+	return s.personnelRepo.Statistics(req)
+}

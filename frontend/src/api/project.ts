@@ -34,7 +34,10 @@ export interface Project {
   opsPerson: string       // 运维人员（逗号分隔）
   developerPerson: string // 开发人员（逗号分隔）
   testerPerson: string   // 测试人员（逗号分隔）
-  businessPerson: string // 商务人员（逗号分隔）
+  businessPerson: string // 业务人员（逗号分隔）
+  business2Person: string // 商务人员（逗号分隔）
+  businessCostPerson: string // 成本人员（逗号分隔）
+  productPerson: string // 产品人员（逗号分隔）
   compliancePerson: string // 合规专员（逗号分隔）
   securityPerson: string // 安全人员（逗号分隔）
   networkPerson: string // 网络人员（逗号分隔）
@@ -61,11 +64,14 @@ export interface CreateProjectReq {
   status?: string
   stage?: string
   sort?: number
+  endDate?: string  // 结束日期，用于到期提醒
   projectPerson?: string   // 项目人员（逗号分隔）
   opsPerson?: string       // 运维人员（逗号分隔）
   developerPerson?: string // 开发人员（逗号分隔）
   testerPerson?: string   // 测试人员（逗号分隔）
-  businessPerson?: string // 商务人员（逗号分隔）
+  businessPerson?: string // 业务人员（逗号分隔）
+  business2Person?: string // 商务人员（逗号分隔）
+  businessCostPerson?: string // 成本人员（逗号分隔）
   compliancePerson?: string // 合规专员（逗号分隔）
   securityPerson?: string // 安全人员（逗号分隔）
   networkPerson?: string // 网络人员（逗号分隔）
@@ -86,11 +92,14 @@ export interface UpdateProjectReq {
   status?: string
   stage?: string
   sort?: number
+  endDate?: string  // 结束日期，用于到期提醒
   projectPerson?: string   // 项目人员（逗号分隔）
   opsPerson?: string       // 运维人员（逗号分隔）
   developerPerson?: string // 开发人员（逗号分隔）
   testerPerson?: string   // 测试人员（逗号分隔）
-  businessPerson?: string // 商务人员（逗号分隔）
+  businessPerson?: string // 业务人员（逗号分隔）
+  business2Person?: string // 商务人员（逗号分隔）
+  businessCostPerson?: string // 成本人员（逗号分隔）
   compliancePerson?: string // 合规专员（逗号分隔）
   securityPerson?: string // 安全人员（逗号分隔）
   networkPerson?: string // 网络人员（逗号分隔）

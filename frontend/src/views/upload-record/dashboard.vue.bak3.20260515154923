@@ -1,0 +1,3001 @@
+<template>
+  <div class="dashboard">
+    <main class="dashboard-main">
+      <!-- ===== 页面标题 ===== -->
+      <div class="page-header">
+        <div class="header-left">
+          <h1 class="page-title">{{ t('uploadRecord.dashboard.title') }}</h1>
+          <div class="auto-refresh" :class="{ refreshing: nextRefresh <= 5 }">
+            <span class="refresh-dot"></span>
+            <span class="refresh-text">{{ nextRefresh }}s</span>
+          </div>
+        </div>
+        <div class="page-meta">
+          <!-- 时间快捷 -->
+          <div class="time-preset-strip">
+            <button
+              v-for="preset in timePresets"
+              :key="preset.key"
+              class="time-preset-btn"
+              :class="{ 'is-active': activeTimePreset === preset.key }"
+              @click="setTimePreset(preset.key)"
+            >{{ preset.label }}</button>
+          </div>
+                    <!-- 项目筛选 -->
+          <el-select v-model="searchProjectName" :placeholder="t('uploadRecord.dashboard.filterAllProjects')" clearable filterable size="default" class="meta-project-select" @change="handleFilterChange">
+            <el-option v-for="p in projectList" :key="p.code" :label="p.name" :value="p.name"/>
+          </el-select>
+          <!-- 筛选按钮 -->
+          <el-popover
+            v-model:visible="filterPopoverVisible"
+            placement="bottom-end"
+            :width="320"
+            trigger="click"
+            :show-arrow="true"
+            :offset="8"
+            popper-class="filter-popover"
+          >
+            <template #reference>
+              <el-button class="filter-icon-btn" :class="{ 'has-filters': activeFilterCount > 0 }">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                <span>筛选</span>
+                <span v-if="activeFilterCount > 0" class="filter-icon-btn__badge">{{ activeFilterCount }}</span>
+              </el-button>
+            </template>
+            <div class="filter-popover__body">
+              <!-- 状态 -->
+              <div class="fp-section">
+                <div class="fp-section__label">上传状态</div>
+                <el-select v-model="searchStatus" :placeholder="t('uploadRecord.dashboard.filterAllStatus')" clearable size="small" style="width:100%" @change="handleFilterChange">
+                  <el-option :label="t('status.completed')" value="completed"/>
+                  <el-option :label="t('status.processing')" value="processing"/>
+                  <el-option :label="t('status.pending')" value="pending"/>
+                  <el-option :label="t('status.failed')" value="failed"/>
+                </el-select>
+              </div>
+              <div class="fp-divider"></div>
+              <!-- 上传人 -->
+              <div class="fp-section">
+                <div class="fp-section__label">上传人</div>
+                <el-select v-model="searchUploader" :placeholder="t('uploadRecord.dashboard.filterAllUploader')" clearable filterable size="small" style="width:100%" @change="handleFilterChange">
+                  <el-option v-for="u in uploaderOptions" :key="u" :label="u" :value="u"/>
+                </el-select>
+              </div>
+            </div>
+            <div class="filter-popover__footer">
+              <el-button size="small" @click="resetAllFilters" :disabled="activeFilterCount === 0">重置</el-button>
+              <el-button type="primary" size="small" @click="filterPopoverVisible = false">完成</el-button>
+            </div>
+          </el-popover>
+        </div>
+      </div>
+
+      <!-- ===== KPI 卡片行 ===== -->
+      <div class="stats-row" v-if="isInitialLoading">
+        <div v-for="i in 5" :key="i" class="stat-card skeleton-card">
+          <div class="skeleton sk-circle"></div>
+          <div class="skeleton" style="height:12px;width:55%;margin-bottom:10px"></div>
+          <div class="skeleton" style="height:34px;width:75%;margin-bottom:6px"></div>
+          <div class="skeleton" style="height:10px;width:40%"></div>
+        </div>
+      </div>
+      <div class="stats-row" v-else>
+        <div
+          v-for="(card, idx) in statCards"
+          :key="card.key"
+          class="stat-card"
+          :class="`stat-card--${card.key}`"
+          :style="{ animationDelay: `${idx * 0.07}s` }"
+        >
+          <div class="stat-card__top">
+            <div class="stat-card__icon-wrap" :style="{ background: card.iconBg }">
+              <div v-html="card.icon" class="stat-card__icon-svg"></div>
+            </div>
+            <span class="stat-card__label">{{ card.label }}</span>
+          </div>
+          <div class="stat-card__value-row">
+            <span class="stat-card__big-value">{{ animatedValues[card.key] !== undefined ? animatedValues[card.key] : card.value }}</span>
+            <span class="stat-card__unit">{{ card.unit }}</span>
+          </div>
+          <div class="stat-card__meta">
+            <span class="stat-card__size">{{ card.sizeStr }}</span>
+            <span class="stat-card__comparison" :class="card.comparisonClass" v-if="card.comparisonClass">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <path v-if="card.comparisonVal >= 0" d="M18 15l-6-6-6 6"/>
+                <path v-else d="M6 9l6 6 6-6"/>
+              </svg>
+              {{ Math.abs(card.comparisonVal) }}% {{ t('uploadRecord.dashboard.comparisonLabel') }}
+            </span>
+          </div>
+          <!-- 迷你趋势线 / 成功率仪表 -->
+          <div class="stat-card__spark">
+            <!-- 成功率 ring gauge -->
+            <div v-if="card.showGauge" class="rate-gauge">
+              <svg viewBox="0 0 50 50" class="rate-gauge__svg">
+                <circle class="rate-gauge__bg" cx="25" cy="25" r="20" />
+                <circle
+                  class="rate-gauge__fill"
+                  cx="25" cy="25" r="20"
+                  :stroke-dasharray="`${card.value * 1.256} ${125.6 - card.value * 1.256}`"
+                />
+                <text x="25" y="25" text-anchor="middle" dominant-baseline="central" class="rate-gauge__text">{{ card.value }}</text>
+              </svg>
+            </div>
+            <!-- 趋势线 -->
+            <div v-else :ref="(el: any) => sparkRefs[card.key] = el" class="stat-card__sparkline"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Row 2: 趋势图 + 磁盘状态 ===== -->
+      <div class="row-grid row-grid--2col align-stretch">
+        <!-- 趋势图 -->
+        <div class="panel panel--trend card-appear">
+          <div class="panel__header">
+            <span class="panel__title">{{ t('uploadRecord.dashboard.dailyUpload') }}</span>
+            <div class="panel__header-right">
+              <el-select v-model="trendProjectFilter" size="small" class="trend-project-select" :placeholder="t('uploadRecord.dashboard.filterProjectName')" clearable filterable @change="loadTrendData()">
+                <el-option v-for="p in projectList" :key="p.code" :label="p.name" :value="p.name"/>
+              </el-select>
+              <div class="panel__time-pills">
+                <button
+                  v-for="opt in trendTimeOptions"
+                  :key="opt.key"
+                  class="time-pill"
+                  :class="{ 'is-active': trendTimeKey === opt.key }"
+                  @click="setTrendTime(opt.key)"
+                >{{ opt.label }}</button>
+              </div>
+              <el-button size="small" circle title="全屏" @click="showTrendFullscreen = true">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+              </el-button>
+            </div>
+          </div>
+          <div class="panel__body panel__body--chart">
+            <div ref="trendChartRef" class="chart-canvas chart-canvas--trend"></div>
+          </div>
+        </div>
+
+        <!-- 磁盘状态分布 -->
+        <div class="panel panel--diskstatus card-appear" style="animation-delay:0.08s">
+          <div class="panel__header">
+            <span class="panel__title">{{ t('uploadRecord.dashboard.diskLabelStatus') }}</span>
+            <div class="diskstatus-header-right">
+              <el-select v-model="diskFilterProject" size="small" class="diskstatus-select" :placeholder="t('uploadRecord.dashboard.allProjects')" clearable @change="loadDiskLabels()">
+                <el-option v-for="opt in diskFilterProjectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
+              <div class="diskstatus-time-group">
+                <button
+                  v-for="opt in diskTimeOptions"
+                  :key="opt.key"
+                  class="diskstatus-time-btn"
+                  :class="{ 'is-active': showDiskCustom ? false : diskTimeKey === opt.key }"
+                  @click="setDiskTime(opt.key)"
+                >{{ opt.label }}</button>
+              </div>
+              <div v-if="showDiskCustom" class="diskstatus-custom-group">
+                <el-date-picker
+                  v-model="diskCustomRange"
+                  type="daterange"
+                  range-separator="~"
+                  start-placeholder="开始"
+                  end-placeholder="结束"
+                  size="small"
+                  format="MM-DD"
+                  value-format="YYYY-MM-DD"
+                  :clearable="true"
+                  class="diskstatus-custom-picker"
+                  :disabled-date="(date: Date) => date > new Date()"
+                  @change="loadDiskLabels()"
+                />
+                <button class="diskstatus-back-btn" @click="showDiskCustom = false; diskCustomRange = null; setDiskTime('week')">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+              </div>
+              <span class="panel__meta">{{ diskLabelTotal }} {{ t('uploadRecord.dashboard.diskLabels') }}</span>
+              <el-button size="small" circle title="全屏" @click="showDiskFullscreen = true">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+              </el-button>
+            </div>
+          </div>
+          <div class="panel__body panel__body--diskstatus">
+            <div v-if="diskLabelsLoading" class="diskstatus-loading">
+              <div class="diskstatus-skeleton-grid">
+                <div v-for="i in 8" :key="i" class="diskstatus-skeleton"></div>
+              </div>
+            </div>
+            <div v-else-if="diskLabels.length === 0" class="diskstatus-empty">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c4c9d4" stroke-width="1.5"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="14"/><line x1="10" y1="10" x2="10" y2="14"/><line x1="14" y1="10" x2="14" y2="14"/></svg>
+              <span>{{ t('uploadRecord.dashboard.noDiskLabels') }}</span>
+            </div>
+            <div v-else class="diskstatus-grid-scroll">
+              <div class="diskstatus-grid">
+                <div
+                  v-for="item in diskLabels"
+                  :key="item.diskLabel"
+                  class="diskstatus-tile"
+                  :class="`diskstatus-tile--${item.status}`"
+                  :title="`${item.diskLabel} — ${item.count} ${t('uploadRecord.dashboard.recordCount')} — ${formatBytes(item.totalSize)} — ${t(getStatusText(item.status))}`"
+                >
+                  <div class="diskstatus-tile__inner">
+                    <span class="diskstatus-tile__name">{{ item.diskLabel }}</span>
+                    <span class="diskstatus-tile__count">{{ item.count }}</span>
+                    <span class="diskstatus-tile__size">{{ formatBytes(item.totalSize) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="diskstatus-legend">
+              <span class="diskstatus-legend__item diskstatus-legend__item--completed">
+                <span class="diskstatus-legend__dot"></span>{{ t('uploadRecord.dashboard.legendCompleted') }}
+              </span>
+              <span class="diskstatus-legend__item diskstatus-legend__item--failed">
+                <span class="diskstatus-legend__dot"></span>{{ t('uploadRecord.dashboard.legendFailed') }}
+              </span>
+              <span class="diskstatus-legend__item diskstatus-legend__item--mixed">
+                <span class="diskstatus-legend__dot"></span>{{ t('uploadRecord.dashboard.legendMixed') }}
+              </span>
+              <span class="diskstatus-legend__item diskstatus-legend__item--pending">
+                <span class="diskstatus-legend__dot"></span>{{ t('uploadRecord.dashboard.legendPending') }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Row 3: 项目分布 + 标签分布 ===== -->
+      <div class="row-grid row-grid--2col align-stretch">
+        <div class="panel panel--project card-appear" style="animation-delay:0.14s">
+          <div class="panel__header">
+            <span class="panel__title">{{ t('uploadRecord.dashboard.projectDistribution') }}</span>
+            <div class="project-header-right">
+              <span class="project-stat">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                {{ projectTotal }} {{ t('uploadRecord.dashboard.projectCount') }}
+              </span>
+              <span class="project-stat">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                {{ projectTotalSize }}
+              </span>
+            </div>
+          </div>
+          <div class="panel__body panel__body--project">
+            <div v-if="projectBarList.length === 0" class="project-empty">{{ t('common.noData') }}</div>
+            <div v-else class="project-list">
+              <div v-for="(item, idx) in displayedProjectList" :key="item.projectName" class="project-row">
+                <span class="project-idx">{{ idx + 1 }}</span>
+                <span class="project-dot" :style="{ background: projectColors[idx % projectColors.length] }"></span>
+                <span class="project-name" :title="item.projectName">{{ item.projectName }}</span>
+                <div class="project-bar">
+                  <div class="project-bar-fill" :style="{ width: item.pct + '%', background: projectColors[idx % projectColors.length] }"></div>
+                </div>
+                <span class="project-value">{{ formatBytes(item.totalSize) }} / {{ item.count }}{{ t('uploadRecord.dashboard.recordCountUnit') }}</span>
+                <span class="project-pct">{{ item.pct }}%</span>
+              </div>
+              <button v-if="projectBarList.length > 5" class="project-toggle-btn" @click="projectExpanded = !projectExpanded">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline :points="projectExpanded ? '18 15 12 9 6 15' : '6 9 12 15 18 9'"/></svg>
+                {{ projectExpanded ? '收起' : `+${projectBarList.length - 5} more` }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel panel--datatype card-appear" style="animation-delay:0.20s">
+          <div class="panel__header">
+            <span class="panel__title">{{ t('uploadRecord.dashboard.diskLabelDistribution') }}</span>
+            <div class="dtype-header-right">
+              <div class="dtype-project-select-wrap">
+                <el-select v-model="diskLabelProjectFilter" size="small" class="dtype-project-select" @change="updateDataTypeChart()">
+                  <el-option v-for="opt in diskLabelProjectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+                </el-select>
+              </div>
+              <div class="dtype-prefix-pills">
+                <button
+                  v-for="opt in diskPrefixOptions"
+                  :key="opt.value"
+                  :class="['dtype-pill', { active: diskLabelPrefix !== 'custom' && diskLabelPrefix === opt.value }]"
+                  @click="diskLabelPrefix = opt.value; updateDataTypeChart()"
+                >{{ opt.label }}</button>
+                <button
+                  :class="['dtype-pill dtype-pill--custom', { active: diskLabelPrefix === 'custom' }]"
+                  @click="diskLabelPrefix = 'custom'; updateDataTypeChart()"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  {{ t('uploadRecord.dashboard.customPrefix') }}
+                </button>
+              </div>
+              <div v-if="diskLabelPrefix === 'custom'" class="dtype-custom-input-wrap">
+                <span class="dtype-custom-label">{{ t('uploadRecord.dashboard.prefixFirst') }}</span>
+                <input
+                  v-model.number="diskLabelCustomLen"
+                  type="number"
+                  min="3"
+                  max="20"
+                  class="dtype-custom-input"
+                  @change="updateDataTypeChart()"
+                />
+                <span class="dtype-custom-label">{{ t('uploadRecord.dashboard.prefixChars') }}</span>
+              </div>
+              <div class="dtype-mode-toggle">
+                <button :class="['dtype-mode-btn', { active: diskLabelShowMode === 'count' }]" @click="diskLabelShowMode = 'count'; updateDataTypeChart()">{{ t('uploadRecord.dashboard.modeCount') }}</button>
+                <button :class="['dtype-mode-btn', { active: diskLabelShowMode === 'size' }]" @click="diskLabelShowMode = 'size'; updateDataTypeChart()">{{ t('uploadRecord.dashboard.modeSize') }}</button>
+              </div>
+              <span class="panel__meta">{{ dataTypeTotal }} {{ t('uploadRecord.dashboard.diskLabelCount') }}</span>
+            </div>
+          </div>
+          <div class="panel__body panel__body--dtype">
+            <div v-if="diskLabelList.length === 0" class="dtype-empty">{{ t('common.noData') }}</div>
+            <div v-else class="dtype-list">
+              <div v-for="(item, idx) in diskLabelList" :key="item.diskLabel" class="dtype-row">
+                <span class="dtype-idx">{{ idx + 1 }}</span>
+                <span class="dtype-dot" :style="{ background: diskLabelColors[idx % diskLabelColors.length] }"></span>
+                <span class="dtype-name" :title="item.diskLabel">{{ item.diskLabel }}</span>
+                <div class="dtype-bar">
+                  <div class="dtype-bar-fill" :style="{ width: item.pct + '%', background: diskLabelColors[idx % diskLabelColors.length] }"></div>
+                </div>
+                <span class="dtype-value dtype-count">{{ item.count }} <em>{{ t('uploadRecord.dashboard.recordCountUnit') }}</em></span>
+                <span class="dtype-value dtype-size">{{ formatBytes(item.totalSize) }}</span>
+                <span class="dtype-pct">{{ item.pct }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Row 4: 洞察面板 + 最近活动 ===== -->
+      <div class="row-grid row-grid--2col-40-60 align-stretch">
+        <!-- 洞察面板 -->
+        <div class="insight-panel card-appear" style="animation-delay:0.38s">
+          <div
+            v-for="(insight, idx) in insights"
+            :key="idx"
+            class="insight-card"
+          >
+            <div class="insight-card__icon" v-html="insight.icon"></div>
+            <div class="insight-card__body">
+              <span class="insight-card__title">{{ insight.title }}</span>
+              <span class="insight-card__desc">{{ insight.desc }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 最近活动 -->
+        <div class="panel panel--activity card-appear" style="animation-delay:0.38s">
+          <div class="panel__header">
+            <span class="panel__title">{{ t('uploadRecord.dashboard.recentActivity') }}</span>
+            <router-link to="/upload-record/list" class="panel__link">{{ t('uploadRecord.dashboard.viewAll') }} &rarr;</router-link>
+          </div>
+          <div class="panel__body panel__body--activity">
+            <div class="activity-table">
+              <div class="table-head">
+                <span>#</span>
+                <span>{{ t('uploadRecord.dashboard.tableSerial') }}</span>
+                <span>{{ t('uploadRecord.dashboard.tableDisk') }}</span>
+                <span>{{ t('uploadRecord.dashboard.tableUploadSize') }}</span>
+                <span>{{ t('uploadRecord.dashboard.tableStatus') }}</span>
+                <span>{{ t('uploadRecord.dashboard.tableTime') }}</span>
+              </div>
+              <div class="table-body">
+                <div v-for="(item, index) in recentRecords" :key="item.id" class="table-row" :class="{ 'row--alt': index % 2 === 1 }">
+                  <span class="row-num">{{ String(index + 1).padStart(2, '0') }}</span>
+                  <span class="row-serial" :title="item.serialNo">{{ item.serialNo }}</span>
+                  <span class="col-disk" :title="item.diskLabel">{{ item.diskLabel }}</span>
+                  <span class="col-size">{{ item.fileSizeStr }}</span>
+                  <span><span class="status-badge" :class="getStatusClass(item.status)">{{ item.statusText }}</span></span>
+                  <span class="row-time">{{ formatTime(item.createdAt) }}</span>
+                </div>
+                <div v-if="recentRecords.length === 0" class="table-empty">{{ t('uploadRecord.dashboard.noUploadRecord') }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 趋势图全屏 Modal ===== -->
+      <Teleport to="body">
+        <div v-if="showTrendFullscreen" class="fs-overlay" @click.self="showTrendFullscreen = false">
+          <div class="fs-dialog">
+            <div class="fs-header">
+              <span class="fs-title">{{ t('uploadRecord.dashboard.dailyUpload') }}</span>
+              <button class="fs-close" @click="showTrendFullscreen = false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="fs-toolbar">
+              <div class="time-pills">
+                <button
+                  v-for="opt in trendTimeOptions"
+                  :key="opt.key"
+                  class="time-pill"
+                  :class="{ 'is-active': trendTimeKey === opt.key }"
+                  @click="setTrendTime(opt.key)"
+                >{{ opt.label }}</button>
+              </div>
+              <el-select v-model="searchProjectName" clearable filterable size="default" style="width:160px" @change="handleFilterChange">
+                <el-option v-for="p in projectList" :key="p.code" :label="p.name" :value="p.name"/>
+              </el-select>
+            </div>
+            <div class="fs-chart-wrap">
+              <div ref="trendFullscreenRef" class="fs-chart"></div>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- ===== 磁盘标签全屏 Modal ===== -->
+      <el-dialog
+        v-model="showDiskFullscreen"
+        :title="t('uploadRecord.dashboard.diskLabelStatus')"
+        fullscreen
+        :close-on-click-modal="true"
+        class="disk-fullscreen-dialog"
+      >
+        <div class="disk-fullscreen-body">
+          <div class="disk-fullscreen-grid">
+            <div
+              v-for="item in diskLabels"
+              :key="item.diskLabel"
+              class="disk-fullscreen-tile"
+              :class="`disk-fullscreen-tile--${item.status}`"
+            >
+              <div class="disk-fullscreen-tile__inner">
+                <span class="disk-fullscreen-label">{{ item.diskLabel }}</span>
+                <span class="disk-fullscreen-count">{{ item.count }}</span>
+                <span class="disk-fullscreen-size">{{ formatBytes(item.totalSize) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-dialog>
+    </main>
+
+      </div>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import type { UploadRecordStatistics, UploadRecord } from '@/api/upload-record'
+import { UploadRecordApi } from '@/api/upload-record'
+import { ProjectApi } from '@/api/project'
+import { useI18n } from 'vue-i18n'
+import { setGlobalFilter, getGlobalFilterParams, clearGlobalFilter } from '@/composables/useGlobalFilter'
+
+const { t } = useI18n()
+
+// ==================== ECharts 实例管理 ====================
+let echarts: any = null
+let trendChart: any = null
+const sparkCharts: Record<string, any> = {}
+
+const isInitialLoading = ref(true)
+
+// ==================== 磁盘状态数据 ====================
+interface DiskLabelStatus { diskLabel: string; count: number; totalSize: number; status: string }
+const diskLabels = ref<DiskLabelStatus[]>([])
+const diskLabelsLoading = ref(false)
+const diskLabelTotal = ref(0)
+const diskTimeKey = ref('week')
+const showDiskCustom = ref(false)
+const diskCustomRange = ref<string[] | null>(null)
+const diskTimeOptions = [
+  { key: 'today' as const, label: t('uploadRecord.dashboard.timePresetToday') },
+  { key: 'week' as const, label: t('uploadRecord.dashboard.timePresetWeek') },
+  { key: 'month' as const, label: t('uploadRecord.dashboard.timePresetMonth') },
+  { key: 'all' as const, label: t('uploadRecord.dashboard.timePresetAll') },
+]
+// 磁盘状态面板的独立筛选（不走全局）
+const diskFilterProject = ref('')
+const diskFilterLabel = ref('')
+const diskFilterProjectOptions = computed(() => {
+  const projects = (statistics.byProject || []).map((p: any) => ({ value: p.projectName || 'null', label: p.projectName || '(空项目)' }))
+  return [{ value: '', label: t('uploadRecord.dashboard.allProjects') }, ...projects]
+})
+
+// ==================== 磁盘标签分布数据 ====================
+const diskLabelProjectFilter = ref('all')
+const diskLabelPrefix = ref('2')
+const diskLabelCustomLen = ref(4)
+const diskLabelShowMode = ref<'count' | 'size'>('count')
+const diskLabelList = ref<{ diskLabel: string; count: number; totalSize: number; pct: number }[]>([])
+
+const projectColors = [
+  '#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#6366f1', '#14b8a6', '#f97316'
+]
+const diskLabelColors = [
+  '#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#6366f1', '#14b8a6', '#f97316',
+  '#a855f7', '#84cc16', '#fb923c', '#38bdf8', '#a3e635', '#fb7185', '#c084fc', '#4ade80', '#facc15', '#94a3b8'
+]
+
+const diskLabelProjectOptions = computed(() => {
+  const projects = (statistics.byProject || []).map((p: any) => ({ value: p.projectName || 'null', label: p.projectName || '(空项目)' }))
+  return [{ value: 'all', label: t('uploadRecord.dashboard.allProjects') }, ...projects]
+})
+
+const diskPrefixOptions = [
+  { value: 'all', label: t('uploadRecord.dashboard.prefixAll') },
+  { value: '1', label: t('uploadRecord.dashboard.prefix1') },
+  { value: '2', label: t('uploadRecord.dashboard.prefix2') },
+  { value: '3', label: t('uploadRecord.dashboard.prefix3') },
+]
+
+// ==================== 筛选状态 ====================
+const dateRange = ref<string[]>([])
+const activeTimePreset = ref<'today' | 'week' | 'month' | 'quarter' | 'halfYear' | 'year' | 'all' | 'custom'>('all')
+const nextRefresh = ref(30)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
+const searchProjectName = ref('')
+const searchDiskLabel = ref('')
+const searchStatus = ref('')
+const searchUploader = ref('')
+const projectList = ref<{ name: string; code: string }[]>([])
+const diskLabelOptions = ref<string[]>([])
+const uploaderOptions = ref<string[]>([])
+
+const hasActiveDateRange = computed(() => dateRange.value && dateRange.value.length === 2)
+const dateRangeDisplay = computed(() => {
+  if (!dateRange.value?.length) return ''
+  const [start, end] = dateRange.value
+  return `${start} ~ ${end}`
+})
+const dateRangeSummary = computed(() => {
+  if (!dateRange.value?.length || dateRange.value.length < 2) return ''
+  const start = new Date(dateRange.value[0])
+  const end = new Date(dateRange.value[1])
+  const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+  if (diff === 1) return '今天'
+  if (diff === 7) return '近7天'
+  if (diff === 30) return '近30天'
+  if (diff === 90) return '近90天'
+  if (diff === 180) return '近半年'
+  if (diff === 365) return '近一年'
+  return `共 ${diff} 天`
+})
+const dateRangeText = computed(() => {
+  if (!dateRange.value?.length) return ''
+  return `${dateRange.value[0]} ~ ${dateRange.value[1]}`
+})
+
+const activeFilterCount = computed(() => {
+  let n = 0
+  if (searchStatus.value) n++
+  if (searchProjectName.value) n++
+  if (searchUploader.value) n++
+  return n
+})
+
+const getStatusColor = (status: string) =>
+  ({ completed: 'var(--chart-green)', pending: 'var(--chart-amber)', processing: 'var(--chart-blue)', failed: 'var(--chart-red)' })[status] || 'var(--color-text-muted)'
+
+const timePresets = [
+  { key: 'today' as const, label: t('uploadRecord.dashboard.timePresetToday') },
+  { key: 'week' as const, label: t('uploadRecord.dashboard.timePresetWeek') },
+  { key: 'month' as const, label: t('uploadRecord.dashboard.timePresetMonth') },
+  { key: 'quarter' as const, label: t('uploadRecord.dashboard.timePresetQuarter') },
+  { key: 'halfYear' as const, label: t('uploadRecord.dashboard.timePresetHalfYear') },
+  { key: 'year' as const, label: t('uploadRecord.dashboard.timePresetYear') },
+  { key: 'all' as const, label: t('uploadRecord.dashboard.timePresetAll') },
+]
+
+const setTimeRange = (key: typeof activeTimePreset.value) => {
+  const today = new Date()
+  const fmt = (d: Date) => d.toISOString().split('T')[0]
+  switch (key) {
+    case 'today': dateRange.value = [fmt(today), fmt(today)]; break
+    case 'week': { const d = new Date(today); d.setDate(d.getDate() - 6); dateRange.value = [fmt(d), fmt(today)]; break }
+    case 'month': { const d = new Date(today); d.setDate(d.getDate() - 29); dateRange.value = [fmt(d), fmt(today)]; break }
+    case 'quarter': { const d = new Date(today); d.setMonth(d.getMonth() - 3); dateRange.value = [fmt(d), fmt(today)]; break }
+    case 'halfYear': { const d = new Date(today); d.setMonth(d.getMonth() - 6); dateRange.value = [fmt(d), fmt(today)]; break }
+    case 'year': { const d = new Date(today); d.setFullYear(d.getFullYear() - 1); dateRange.value = [fmt(d), fmt(today)]; break }
+    case 'all': dateRange.value = []; break
+    case 'custom': break
+  }
+}
+
+const setTimePreset = (key: typeof activeTimePreset.value) => {
+  activeTimePreset.value = key
+  setTimeRange(key)
+  loadFilteredStats()
+  loadGlobalStats()
+  loadRecentRecords()
+  loadTrendData()
+}
+
+const onCustomDateChange = (val: string[] | null) => {
+  if (val && val.length === 2) {
+    activeTimePreset.value = 'custom'
+    loadFilteredStats()
+    loadGlobalStats()
+    loadRecentRecords()
+    loadTrendData()
+  }
+}
+
+// ==================== 工具函数 ====================
+const formatBytes = (bytes: number): string => {
+  if (!bytes || bytes === 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[Math.min(i, units.length - 1)]
+}
+
+const formatAxisDate = (dateStr: string): string => {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return dateStr.slice(5)
+  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const formatTooltipDate = (dateStr: string): string => {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return dateStr
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const formatTime = (timeStr: string) => {
+  const d = new Date(timeStr)
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+const getStatusText = (status: string) =>
+  ({ completed: 'status.completed', pending: 'status.pending', processing: 'status.processing', failed: 'status.failed' })[status] || status
+
+const getStatusClass = (status: string) =>
+  `badge--${({ completed: 'success', pending: 'warning', processing: 'info', failed: 'danger' })[status] || 'info'}`
+
+// ==================== 数据状态 ====================
+const statistics = reactive<UploadRecordStatistics>({
+  todayCount: 0, todaySize: 0, todaySizeStr: '0 B',
+  weekCount: 0, weekSize: 0, weekSizeStr: '',
+  monthCount: 0, monthSize: 0, monthSizeStr: '',
+  totalCount: 0, totalSize: 0, totalSizeStr: '0 B',
+  trend: [], byStatus: [], byDiskLabel: [], byProject: [],
+})
+
+const recentRecords = ref<UploadRecord[]>([])
+const projectBarList = ref<{ projectName: string; count: number; totalSize: number; pct: number }[]>([])
+const projectExpanded = ref(false)
+const displayedProjectList = computed(() => projectExpanded.value ? projectBarList.value : projectBarList.value.slice(0, 5))
+
+// Trend Chart refs
+const trendChartRef = ref<HTMLElement>()
+const sparkRefs = ref<Record<string, HTMLElement | null>>({})
+
+// 全屏趋势图
+const showTrendFullscreen = ref(false)
+const showDiskFullscreen = ref(false)
+const filterPopoverVisible = ref(false)
+const trendProjectFilter = ref('')
+const trendFullscreenRef = ref<HTMLElement>()
+let trendFullscreenChart: any = null
+
+// ==================== 动画计数器 ====================
+const animatedValues = reactive<Record<string, number>>({})
+const animationFrames: Record<string, number> = {}
+
+const animateValue = (target: number, key: string, duration = 800) => {
+  if (animationFrames[key]) cancelAnimationFrame(animationFrames[key])
+  const start = animatedValues[key] ?? 0
+  if (start === target) { animatedValues[key] = target; return }
+  const startTime = performance.now()
+  const easeOutExpo = (t: number) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t))
+  const step = (now: number) => {
+    const elapsed = now - startTime
+    const progress = Math.min(elapsed / duration, 1)
+    animatedValues[key] = Math.round(start + (target - start) * easeOutExpo(progress))
+    if (progress < 1) {
+      animationFrames[key] = requestAnimationFrame(step)
+    } else {
+      animatedValues[key] = target
+      delete animationFrames[key]
+    }
+  }
+  animationFrames[key] = requestAnimationFrame(step)
+}
+
+const triggerCountAnimations = () => {
+  statCards.value.forEach((card) => {
+    animatedValues[card.key] = 0
+    animateValue(card.value, card.key, 800)
+  })
+}
+
+// ==================== 计算属性 ====================
+const trendDaily = computed(() => statistics.trend || [])
+
+const successRate = computed(() => {
+  const todayByStatus = (statistics as any).todayByStatus || []
+  if (todayByStatus.length === 0) return 0
+  const total = todayByStatus.reduce((s: number, item: any) => s + item.count, 0)
+  if (total === 0) return 0
+  const completed = todayByStatus.find((s: any) => s.status === 'completed')
+  return completed ? Math.round((completed.count / total) * 100) : 0
+})
+
+const projectTotal = computed(() => (statistics.byProject || []).length)
+const dataTypeTotal = computed(() => (statistics.byDiskLabel || []).length)
+const projectTotalSize = computed(() => {
+  const total = (statistics.byProject || []).reduce((s: number, p: any) => s + (p.totalSize || 0), 0)
+  return formatBytes(total)
+})
+
+// 周期对比
+const periodComparison = (data: number[], windowSize = 7) => {
+  if (data.length < windowSize * 2) return 0
+  const recent = data.slice(-windowSize).reduce((a, b) => a + b, 0)
+  const prev = data.slice(-windowSize * 2, -windowSize).reduce((a, b) => a + b, 0)
+  if (prev === 0) return recent > 0 ? 100 : 0
+  return Math.round(((recent - prev) / prev) * 100)
+}
+
+// ==================== 状态图例 ====================
+const sparkColorMap: Record<string, string> = {
+  today: '#3b82f6',
+  week: '#8b5cf6',
+  month: '#06b6d4',
+  total: '#1B3A8A',
+  rate: '#22c55e',
+}
+
+// ==================== KPI 卡片数据 ====================
+const statCards = computed(() => {
+  const trendCounts = trendDaily.value.map((d: any) => d.count)
+  const trendSizes = trendDaily.value.map((d: any) => d.totalSize)
+  const sparkDataToday = trendCounts.slice(-7)
+  const sparkDataWeek = trendCounts.slice(-14, -7)
+  const todComp = sparkDataWeek.length >= 7 ? periodComparison(sparkDataToday, 7) : 0
+
+  return [
+    {
+      key: 'today',
+      label: t('uploadRecord.dashboard.todayUpload'),
+      value: statistics.todayCount,
+      unit: t('uploadRecord.dashboard.recordCount'),
+      sizeStr: statistics.todaySizeStr,
+      comparisonVal: todComp,
+      comparisonClass: todComp >= 0 ? 'trend--up' : 'trend--down',
+      icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
+      iconBg: 'rgba(59,130,246,0.1)',
+      sparkData: sparkDataToday,
+    },
+    {
+      key: 'week',
+      label: t('uploadRecord.dashboard.weekUpload'),
+      value: statistics.weekCount,
+      unit: t('uploadRecord.dashboard.recordCount'),
+      sizeStr: statistics.weekSizeStr || '—',
+      comparisonVal: periodComparison(trendCounts, 7),
+      comparisonClass: periodComparison(trendCounts, 7) >= 0 ? 'trend--up' : 'trend--down',
+      icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+      iconBg: 'rgba(139,92,246,0.1)',
+      sparkData: trendCounts.slice(-14),
+    },
+    {
+      key: 'month',
+      label: t('uploadRecord.dashboard.monthUpload'),
+      value: statistics.monthCount,
+      unit: t('uploadRecord.dashboard.recordCount'),
+      sizeStr: statistics.monthSizeStr || '—',
+      comparisonVal: periodComparison(trendCounts, 30),
+      comparisonClass: periodComparison(trendCounts, 30) >= 0 ? 'trend--up' : 'trend--down',
+      icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
+      iconBg: 'rgba(6,182,212,0.1)',
+      sparkData: trendCounts.slice(-30),
+    },
+    {
+      key: 'total',
+      label: t('uploadRecord.dashboard.totalCount'),
+      value: statistics.totalCount,
+      unit: t('uploadRecord.dashboard.recordCount'),
+      sizeStr: statistics.totalSizeStr,
+      comparisonVal: 0,
+      comparisonClass: '',
+      icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>',
+      iconBg: 'rgba(27,58,138,0.1)',
+      sparkData: trendCounts,
+    },
+    {
+      key: 'rate',
+      label: t('uploadRecord.dashboard.successRate'),
+      value: successRate.value,
+      unit: '%',
+      sizeStr: `${statistics.totalCount.toLocaleString()} ${t('uploadRecord.dashboard.recordCount')}`,
+      comparisonVal: 0,
+      comparisonClass: '',
+      icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      iconBg: 'rgba(34,197,94,0.1)',
+      sparkData: [],
+      showGauge: true,
+    },
+  ]
+})
+
+// ==================== 智能洞察 ====================
+const insights = computed(() => {
+  const projects = statistics.byProject || []
+  const topProject = [...projects].sort((a, b) => b.count - a.count)[0]
+  const trendData = trendDaily.value || []
+  const recent7 = trendData.slice(-7)
+  const avg7 = recent7.length > 0 ? recent7.reduce((s: number, d: any) => s + d.count, 0) / recent7.length : 0
+  const todayCount = recent7.length > 0 ? recent7[recent7.length - 1].count : 0
+  const diskLabels = statistics.byDiskLabel || []
+
+  const result = []
+
+  // Top Performer
+  if (topProject) {
+    result.push({
+      title: t('uploadRecord.dashboard.insightTopPerformer'),
+      desc: `${topProject.projectName} — ${topProject.count} ${t('uploadRecord.dashboard.recordCount')}`,
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+    })
+  }
+
+  // Trend Alert
+  if (avg7 > 0) {
+    const ratio = todayCount / avg7
+    if (ratio > 1.5) {
+      result.push({
+        title: t('uploadRecord.dashboard.insightTrendAlert'),
+        desc: `${t('uploadRecord.dashboard.insightTrendToday')} (${todayCount}) > ${t('uploadRecord.dashboard.insightTrendAvg')} (${Math.round(avg7)}), ${t('uploadRecord.dashboard.insightTrendRatio')} ${Math.round((ratio - 1) * 100)}%`,
+        icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      })
+    } else if (ratio < 0.5 && todayCount > 0) {
+      result.push({
+        title: t('uploadRecord.dashboard.insightTrendAlert'),
+        desc: `${t('uploadRecord.dashboard.insightTrendToday')} (${todayCount}) < ${t('uploadRecord.dashboard.insightTrendAvg')} (${Math.round(avg7)}), ${t('uploadRecord.dashboard.insightTrendDrop')} ${Math.round((1 - ratio) * 100)}%`,
+        icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      })
+    } else {
+      result.push({
+        title: t('uploadRecord.dashboard.insightTrendNormal'),
+        desc: `${t('uploadRecord.dashboard.insightTrendToday')} (${todayCount}) ${t('uploadRecord.dashboard.insightTrendEqual')}`,
+        icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      })
+    }
+  } else {
+    result.push({
+      title: t('uploadRecord.dashboard.insightTrendNormal'),
+      desc: t('uploadRecord.dashboard.insightTrendStable'),
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    })
+  }
+
+  // Total Summary
+  result.push({
+    title: t('uploadRecord.dashboard.insightTotalSummary'),
+    desc: `${t('uploadRecord.dashboard.insightTotalRecords')} ${statistics.totalCount.toLocaleString()} ${t('uploadRecord.dashboard.recordCount')}, ${statistics.totalSizeStr}, ${diskLabels.length} ${t('uploadRecord.dashboard.insightTotalDisk')}`,
+    icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  })
+
+  // Ensure exactly 3 insights
+  return result.slice(0, 3)
+})
+
+// ==================== Trend Chart ====================
+const trendTimeKey = ref('7d')
+const trendTimeOptions = [
+  { key: 'today', label: t('uploadRecord.dashboard.timePresetToday') },
+  { key: 'yesterday', label: t('uploadRecord.dashboard.timePresetYesterday') },
+  { key: '3d', label: t('uploadRecord.dashboard.timePreset3Days') },
+  { key: '7d', label: t('uploadRecord.dashboard.timePresetWeek') },
+  { key: '30d', label: t('uploadRecord.dashboard.timePresetMonth') },
+  { key: '1y', label: t('uploadRecord.dashboard.timePresetYear') },
+]
+
+const getTrendDateRange = (): [string, string] => {
+  const today = new Date()
+  const fmt = (d: Date) => d.toISOString().split('T')[0]
+  switch (trendTimeKey.value) {
+    case 'today': return [fmt(today), fmt(today)]
+    case 'yesterday': { const d = new Date(today); d.setDate(d.getDate() - 1); return [fmt(d), fmt(d)] }
+    case '3d': { const d = new Date(today); d.setDate(d.getDate() - 2); return [fmt(d), fmt(today)] }
+    case '7d': { const d = new Date(today); d.setDate(d.getDate() - 6); return [fmt(d), fmt(today)] }
+    case '30d': { const d = new Date(today); d.setDate(d.getDate() - 29); return [fmt(d), fmt(today)] }
+    case '1y': { const d = new Date(today); d.setFullYear(d.getFullYear() - 1); return [fmt(d), fmt(today)] }
+    default: return ['', '']
+  }
+}
+
+const loadTrendData = async () => {
+  try {
+    const params: Record<string, any> = {}
+    Object.assign(params, getGlobalFilterParams())
+    if (trendProjectFilter.value) params.projectName = trendProjectFilter.value
+    const range = getTrendDateRange()
+    if (range[0] && range[1]) { params.startDate = range[0]; params.endDate = range[1] }
+    const res = await UploadRecordApi.statistics(params)
+    statistics.trend = (res.data || {}).trend || []
+    updateTrendChart()
+    updateSparkCharts()
+    if (showTrendFullscreen.value) updateTrendFullscreenChart()
+  } catch { /* silently fail */ }
+}
+
+const setTrendTime = (key: string) => {
+  trendTimeKey.value = key
+  loadTrendData()
+  if (showTrendFullscreen.value) updateTrendFullscreenChart()
+}
+
+// ==================== 图表初始化 ====================
+const chartColorMap = {
+  blue: 'var(--chart-blue)',
+  cyan: 'var(--chart-cyan)',
+  green: 'var(--chart-green)',
+  purple: 'var(--chart-purple)',
+  amber: 'var(--chart-amber)',
+  red: 'var(--chart-red)',
+  pink: 'var(--chart-pink)',
+  indigo: 'var(--chart-indigo)',
+  teal: 'var(--chart-teal)',
+}
+
+// 获取 CSS 变量实际值
+const getCSSVar = (varName: string): string => {
+  if (typeof document === 'undefined') return '#3b82f6'
+  const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
+  return val || '#3b82f6'
+}
+
+const getChartTextColor = () => getCSSVar('--color-text-secondary')
+const getChartBorderColor = () => getCSSVar('--color-border-light')
+
+
+const initCharts = async () => {
+  echarts = await import('echarts')
+
+  if (trendChartRef.value) trendChart = echarts.init(trendChartRef.value)
+
+  updateTrendChart()
+  updateSparkCharts()
+
+  window.addEventListener('resize', handleResize)
+}
+
+const initTrendFullscreen = async () => {
+  await nextTick()
+  if (!trendFullscreenRef.value) return
+  if (!echarts) echarts = await import('echarts')
+  if (!echarts) return
+  if (trendFullscreenChart) trendFullscreenChart.dispose()
+  trendFullscreenChart = echarts.init(trendFullscreenRef.value)
+  updateTrendFullscreenChart()
+}
+
+watch(showTrendFullscreen, (val) => {
+  if (val) {
+    setTimeout(() => initTrendFullscreen(), 50)
+  }
+})
+
+const updateTrendFullscreenChart = () => {
+  if (!trendFullscreenChart || !echarts) return
+  const arr = trendDaily.value || []
+  const dates = arr.map((t: any) => formatAxisDate(t.date))
+  const counts = arr.map((t: any) => t.count)
+  const sizes = arr.map((t: any) => t.totalSize)
+  const maxCount = Math.max(...counts, 1)
+  const maxSize = Math.max(...sizes, 1)
+  const normalizedSizes = sizes.map((s: number) => maxCount > 0 ? (s / maxSize) * maxCount : 0)
+  const textColor = getChartTextColor()
+  const borderColor = getChartBorderColor()
+  const blueHex = getCSSVar('--chart-blue')
+  const blueLight = '#60a8fa'
+  const purpleHex = getCSSVar('--chart-purple')
+  const purpleLight = '#a78bfa'
+
+  trendFullscreenChart.setOption({
+    backgroundColor: 'transparent',
+    animation: true,
+    animationDuration: 1000,
+    animationEasing: 'cubicOut',
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(28,25,23,0.95)',
+      borderColor: 'rgba(255,255,255,0.15)',
+      borderWidth: 1,
+      textStyle: { color: '#fff', fontSize: 13 },
+      axisPointer: { type: 'line', lineStyle: { color: 'rgba(255,255,255,0.2)', type: 'dashed' } },
+      formatter: (params: any) => {
+        const d = arr[params[0].dataIndex]
+        if (!d) return ''
+        const idx = params[0].dataIndex
+        const prevCount = idx > 0 ? arr[idx - 1].count : null
+        const prevSize = idx > 0 ? arr[idx - 1].totalSize : null
+        const countChange = prevCount !== null ? d.count - prevCount : null
+        const sizeChange = prevSize !== null ? d.totalSize - prevSize : null
+        const getChangeHtml = (change: number | null, isSize: boolean) => {
+          if (change === null) return ''
+          const cls = change > 0 ? 'color:#22c55e' : change < 0 ? 'color:#ef4444' : 'color:#9ca3af'
+          const arrow = change > 0 ? '↑' : change < 0 ? '↓' : '→'
+          return `<span style="${cls};font-size:11px;margin-left:8px">${arrow}${isSize ? formatBytes(Math.abs(change)) : Math.abs(change)}</span>`
+        }
+        return `<div style="padding:8px 0;min-width:200px">
+          <div style="font-weight:600;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.1)">${formatTooltipDate(d.date)}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${blueHex}"></span>${t('uploadRecord.dashboard.chartRecordCount')}<span style="margin-left:auto;font-weight:600">${d.count.toLocaleString()}${getChangeHtml(countChange, false)}</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${purpleHex}"></span>${t('uploadRecord.dashboard.chartDataSize')}<span style="margin-left:auto;font-weight:600">${formatBytes(d.totalSize)}${getChangeHtml(sizeChange, true)}</span></div>
+        </div>`
+      },
+    },
+    legend: {
+      data: [t('uploadRecord.dashboard.chartRecordCount'), t('uploadRecord.dashboard.chartDataSize')],
+      top: 12, right: 24, itemWidth: 16, itemHeight: 8,
+      textStyle: { color: textColor, fontSize: 13 },
+    },
+    grid: { top: 60, right: 72, bottom: 48, left: 72 },
+    xAxis: {
+      type: 'category', data: dates,
+      axisLine: { lineStyle: { color: borderColor, width: 1 } },
+      axisTick: { show: false },
+      axisLabel: { color: textColor, fontSize: 12 },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value', max: Math.ceil(maxCount * 1.2),
+      axisLine: { show: false }, axisTick: { show: false },
+      axisLabel: { color: textColor, fontSize: 11, formatter: (v: number) => v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'k' : v },
+      splitLine: { lineStyle: { color: borderColor, width: 1, type: 'dashed' } },
+    },
+    series: [
+      {
+        name: t('uploadRecord.dashboard.chartRecordCount'), type: 'bar', data: counts,
+        barWidth: '32%', barMaxWidth: 48, barGap: '15%',
+        itemStyle: {
+          color: blueHex,
+          borderRadius: [4, 4, 0, 0],
+        },
+        emphasis: {
+          itemStyle: {
+            color: blueLight,
+            shadowBlur: 20,
+            shadowColor: 'rgba(64,158,255,0.6)',
+          },
+        },
+        label: {
+          show: true,
+          position: 'top',
+          color: textColor,
+          fontSize: 11,
+          formatter: (p: any) => p.value > 0 ? (p.value >= 1000 ? (p.value / 1000).toFixed(1) + 'k' : p.value) : '',
+          offset: [0, -6],
+        },
+      },
+      {
+        name: t('uploadRecord.dashboard.chartDataSize'), type: 'bar', data: normalizedSizes,
+        barWidth: '32%', barMaxWidth: 48,
+        itemStyle: {
+          color: purpleHex,
+          borderRadius: [4, 4, 0, 0],
+        },
+        emphasis: {
+          itemStyle: {
+            color: purpleLight,
+            shadowBlur: 20,
+            shadowColor: 'rgba(139,92,246,0.6)',
+          },
+        },
+        label: {
+          show: true,
+          position: 'top',
+          color: textColor,
+          fontSize: 11,
+          formatter: (p: any) => {
+            const origIdx = arr.findIndex((a: any, i: number) => normalizedSizes[i] === p.value)
+            if (origIdx >= 0 && sizes[origIdx] > 0) {
+              return formatBytes(sizes[origIdx])
+            }
+            return ''
+          },
+          offset: [0, -6],
+        },
+      },
+    ],
+  })
+}
+
+const handleResize = () => {
+  trendChart?.resize()
+  Object.values(sparkCharts).forEach((c: any) => c?.resize())
+  trendFullscreenChart?.resize()
+}
+
+// ==================== Trend Chart (双柱样式 - 优化版) ====================
+const updateTrendChart = () => {
+  if (!trendChart || !echarts) return
+  const arr = trendDaily.value || []
+  const dates = arr.map((t: any) => formatAxisDate(t.date))
+  const counts = arr.map((t: any) => t.count)
+  const sizes = arr.map((t: any) => t.totalSize)
+  const maxCount = Math.max(...counts, 1)
+  const maxSize = Math.max(...sizes, 1)
+  const normalizedSizes = sizes.map((s: number) => maxCount > 0 ? (s / maxSize) * maxCount : 0)
+  const textColor = getChartTextColor()
+  const borderColor = getChartBorderColor()
+  const blueHex = getCSSVar('--chart-blue')
+  const blueLight = '#60a8fa'
+  const purpleHex = getCSSVar('--chart-purple')
+  const purpleLight = '#a78bfa'
+
+  trendChart.setOption({
+    backgroundColor: 'transparent',
+    animation: true,
+    animationDuration: 800,
+    animationEasing: 'cubicOut',
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(28,25,23,0.95)',
+      borderColor: 'rgba(255,255,255,0.15)',
+      borderWidth: 1,
+      textStyle: { color: '#fff', fontSize: 12 },
+      axisPointer: { type: 'line', lineStyle: { color: 'rgba(255,255,255,0.2)', type: 'dashed' } },
+      formatter: (params: any) => {
+        const d = arr[params[0].dataIndex]
+        if (!d) return ''
+        const idx = params[0].dataIndex
+        const prevCount = idx > 0 ? arr[idx - 1].count : null
+        const prevSize = idx > 0 ? arr[idx - 1].totalSize : null
+        const countChange = prevCount !== null ? d.count - prevCount : null
+        const sizeChange = prevSize !== null ? d.totalSize - prevSize : null
+        const fmtChange = (v: number) => v > 0 ? `+${v}` : `${v}`
+        const getChangeHtml = (change: number | null, isSize: boolean) => {
+          if (change === null) return ''
+          const cls = change > 0 ? 'color:#22c55e' : change < 0 ? 'color:#ef4444' : 'color:#9ca3af'
+          const arrow = change > 0 ? '↑' : change < 0 ? '↓' : '→'
+          return `<span style="${cls};font-size:10px;margin-left:6px">${arrow}${isSize ? formatBytes(Math.abs(change)) : Math.abs(change)}</span>`
+        }
+        return `<div style="padding:6px 0;min-width:160px">
+          <div style="font-weight:600;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.1)">${formatTooltipDate(d.date)}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${blueHex}"></span>${t('uploadRecord.dashboard.chartRecordCount')}<span style="margin-left:auto;font-weight:600">${d.count.toLocaleString()}${getChangeHtml(countChange, false)}</span></div>
+          <div style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${purpleHex}"></span>${t('uploadRecord.dashboard.chartDataSize')}<span style="margin-left:auto;font-weight:600">${formatBytes(d.totalSize)}${getChangeHtml(sizeChange, true)}</span></div>
+        </div>`
+      }
+    },
+    legend: {
+      data: [t('uploadRecord.dashboard.chartRecordCount'), t('uploadRecord.dashboard.chartDataSize')],
+      top: 4,
+      right: 16,
+      itemWidth: 12,
+      itemHeight: 6,
+      textStyle: { color: textColor, fontSize: 11 },
+    },
+    grid: { top: 40, right: 48, bottom: 24, left: 52 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: borderColor, width: 1 } },
+      axisTick: { show: false },
+      axisLabel: { color: textColor, fontSize: 10 },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      max: Math.ceil(maxCount * 1.2),
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: textColor, fontSize: 9, formatter: (v: number) => v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'k' : v },
+      splitLine: { lineStyle: { color: borderColor, width: 1, type: 'dashed' } },
+    },
+    series: [
+      {
+        name: t('uploadRecord.dashboard.chartRecordCount'),
+        type: 'bar',
+        data: counts,
+        barWidth: '32%',
+        barMaxWidth: 22,
+        barGap: '15%',
+        itemStyle: {
+          color: blueHex,
+          borderRadius: [3, 3, 0, 0],
+        },
+        emphasis: {
+          itemStyle: {
+            color: blueLight,
+            shadowBlur: 12,
+            shadowColor: 'rgba(64,158,255,0.5)',
+          },
+        },
+      },
+      {
+        name: t('uploadRecord.dashboard.chartDataSize'),
+        type: 'bar',
+        data: normalizedSizes,
+        barWidth: '32%',
+        barMaxWidth: 22,
+        itemStyle: {
+          color: purpleHex,
+          borderRadius: [3, 3, 0, 0],
+        },
+        emphasis: {
+          itemStyle: {
+            color: purpleLight,
+            shadowBlur: 12,
+            shadowColor: 'rgba(139,92,246,0.5)',
+          },
+        },
+      },
+    ],
+  })
+}
+
+// ==================== Project Bar List (CSS) ====================
+const updateProjectBarList = () => {
+  const all = (statistics.byProject || [])
+    .map((p: any) => ({ projectName: p.projectName || '(空)', count: p.count || 0, totalSize: p.totalSize || 0 }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10)
+
+  const maxCount = all.length > 0 ? all[0].count : 1
+  projectBarList.value = all.map(p => ({ ...p, pct: Math.round((p.count / maxCount) * 100) }))
+}
+
+// ==================== Disk Label Distribution (CSS) ====================
+const updateDataTypeChart = () => {
+  let all = statistics.byDiskLabel || []
+
+  // filter by project
+  if (diskLabelProjectFilter.value !== 'all') {
+    all = all.filter((d: any) => (d.projectName || 'null') === diskLabelProjectFilter.value)
+  }
+
+  const grouped = new Map<string, { diskLabel: string; count: number; totalSize: number }>()
+
+  all.forEach((d: any) => {
+    let key: string
+    if (diskLabelPrefix.value === 'all') {
+      key = d.diskLabel || '(空)'
+    } else if (diskLabelPrefix.value === 'custom') {
+      key = (d.diskLabel || '').slice(0, diskLabelCustomLen.value) || '(空)'
+    } else {
+      const len = parseInt(diskLabelPrefix.value)
+      key = (d.diskLabel || '').slice(0, len) || '(空)'
+    }
+
+    const existing = grouped.get(key)
+    if (existing) {
+      existing.count += d.count || 0
+      existing.totalSize += d.totalSize || 0
+    } else {
+      grouped.set(key, { diskLabel: key, count: d.count || 0, totalSize: d.totalSize || 0 })
+    }
+  })
+
+  const arr = [...grouped.values()].sort((a, b) => {
+    return diskLabelShowMode.value === 'size' ? b.totalSize - a.totalSize : b.count - a.count
+  }).slice(0, 20)
+
+  const maxVal = arr.length > 0 ? (diskLabelShowMode.value === 'size' ? arr[0].totalSize : arr[0].count) : 1
+  diskLabelList.value = arr.map(item => ({
+    diskLabel: item.diskLabel,
+    count: item.count,
+    totalSize: item.totalSize,
+    pct: Math.round((diskLabelShowMode.value === 'size' ? item.totalSize : item.count) / maxVal * 100),
+  }))
+}
+
+// ==================== 磁盘状态数据加载 ====================
+const loadDiskLabels = async () => {
+  diskLabelsLoading.value = true
+  try {
+    const params: Record<string, any> = {}
+    Object.assign(params, getGlobalFilterParams())
+    // 项目过滤
+    if (diskFilterProject.value) params.projectName = diskFilterProject.value
+    // 标签过滤
+    if (diskFilterLabel.value) params.diskLabel = diskFilterLabel.value
+    // 时间过滤
+    if (diskCustomRange.value?.length === 2) {
+      params.startDate = diskCustomRange.value[0]
+      params.endDate = diskCustomRange.value[1]
+    } else {
+      const today = new Date()
+      const fmt = (d: Date) => d.toISOString().split('T')[0]
+      switch (diskTimeKey.value) {
+        case 'today': params.startDate = fmt(today); params.endDate = fmt(today); break
+        case 'week': { const d = new Date(today); d.setDate(d.getDate() - 6); params.startDate = fmt(d); params.endDate = fmt(today); break }
+        case 'month': { const d = new Date(today); d.setDate(d.getDate() - 29); params.startDate = fmt(d); params.endDate = fmt(today); break }
+        case 'all': break
+      }
+    }
+    const res = await UploadRecordApi.diskLabels(params)
+    diskLabels.value = res.data || []
+    diskLabelTotal.value = diskLabels.value.length
+  } catch { /* silently fail */ }
+  diskLabelsLoading.value = false
+}
+
+const setDiskTime = (key: typeof diskTimeKey.value) => {
+  diskTimeKey.value = key
+  showDiskCustom.value = false
+  diskCustomRange.value = null
+  loadDiskLabels()
+}
+
+const handleDiskCustomChange = () => {
+  showDiskCustom.value = true
+  loadDiskLabels()
+}
+
+// ==================== Spark Charts ====================
+const updateSparkCharts = () => {
+  if (!echarts) return
+  const stats = statCards.value
+  stats.forEach((card) => {
+    const el = sparkRefs.value[card.key]
+    if (!el || !card.sparkData || card.sparkData.length === 0) return
+
+    if (sparkCharts[card.key]) sparkCharts[card.key].dispose()
+    const chart = echarts.init(el)
+    sparkCharts[card.key] = chart
+
+    const hexColor = sparkColorMap[card.key] || '#3b82f6'
+    chart.setOption({
+      grid: { top: 0, right: 0, bottom: 0, left: 0 },
+      xAxis: { type: 'category', data: card.sparkData.map((_: any, i: number) => i), show: false },
+      yAxis: { type: 'value', show: false, min: (val: any) => Math.floor(val.min * 0.9) },
+      series: [{
+        type: 'line',
+        data: card.sparkData,
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { color: hexColor, width: 1.5 },
+      }],
+    })
+  })
+}
+
+// ==================== 数据加载 ====================
+const loadGlobalStats = async () => {
+  try {
+    const params = { ...getGlobalFilterParams() }
+    const res = await UploadRecordApi.statistics(params)
+    const data = res.data || {}
+    statistics.todayCount = data.todayCount ?? 0
+    statistics.todaySize = data.todaySize ?? 0
+    statistics.todaySizeStr = data.todaySizeStr ?? '0 B'
+    ;(statistics as any).todayByStatus = data.todayByStatus || []
+    statistics.weekCount = data.weekCount ?? 0
+    statistics.weekSize = data.weekSize ?? 0
+    statistics.weekSizeStr = data.weekSizeStr || '—'
+    statistics.monthCount = data.monthCount ?? 0
+    statistics.monthSize = data.monthSize ?? 0
+    statistics.monthSizeStr = data.monthSizeStr || '—'
+    statistics.totalCount = data.totalCount ?? 0
+    statistics.totalSize = data.totalSize ?? 0
+    statistics.totalSizeStr = data.totalSizeStr ?? '0 B'
+    statistics.byStatus = data.byStatus || []
+    nextTick(() => triggerCountAnimations())
+  } catch { /* silently fail */ }
+}
+
+const loadFilteredStats = async () => {
+  try {
+    const params: Record<string, any> = {}
+    Object.assign(params, getGlobalFilterParams())
+    if (dateRange.value?.length === 2) { params.startDate = dateRange.value[0]; params.endDate = dateRange.value[1] }
+    if (searchProjectName.value) params.projectName = searchProjectName.value
+    if (searchStatus.value) params.status = searchStatus.value
+    if (searchUploader.value) params.uploader = searchUploader.value
+
+    const res = await UploadRecordApi.statistics(params)
+    const data = res.data || {}
+    statistics.todayCount = data.todayCount ?? 0
+    statistics.todaySize = data.todaySize ?? 0
+    statistics.todaySizeStr = data.todaySizeStr ?? '0 B'
+    ;(statistics as any).todayByStatus = data.todayByStatus || []
+    statistics.weekCount = data.weekCount ?? 0
+    statistics.weekSize = data.weekSize ?? 0
+    statistics.weekSizeStr = data.weekSizeStr || '—'
+    statistics.monthCount = data.monthCount ?? 0
+    statistics.monthSize = data.monthSize ?? 0
+    statistics.monthSizeStr = data.monthSizeStr || '—'
+    statistics.totalCount = data.totalCount ?? 0
+    statistics.totalSize = data.totalSize ?? 0
+    statistics.totalSizeStr = data.totalSizeStr ?? '0 B'
+    statistics.byStatus = data.byStatus || []
+    statistics.byProject = data.byProject || []
+    statistics.byDiskLabel = data.byDiskLabel || []
+
+    updateProjectBarList()
+    updateDataTypeChart()
+    nextTick(() => triggerCountAnimations())
+  } catch (e) { console.error('loadFilteredStats failed', e) }
+}
+
+const loadRecentRecords = async () => {
+  try {
+    const params: any = { ...getGlobalFilterParams(), limit: 20 }
+    const res = await UploadRecordApi.recent(params)
+    recentRecords.value = res.data || []
+  } catch { /* silently fail */ }
+}
+
+const loadOptions = async () => {
+  try {
+    const [diskRes, uploaderRes, projectRes] = await Promise.all([
+      UploadRecordApi.diskLabels(),
+      UploadRecordApi.uploaderList(),
+      ProjectApi.getSimpleList(),
+    ])
+    diskLabelOptions.value = (diskRes.data || []).map((d: any) => d.diskLabel)
+    uploaderOptions.value = uploaderRes.data || []
+    projectList.value = projectRes.data || []
+  } catch { /* silently fail */ }
+}
+
+const handleFilterChange = () => {
+  setGlobalFilter({
+    projectName: searchProjectName.value,
+    status: searchStatus.value,
+    uploader: searchUploader.value,
+  })
+  setTimeRange(activeTimePreset.value)
+  loadFilteredStats()
+  loadGlobalStats()
+  loadRecentRecords()
+  loadTrendData()
+}
+
+const handleDateRangeChange = () => {
+  loadTrendData()
+  loadFilteredStats()
+  loadGlobalStats()
+}
+
+const resetAllFilters = () => {
+  searchProjectName.value = ''
+  searchStatus.value = ''
+  searchUploader.value = ''
+  clearGlobalFilter()
+  setTimePreset('all')
+}
+
+// ==================== 生命周期 ====================
+onMounted(async () => {
+  setTimeRange('month')
+  await loadOptions()
+  await loadGlobalStats()
+  await loadFilteredStats()
+  await loadTrendData()
+  await loadRecentRecords()
+  await loadDiskLabels()
+  await nextTick()
+  await initCharts()
+  isInitialLoading.value = false
+
+  refreshTimer = setInterval(() => {
+    nextRefresh.value = 30
+    const tick = setInterval(() => { nextRefresh.value--; if (nextRefresh.value <= 0) clearInterval(tick) }, 1000)
+    loadGlobalStats()
+    loadFilteredStats()
+    loadTrendData()
+    loadRecentRecords()
+    loadDiskLabels()
+    updateProjectBarList()
+    updateDataTypeChart()
+  }, 30000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  trendChart?.dispose()
+  Object.values(sparkCharts).forEach((c: any) => c?.dispose())
+  window.removeEventListener('resize', handleResize)
+})
+</script>
+
+<style scoped lang="scss">
+/* ==================== 字体定义 ==================== */
+// 确保 Manrope + Inter 可用；回退系统字体
+.dashboard {
+  width: 100%;
+  min-height: 100vh;
+  background: var(--color-page-bg);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.dashboard-main {
+  padding: var(--space-6) var(--space-6) var(--space-8);
+  min-width: 0;
+}
+
+/* ==================== 页面头部 ==================== */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.page-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  position: relative;
+  overflow: visible;
+  min-width: 0;
+}
+.meta-project-select {
+  width: 150px;
+  flex-shrink: 0;
+}
+.fullscreen-project-select {
+  width: 160px;
+  flex-shrink: 0;
+}
+.time-preset-strip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 1px;
+  flex-shrink: 0;
+}
+.time-preset-btn {
+  padding: 5px 13px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
+  outline: none;
+}
+.time-preset-btn:hover:not(.is-active) {
+  color: var(--color-primary);
+  background: var(--color-primary-light-9);
+}
+.time-preset-btn.is-active {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(27,58,138,0.3);
+}
+.time-preset-btn.is-active:hover {
+  background: var(--color-primary-hover);
+}
+
+/* 自定义日期触发器 */
+.date-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+  flex-shrink: 0;
+}
+.date-trigger svg {
+  color: inherit;
+  flex-shrink: 0;
+}
+.date-trigger:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.date-trigger.is-active {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-light-9);
+}
+.date-trigger__label {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 日期面板（垂直设计） */
+.date-panel {
+  padding: 10px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.date-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.date-panel__tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  width: 22px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.date-panel__picker {
+  flex: 1;
+}
+.date-panel__picker :deep(.el-input__wrapper) {
+  background: var(--color-surface-2);
+  box-shadow: none !important;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0 6px;
+  transition: border-color 0.15s;
+}
+.date-panel__picker :deep(.el-input__wrapper:hover),
+.date-panel__picker :deep(.el-input__wrapper.is-focus) {
+  border-color: var(--color-primary);
+}
+.date-panel__picker :deep(.el-input__inner) {
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+.date-panel__divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+.date-panel__line {
+  flex: 1;
+  height: 1px;
+  background: var(--color-border-light);
+}
+.date-panel__arrow {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+.date-panel__summary {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: var(--color-primary-light-9);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.date-panel__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border-light);
+}
+.date-panel__actions .el-button--small {
+  font-size: 12px;
+}
+
+/* 日期下拉面板 */
+.date-dropdown-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9998;
+}
+.date-dropdown {
+  position: fixed;
+  z-index: 9999;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  min-width: 220px;
+}
+.date-trigger-wrap {
+  flex-shrink: 0;
+}
+.time-preset-btn:hover:not(.is-active) {
+  color: var(--color-primary);
+  background: var(--color-primary-light-9);
+}
+.time-preset-btn.is-active {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(27,58,138,0.3);
+}
+.page-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin: 0;
+  letter-spacing: -0.5px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 自动刷新指示器 */
+.auto-refresh {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.auto-refresh .refresh-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+  animation: pulse 2s ease-in-out infinite;
+}
+.auto-refresh.refreshing .refresh-dot {
+  background: var(--color-warning);
+  animation: none;
+}
+.auto-refresh.refreshing .refresh-text {
+  color: var(--color-warning);
+  font-weight: 600;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+/* ==================== KPI 卡片行 ==================== */
+.stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+/* filter-strip 已移除，改用 Popover 方式 */
+
+/* ==================== KPI 卡片 ==================== */
+
+.stat-card {
+  flex: 1 1 calc(20% - 14px);
+  min-width: 160px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  position: relative;
+  transition: box-shadow var(--duration-normal) var(--ease-out);
+  display: flex;
+  flex-direction: column;
+  animation: card-appear 0.5s var(--ease-spring) both;
+}
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* 图标 + 标签行 */
+.stat-card__top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.stat-card__icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.stat-card__icon-svg {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+}
+.stat-card__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* 数字 + 单位 */
+.stat-card__value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.stat-card__big-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  line-height: 1;
+  letter-spacing: -1.5px;
+  -webkit-font-smoothing: antialiased;
+  font-family: 'Manrope', 'Inter', system-ui, sans-serif;
+}
+.stat-card__unit {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+/* 对比徽章 */
+.stat-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  min-height: 22px;
+}
+.stat-card__size {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.stat-card__comparison {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+.stat-card__comparison.trend--up {
+  color: var(--color-trend-up);
+  background: var(--color-trend-up-bg);
+}
+.stat-card__comparison.trend--down {
+  color: var(--color-trend-down);
+  background: var(--color-trend-down-bg);
+}
+
+/* 迷你趋势线 (Sparkline) */
+.stat-card__spark {
+  width: 100%;
+  height: 40px;
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.stat-card__sparkline { width: 100%; height: 40px; }
+
+/* 成功率 ring gauge (50x50px) */
+.rate-gauge { display: flex; align-items: center; justify-content: center; }
+.rate-gauge__svg { width: 50px; height: 50px; }
+.rate-gauge__bg {
+  fill: none;
+  stroke: var(--color-surface-3);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.rate-gauge__fill {
+  fill: none;
+  stroke: var(--chart-green);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 25px 25px;
+  transition: stroke-dasharray 0.6s ease;
+}
+.rate-gauge__text {
+  font-family: 'Manrope', 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  fill: var(--color-text-primary);
+}
+
+/* ==================== Skeleton Loading ==================== */
+.skeleton-card {
+  .skeleton {
+    background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-50) 50%, var(--gray-100) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-sm);
+  }
+  .sk-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+  }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ==================== 图表网格布局（行分组）==================== */
+.row-grid {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.row-grid--2col {
+  grid-template-columns: 1fr 1fr;
+}
+.row-grid--2col-40-60 {
+  grid-template-columns: 2fr 3fr;
+}
+.align-stretch .panel,
+.align-stretch .insight-panel {
+  align-self: stretch;
+}
+
+/* ==================== 面板通用 ==================== */
+.panel {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border-light);
+  transition: box-shadow var(--duration-normal) var(--ease-out);
+}
+.panel:hover { box-shadow: var(--shadow-md); }
+
+.panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border-light);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.panel__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+.panel__meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.panel__header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
+}
+.trend-project-select { min-width: 110px; max-width: 140px; }
+.trend-project-select :deep(.el-select__wrapper),
+.meta-project-select :deep(.el-select__wrapper),
+.fullscreen-project-select :deep(.el-select__wrapper) {
+  height: 32px !important;
+  min-height: 32px !important;
+  border-radius: 6px;
+  box-shadow: none !important;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+}
+.trend-project-select :deep(.el-select__wrapper:hover),
+.meta-project-select :deep(.el-select__wrapper:hover),
+.fullscreen-project-select :deep(.el-select__wrapper:hover) {
+  border-color: var(--color-primary);
+}
+.trend-project-select :deep(.el-select__wrapper.is-focused),
+.meta-project-select :deep(.el-select__wrapper.is-focused),
+.fullscreen-project-select :deep(.el-select__wrapper.is-focused) {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1) !important;
+}
+.trend-project-select :deep(.el-select__input),
+.meta-project-select :deep(.el-select__input),
+.fullscreen-project-select :deep(.el-select__input) {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.trend-project-select :deep(.el-select__placeholder),
+.meta-project-select :deep(.el-select__placeholder),
+.fullscreen-project-select :deep(.el-select__placeholder) {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.panel__link {
+  font-size: 12px;
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+.panel__link:hover { text-decoration: underline; }
+
+.panel__body { padding: 14px 18px; }
+.panel__body--chart { padding: 10px 14px 14px; }
+.panel__body--activity { padding: 0; max-height: 280px; overflow-y: auto; }
+
+/* ==================== 时间药片按钮 ==================== */
+.panel__time-pills {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 1px;
+}
+.time-pill {
+  padding: 5px 13px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
+  outline: none;
+}
+.time-pill:hover:not(.is-active) {
+  color: var(--color-primary);
+  background: var(--color-primary-light-9);
+}
+.time-pill.is-active {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(27,58,138,0.3);
+}
+
+/* ==================== 图表画布 ==================== */
+.chart-canvas { width: 100%; }
+.chart-canvas--trend { height: 340px; }
+
+/* ==================== 洞察面板容器 ==================== */
+.insight-panel {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-light);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.insight-card {
+  background: transparent;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  transition: box-shadow var(--duration-normal) var(--ease-out), border-color var(--duration-fast);
+  flex: 1;
+}
+.insight-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary);
+}
+.insight-card__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-light-9);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.insight-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.insight-card__title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.insight-card__desc {
+  font-size: 12.5px;
+  color: var(--color-text-primary);
+  line-height: 1.5;
+}
+.diskstatus-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.diskstatus-select { min-width: 68px; max-width: 80px; }
+.diskstatus-time-group {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 1px;
+}
+.diskstatus-time-btn {
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  border-radius: calc(var(--radius-sm) - 1px);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  outline: none;
+  white-space: nowrap;
+}
+.diskstatus-time-btn:hover:not(.is-active) {
+  color: var(--color-primary);
+  background: var(--color-primary-light-9);
+}
+.diskstatus-time-btn.is-active {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+}
+.diskstatus-time-btn--custom {
+  border-left: 1px solid var(--color-border);
+  padding-left: 8px;
+  border-radius: 0 calc(var(--radius-sm) - 1px) calc(var(--radius-sm) - 1px) 0;
+  display: flex;
+  align-items: center;
+}
+.diskstatus-custom-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.diskstatus-custom-picker { width: 180px; }
+.diskstatus-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: all var(--duration-fast);
+}
+.diskstatus-back-btn:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+/* ==================== Row 高度对齐 ==================== */
+.panel__body--diskstatus {
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+}
+.diskstatus-loading { padding: 12px 16px; }
+.diskstatus-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+}
+.diskstatus-skeleton {
+  height: 60px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-50) 50%, var(--gray-100) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+.diskstatus-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 20px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+.diskstatus-grid-scroll {
+  padding: 10px 16px 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.diskstatus-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+}
+.diskstatus-tile {
+  border-radius: var(--radius-md);
+  padding: 6px 4px 5px;
+  cursor: default;
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+  min-height: 48px;
+  display: flex;
+  align-items: stretch;
+}
+.diskstatus-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.diskstatus-tile--completed { background: #dcfce7; border: 1px solid #86efac; }
+.diskstatus-tile--failed { background: #fee2e2; border: 1px solid #fca5a5; }
+.diskstatus-tile--mixed { background: #fef3c7; border: 1px solid #fcd34d; }
+.diskstatus-tile--pending { background: var(--color-surface-2); border: 1px solid var(--color-border); }
+.diskstatus-tile__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+.diskstatus-tile__name {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+  line-height: 1.3;
+}
+.diskstatus-tile__count {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.diskstatus-tile__size {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.diskstatus-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px 10px;
+  flex-wrap: wrap;
+}
+.diskstatus-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+.diskstatus-legend__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.diskstatus-legend__item--completed .diskstatus-legend__dot { background: #86efac; }
+.diskstatus-legend__item--failed .diskstatus-legend__dot { background: #fca5a5; }
+.diskstatus-legend__item--mixed .diskstatus-legend__dot { background: #fcd34d; }
+.diskstatus-legend__item--pending .diskstatus-legend__dot { background: var(--color-border); }
+
+/* ==================== 全屏趋势图 Modal ==================== */
+/* ==================== 全屏 Overlay ==================== */
+.fs-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 2000;
+  overflow-y: auto;
+}
+.fs-dialog {
+  background: var(--color-page-bg);
+  width: 100%;
+  min-height: 100vh;
+  animation: fs-in 0.2s ease;
+}
+@keyframes fs-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+.fs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-light);
+  flex-shrink: 0;
+}
+.fs-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.fs-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+.fs-close:hover {
+  background: var(--color-border-light);
+  color: var(--color-text-primary);
+}
+.fs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-light);
+  flex-shrink: 0;
+}
+.fs-chart-wrap {
+  padding: 12px 16px 16px;
+  overflow: hidden;
+}
+.fs-chart {
+  width: 100%;
+  height: 520px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-light);
+}
+.trend-fullscreen-dialog .el-dialog__body {
+  padding: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.trend-fullscreen-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-light);
+  flex-wrap: nowrap;
+}
+.trend-fullscreen-chart {
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  background: var(--color-page-bg);
+}
+.trend-fullscreen-body {
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  background: var(--color-page-bg);
+}
+
+.trend-fullscreen-toolbar .panel__time-pills {
+  flex-shrink: 0;
+}
+.trend-fullscreen-body {
+  flex: 1;
+  min-height: 0;
+  padding: 20px;
+  background: var(--color-page-bg);
+}
+.disk-fullscreen-dialog .el-dialog__header {
+  display: none;
+}
+.disk-fullscreen-dialog .el-dialog__body {
+  padding: 0;
+  height: 100vh;
+}
+.disk-fullscreen-body {
+  height: 100%;
+  padding: 20px;
+  background: var(--color-page-bg);
+  overflow-y: auto;
+}
+.disk-fullscreen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+.disk-fullscreen-tile {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--duration-fast);
+}
+.disk-fullscreen-tile:hover {
+  border-color: var(--color-border);
+}
+.disk-fullscreen-tile__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+.disk-fullscreen-label {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  word-break: break-all;
+  text-align: center;
+  line-height: 1.2;
+}
+.disk-fullscreen-count {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.disk-fullscreen-size {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.disk-fullscreen-tile--completed { background: #f0fdf4; border-color: #bbf7d0; }
+.disk-fullscreen-tile--failed { background: #fef2f2; border-color: #fecaca; }
+.disk-fullscreen-tile--mixed { background: #fffbeb; border-color: #fde68a; }
+.disk-fullscreen-tile--pending { background: #eff6ff; border-color: #bfdbfe; }
+.disk-fullscreen-tile--processing { background: #f5f3ff; border-color: #ddd6fe; }
+
+/* ==================== 项目分布面板 ==================== */
+.panel__body--project {
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.project-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.project-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+.project-list {
+  padding: 4px 0;
+}
+.project-row {
+  display: grid;
+  grid-template-columns: 22px 10px 1fr 100px 130px 44px;
+  gap: 6px;
+  align-items: center;
+  padding: 5px 16px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--color-border-light);
+  transition: background var(--duration-fast);
+}
+.project-row:last-child { border-bottom: none; }
+.project-row:hover { background: rgba(27,58,138,0.03); }
+.project-idx {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+.project-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.project-name {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-bar {
+  height: 6px;
+  background: var(--color-surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.project-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.project-value {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.project-pct {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-align: right;
+}
+.project-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+.project-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: color var(--duration-fast);
+}
+.project-toggle-btn:hover { color: var(--color-primary-hover); }
+
+/* ==================== 磁盘标签分布面板 ==================== */
+.panel__body--dtype {
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.dtype-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.dtype-project-select-wrap {
+  min-width: 90px;
+}
+.dtype-project-select { width: 100%; }
+.dtype-prefix-pills {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 1px;
+}
+.dtype-pill {
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  border-radius: calc(var(--radius-sm) - 1px);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  white-space: nowrap;
+  outline: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.dtype-pill:hover:not(.active) {
+  color: var(--color-primary);
+  background: var(--color-primary-light-9);
+}
+.dtype-pill.active {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+}
+.dtype-pill--custom {
+  border-left: 1px solid var(--color-border);
+  margin-left: 0;
+  padding-left: 8px;
+  border-radius: 0 calc(var(--radius-sm) - 1px) calc(var(--radius-sm) - 1px) 0;
+}
+.dtype-custom-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.dtype-custom-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+.dtype-custom-input {
+  width: 48px;
+  padding: 3px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  outline: none;
+  text-align: center;
+}
+.dtype-custom-input:focus { border-color: var(--color-primary); }
+.dtype-mode-toggle {
+  display: inline-flex;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 1px;
+}
+.dtype-mode-btn {
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  border-radius: calc(var(--radius-sm) - 1px);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  outline: none;
+}
+.dtype-mode-btn.active {
+  background: var(--color-primary);
+  color: #fff;
+}
+.dtype-list { padding: 4px 0; }
+.dtype-row {
+  display: grid;
+  grid-template-columns: 22px 10px 1fr 100px 80px 90px 44px;
+  gap: 6px;
+  align-items: center;
+  padding: 5px 16px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--color-border-light);
+  transition: background var(--duration-fast);
+}
+.dtype-row:last-child { border-bottom: none; }
+.dtype-row:hover { background: rgba(27,58,138,0.03); }
+.dtype-idx {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+.dtype-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dtype-name {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+}
+.dtype-bar {
+  height: 6px;
+  background: var(--color-surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.dtype-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.dtype-value {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dtype-count em {
+  font-style: normal;
+  color: var(--color-text-muted);
+}
+.dtype-size { font-variant-numeric: tabular-nums; }
+.dtype-pct {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-align: right;
+}
+.dtype-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+/* ==================== 活动表格 ==================== */
+.activity-table { width: 100%; }
+.table-head {
+  display: grid;
+  grid-template-columns: 40px 1.2fr 80px 70px 64px 76px;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--gray-50);
+}
+.table-row {
+  display: grid;
+  grid-template-columns: 40px 1.2fr 80px 70px 64px 76px;
+  gap: 8px;
+  padding: 9px 16px;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border-light);
+  font-size: 12px;
+  color: var(--color-text-primary);
+  transition: background var(--duration-fast);
+}
+.table-row:last-child { border-bottom: none; }
+.table-row:hover { background: rgba(27,58,138,0.03); }
+.table-row.row--alt { background: var(--color-surface-2); }
+.table-row.row--alt:hover { background: rgba(27,58,138,0.05); }
+
+.row-num {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.row-serial {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.col-disk {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+}
+.col-size {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.row-time {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+}
+.status-badge.badge--success { background: var(--color-success-bg); color: var(--color-success-text); }
+.status-badge.badge--warning { background: var(--color-warning-bg); color: var(--color-warning-text); }
+.status-badge.badge--info { background: var(--color-info-bg); color: var(--color-info-text); }
+.status-badge.badge--danger { background: var(--color-danger-bg); color: var(--color-danger-text); }
+
+.activity-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--color-primary-light-9);
+  color: var(--color-primary);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.activity-filter-badge button {
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  line-height: 1;
+}
+.activity-filter-badge button:hover { color: var(--color-danger); }
+
+.table-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+/* ==================== 空状态 ==================== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+/* 嵌入趋势面板底部 */
+.filter-strip--embedded {
+  margin: 0;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  background: var(--color-surface);
+}
+
+/* ==================== 筛选 Popover ==================== */
+.filter-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  padding: 5px 12px;
+  height: 32px;
+  transition: all var(--duration-fast);
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+}
+.filter-icon-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.filter-icon-btn.has-filters {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(27, 58, 138, 0.06);
+}
+.filter-icon-btn__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.filter-popover__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.fp-section {
+  padding: 12px 2px;
+}
+.fp-section__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 8px;
+}
+.fp-divider {
+  height: 1px;
+  background: var(--color-border-light);
+  margin: 0 -12px;
+}
+.fp-time-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.fp-time-btn {
+  padding: 5px 11px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  outline: none;
+}
+.fp-time-btn:hover:not(.is-active) {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-light-9);
+}
+.fp-time-btn.is-active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+}
+.filter-popover__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-light);
+  margin-top: 4px;
+}
+
+/* ==================== 卡片出现动画 ==================== */
+@keyframes card-appear {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.card-appear {
+  animation: card-appear 0.5s var(--ease-spring) both;
+}
+
+/* ==================== 响应式 ==================== */
+@media (max-width: 1100px) {
+  .row-grid--2col { grid-template-columns: 1fr; }
+  .row-grid--2col-40-60 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 700px) {
+  .dashboard-main { padding: 16px 12px 24px; }
+  .stats-row { gap: 8px; }
+  .stat-card { flex: 1 1 calc(50% - 8px); min-width: 140px; }
+  .stat-card__big-value { font-size: 24px; }
+  .page-header { flex-direction: column; align-items: flex-start; }
+}
+</style>

@@ -1,0 +1,31 @@
+[2026-04-22 23:19:13] [INFO] Starting Data Registry server...
+[2026-04-22 23:19:13] [INFO] Database(sqlite) initialized successfully
+[2026-04-22 23:19:17] [INFO] Default role created: 管理员
+[2026-04-22 23:19:17] [INFO] Default role created: 数据操作员
+[2026-04-22 23:19:18] [INFO] Default role created: 项目管理员
+[2026-04-22 23:19:18] [INFO] Default role created: 审计账号
+[2026-04-22 23:19:18] [INFO] Default role created: 普通查看者
+[2026-04-22 23:19:18] [INFO] Default admin user created: admin / admin123 (roleID=1)
+[2026-04-22 23:19:18] [INFO] Default security settings created
+[2026-04-22 23:19:18] [INFO] Data initialization completed
+[2026-04-22 23:19:18] [INFO] 未找到断点文件，将从头同步: open /mnt/d/ai-projects/datamanager/DataRegistry/backend/data/sync_checkpoint_local-agent-test.json: no such file or directory
+[2026-04-22 23:19:18] [INFO] [Auth] 从 sync_auth.json 加载 API Key 成功，stationID=2
+[2026-04-22 23:19:18] [INFO] 使用 app.yaml 中的 API Key 连接到 Center
+[2026-04-22 23:19:18] [INFO] 同步调度器已启动，Mode: agent，间隔: 30s，批量大小: 10
+[2026-04-22 23:19:18] [INFO] Server listening on :18422
+[2026-04-22 23:19:48] [WARN] 心跳发送失败: 心跳失败，状态码: 401
+[2026-04-22 23:27:29] [INFO] Starting Data Registry server...
+[2026-04-22 23:27:29] [INFO] Database(sqlite) initialized successfully
+[2026-04-22 23:27:29] [INFO] Default role updated: 管理员
+[2026-04-22 23:27:29] [INFO] Default role updated: 数据操作员
+[2026-04-22 23:27:29] [INFO] Default role updated: 项目管理员
+[2026-04-22 23:27:30] [INFO] Default role updated: 审计账号
+[2026-04-22 23:27:30] [INFO] Default role updated: 普通查看者
+[2026-04-22 23:27:30] [INFO] Security settings already exist, skipping initialization
+[2026-04-22 23:27:30] [INFO] Data initialization completed
+[2026-04-22 23:27:30] [INFO] 未找到断点文件，将从头同步: open /mnt/d/ai-projects/datamanager/DataRegistry/backend/data/sync_checkpoint_local-agent-test.json: no such file or directory
+[2026-04-22 23:27:30] [INFO] API Key 已保存到 /mnt/d/ai-projects/datamanager/DataRegistry/backend/data/sync_auth.json
+[2026-04-22 23:27:30] [INFO] 自动注册成功，站点ID: 1
+[2026-04-22 23:27:30] [INFO] 同步调度器已启动，Mode: agent，间隔: 30s，批量大小: 10
+[2026-04-22 23:27:30] [INFO] Server listening on :18422
+[2026-04-22 23:27:59] [WARN] 心跳发送失败: 心跳失败，状态码: 401

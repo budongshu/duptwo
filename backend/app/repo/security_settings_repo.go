@@ -39,6 +39,33 @@ func (r *SecuritySettingsRepo) Create(settings *model.SecuritySettings) error {
 	return global.DB.Create(settings).Error
 }
 
+// SaveADConfig 保存 AD 域配置到 security_settings 表（仅更新 AD 相关字段，保留其他安全设置）
+func (r *SecuritySettingsRepo) SaveADConfig(settings *model.SecuritySettings) error {
+	// 获取现有记录，保留其他字段
+	var existing model.SecuritySettings
+	err := global.DB.First(&existing).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return global.DB.Create(settings).Error
+		}
+		return err
+	}
+	// 仅更新 AD 相关字段
+	existing.ADEnabled = settings.ADEnabled
+	existing.ADServer = settings.ADServer
+	existing.ADPort = settings.ADPort
+	existing.ADUseSSL = settings.ADUseSSL
+	existing.ADBaseDN = settings.ADBaseDN
+	existing.ADBindDN = settings.ADBindDN
+	existing.ADBindPassword = settings.ADBindPassword
+	existing.ADUserFilter = settings.ADUserFilter
+	existing.ADAutoRegister = settings.ADAutoRegister
+	existing.ADDefaultRoleID = settings.ADDefaultRoleID
+	existing.ADLastSyncAt = settings.ADLastSyncAt
+	existing.ADLastSyncCount = settings.ADLastSyncCount
+	return global.DB.Save(&existing).Error
+}
+
 type LoginLockoutRepo struct{}
 
 func NewLoginLockoutRepo() *LoginLockoutRepo {
@@ -64,10 +91,12 @@ func (r *LoginLockoutRepo) CreateOrUpdate(record *model.LoginLockout) error {
 		// 不存在，创建
 		return global.DB.Create(record).Error
 	}
-	// 存在，更新
-	record.ID = existing.ID
-	record.CreatedAt = existing.CreatedAt
-	return global.DB.Save(record).Error
+	// 存在，只更新需要变更的字段，保留锁定相关状态
+	existing.FailCount = record.FailCount
+	existing.Locked = record.Locked
+	existing.LockedAt = record.LockedAt
+	existing.Reason = record.Reason
+	return global.DB.Save(&existing).Error
 }
 
 func (r *LoginLockoutRepo) ResetByTarget(target, lockType string) error {

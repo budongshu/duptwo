@@ -767,7 +767,7 @@
           v-model:current-page="pagination.page"
           v-model:page-size="pagination.pageSize"
           :total="pagination.total"
-          :page-sizes="[10, 20, 50, 100]"
+          :page-sizes="[10, 20, 50, 100, 200]"
           layout="total, sizes, prev, pager, next"
           background
           @current-change="loadRecords"
@@ -874,6 +874,15 @@
           <span class="detail-row__label">备注</span>
           <span class="detail-row__text">{{ currentRecord.remark }}</span>
         </div>
+
+        <!-- 动态字段 -->
+        <template v-if="detailDynamicFields.length > 0">
+          <div class="detail-divider"></div>
+          <div class="detail-row" v-for="col in detailDynamicFields" :key="col.code">
+            <span class="detail-row__label">{{ col.name }}</span>
+            <span class="detail-row__text">{{ formatDetailValue(currentRecord.data?.[col.code], col) }}</span>
+          </div>
+        </template>
       </div>
     </el-dialog>
 
@@ -922,14 +931,17 @@
         <template v-if="dynamicColumns.length > 0">
           <div class="edit-divider"></div>
           <div class="edit-row" v-for="col in dynamicColumns" :key="col.code">
-            <label class="edit-row__label">{{ col.name }}</label>
-            <el-select v-if="col.type === 'select'" v-model="editForm.data[col.code]" clearable :placeholder="col.placeholder || '请选择'">
+            <label class="edit-row__label">
+              <span>{{ col.name }}</span>
+              <span v-if="col.required" class="field-required">*</span>
+            </label>
+            <el-select v-if="col.type === 'select'" v-model="editForm.data[col.code]" clearable :placeholder="col.placeholder || (col.required ? '请选择' + col.name : '请选择')">
               <el-option v-for="opt in col.options" :key="opt" :label="opt" :value="opt" />
             </el-select>
-            <el-date-picker v-else-if="col.type === 'date'" v-model="editForm.data[col.code]" type="date" value-format="YYYY-MM-DD" :placeholder="col.placeholder || '选择日期'" popper-class="date-picker-popper" />
-            <el-date-picker v-else-if="col.type === 'datetime'" v-model="editForm.data[col.code]" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" :placeholder="col.placeholder || '选择时间'" popper-class="date-picker-popper" />
-            <el-input-number v-else-if="col.type === 'number'" v-model="editForm.data[col.code]" :placeholder="col.placeholder || '输入数字'" />
-            <el-input v-else v-model="editForm.data[col.code]" :placeholder="col.placeholder || '输入内容'" />
+            <el-date-picker v-else-if="col.type === 'date'" v-model="editForm.data[col.code]" type="date" value-format="YYYY-MM-DD" :placeholder="col.placeholder || (col.required ? '请选择' + col.name + '日期' : '选择日期')" popper-class="date-picker-popper" />
+            <el-date-picker v-else-if="col.type === 'datetime'" v-model="editForm.data[col.code]" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" :placeholder="col.placeholder || (col.required ? '请选择' + col.name + '时间' : '选择时间')" popper-class="date-picker-popper" />
+            <el-input-number v-else-if="col.type === 'number'" v-model="editForm.data[col.code]" :placeholder="col.placeholder || (col.required ? '请输入' + col.name : '输入数字')" />
+            <el-input v-else v-model="editForm.data[col.code]" :placeholder="col.placeholder || (col.required ? '请输入' + col.name : '输入内容')" />
           </div>
         </template>
       </div>
@@ -946,7 +958,7 @@
     <!-- 新增上传记录弹窗 -->
     <el-dialog
       v-model="createVisible"
-      width="560px"
+      width="640px"
       :close-on-click-modal="false"
       append-to-body
       class="create-dialog"
@@ -965,88 +977,116 @@
         </div>
       </template>
 
-      <!-- 表单区域 -->
-      <div class="create-form">
+      <!-- 表单区域 - 单列紧凑布局 -->
+      <div class="create-form create-form--compact">
 
-        <!-- 提示卡片 -->
-        <div class="form-hint">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <span><em>*</em> 为必填项</span>
-        </div>
-
-        <!-- 基础信息 -->
-        <div class="form-section">
-          <div class="form-section__label">基础信息</div>
-          <div class="form-row">
-            <div class="form-item">
-              <label class="form-item__label">磁盘标签 <em>*</em></label>
-              <el-input v-model="createForm.diskLabel" :placeholder="t('uploadRecord.list.createDiskLabelPlaceholder')" clearable />
-            </div>
-            <div class="form-item">
-              <label class="form-item__label">项目名称 <em>*</em></label>
-              <el-select v-model="createForm.projectName" :placeholder="t('uploadRecord.list.createProjectNamePlaceholder')" clearable filterable allow-create default-first-option :reserve-keyword="false">
-                <el-option v-for="p in projectList" :key="p.id" :label="p.name" :value="p.name" />
-              </el-select>
-            </div>
+        <!-- 基础信息区块 -->
+        <div class="form-block">
+          <div class="form-block__header">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            必填信息
           </div>
-          <div class="form-row">
-            <div class="form-item">
-              <label class="form-item__label">上传人 <em>*</em></label>
-              <el-select v-model="createForm.uploader" :placeholder="t('uploadRecord.list.createUploaderPlaceholder')" filterable allow-create default-first-option :reserve-keyword="false">
-                <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name" />
-              </el-select>
-            </div>
-            <div class="form-item">
-              <label class="form-item__label">状态 <em>*</em></label>
-              <el-select v-model="createForm.status">
-                <el-option :label="t('status.pending')" value="pending"><span class="status-dot status-dot--pending"></span> {{ t('status.pending') }}</el-option>
-                <el-option :label="t('status.processing')" value="processing"><span class="status-dot status-dot--processing"></span> {{ t('status.processing') }}</el-option>
-                <el-option :label="t('status.completed')" value="completed"><span class="status-dot status-dot--completed"></span> {{ t('status.completed') }}</el-option>
-                <el-option :label="t('status.failed')" value="failed"><span class="status-dot status-dot--failed"></span> {{ t('status.failed') }}</el-option>
-              </el-select>
-            </div>
-          </div>
-        </div>
-
-        <!-- 文件信息 -->
-        <div class="form-section">
-          <div class="form-section__label">文件信息</div>
-          <div class="form-row">
-            <div class="form-item form-item--full">
-              <label class="form-item__label">目标路径</label>
-              <el-input v-model="createForm.destPath" :placeholder="t('uploadRecord.list.createDestPathPlaceholder')" clearable />
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-item">
-              <label class="form-item__label">文件大小</label>
-              <div class="size-input">
-                <el-input-number v-model="fileSizeInputVal" :min="0" :precision="3" controls-position="right" @change="syncFileSizeFromInput" />
-                <el-select v-model="fileSizeUnit" @change="syncFileSizeFromInput">
-                  <el-option label="B" value="B" /><el-option label="KB" value="KB" /><el-option label="MB" value="MB" /><el-option label="GB" value="GB" /><el-option label="TB" value="TB" />
+          <div class="form-fields">
+            <div class="field-row field-row--2col">
+              <div class="field-item">
+                <label class="field-label">磁盘标签 <span class="required">*</span></label>
+                <el-input v-model="createForm.diskLabel" placeholder="输入磁盘标签" clearable />
+              </div>
+              <div class="field-item">
+                <label class="field-label">项目名称 <span class="required">*</span></label>
+                <el-select v-model="createForm.projectName" placeholder="选择项目" clearable filterable allow-create default-first-option :reserve-keyword="false">
+                  <el-option v-for="p in projectList" :key="p.id" :label="p.name" :value="p.name" />
                 </el-select>
               </div>
-              <span class="form-hint-inline" v-if="fileSizeInputVal > 0">≈ {{ formatSizeInOtherUnits(fileSizeInputVal, fileSizeUnit) }}</span>
             </div>
-          </div>
-          <div class="form-row">
-            <div class="form-item form-item--date">
-              <label class="form-item__label">创建时间</label>
-              <el-date-picker
-                v-model="createForm.createdAt"
-                type="datetime"
-                value-format="YYYY-MM-DD HH:mm:ss"
-                :placeholder="t('uploadRecord.list.datePlaceholder')"
-                popper-class="date-picker-popper"
-              />
+            <div class="field-row field-row--2col">
+              <div class="field-item">
+                <label class="field-label">上传人 <span class="required">*</span></label>
+                <el-select v-model="createForm.uploader" placeholder="选择上传人" filterable allow-create default-first-option :reserve-keyword="false">
+                  <el-option v-for="p in personnelList" :key="p.id" :label="p.name" :value="p.name" />
+                </el-select>
+              </div>
+              <div class="field-item">
+                <label class="field-label">状态 <span class="required">*</span></label>
+                <el-select v-model="createForm.status">
+                  <el-option :label="t('status.pending')" value="pending"><span class="status-dot status-dot--pending"></span> {{ t('status.pending') }}</el-option>
+                  <el-option :label="t('status.processing')" value="processing"><span class="status-dot status-dot--processing"></span> {{ t('status.processing') }}</el-option>
+                  <el-option :label="t('status.completed')" value="completed"><span class="status-dot status-dot--completed"></span> {{ t('status.completed') }}</el-option>
+                  <el-option :label="t('status.failed')" value="failed"><span class="status-dot status-dot--failed"></span> {{ t('status.failed') }}</el-option>
+                </el-select>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- 备注 -->
-        <div class="form-section">
-          <div class="form-section__label">备注</div>
-          <el-input v-model="createForm.remark" type="textarea" :rows="2" :placeholder="t('uploadRecord.list.createRemarkPlaceholder')" show-word-limit maxlength="500" />
+        <!-- 文件信息区块 -->
+        <div class="form-block">
+          <div class="form-block__header">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            文件信息
+          </div>
+          <div class="form-fields">
+            <div class="field-row">
+              <div class="field-item field-item--full">
+                <label class="field-label">目标路径</label>
+                <el-input v-model="createForm.destPath" placeholder="输入目标路径" clearable />
+              </div>
+            </div>
+            <div class="field-row field-row--2col">
+              <div class="field-item">
+                <label class="field-label">文件大小</label>
+                <div class="size-input">
+                  <el-input-number v-model="fileSizeInputVal" :min="0" :precision="3" controls-position="right" @change="syncFileSizeFromInput" />
+                  <el-select v-model="fileSizeUnit" @change="syncFileSizeFromInput">
+                    <el-option label="B" value="B" /><el-option label="KB" value="KB" /><el-option label="MB" value="MB" /><el-option label="GB" value="GB" /><el-option label="TB" value="TB" />
+                  </el-select>
+                </div>
+                <span class="field-hint" v-if="fileSizeInputVal > 0">≈ {{ formatSizeInOtherUnits(fileSizeInputVal, fileSizeUnit) }}</span>
+              </div>
+              <div class="field-item">
+                <label class="field-label">创建时间</label>
+                <el-date-picker v-model="createForm.createdAt" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" placeholder="选择时间" popper-class="date-picker-popper" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 扩展信息区块 - 可折叠 -->
+        <div class="form-block" v-if="dynamicColumns.length > 0">
+          <div class="form-block__header form-block__header--collapsible" @click="createExpanded = !createExpanded">
+            <div class="form-block__header-left">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7m0-18H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7m0-18v18"/></svg>
+              扩展信息
+              <span class="field-count">{{ dynamicColumns.length }} 个字段</span>
+            </div>
+            <svg class="chevron" :class="{ expanded: createExpanded }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="form-fields" v-show="createExpanded">
+            <div class="field-row" v-for="col in dynamicColumns" :key="col.code">
+              <div class="field-item field-item--full">
+                <label class="field-label">
+                  {{ col.name }}
+                  <span v-if="col.required" class="required">*</span>
+                  <span class="field-type">{{ fieldTypeLabel(col.type) }}</span>
+                </label>
+                <el-select v-if="col.type === 'select'" v-model="createForm.data[col.code]" clearable :placeholder="col.placeholder || (col.required ? '请选择' + col.name : '请选择')">
+                  <el-option v-for="opt in col.options" :key="opt" :label="opt" :value="opt" />
+                </el-select>
+                <el-date-picker v-else-if="col.type === 'date'" v-model="createForm.data[col.code]" type="date" value-format="YYYY-MM-DD" :placeholder="col.placeholder || '选择日期'" popper-class="date-picker-popper" />
+                <el-date-picker v-else-if="col.type === 'datetime'" v-model="createForm.data[col.code]" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" :placeholder="col.placeholder || '选择时间'" popper-class="date-picker-popper" />
+                <el-input-number v-else-if="col.type === 'number'" v-model="createForm.data[col.code]" :placeholder="col.placeholder || (col.required ? '请输入' + col.name : '输入数字')" />
+                <el-input v-else v-model="createForm.data[col.code]" :placeholder="col.placeholder || (col.required ? '请输入' + col.name : '输入内容')" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 备注区块 -->
+        <div class="form-block form-block--remark">
+          <div class="field-item field-item--full">
+            <label class="field-label">备注</label>
+            <el-input v-model="createForm.remark" type="textarea" :rows="2" placeholder="添加备注（选填）" show-word-limit maxlength="500" />
+          </div>
         </div>
 
       </div>
@@ -1071,6 +1111,7 @@ import { UploadRecordApi, type UploadRecord, type ImportTemplateField, type Impo
 import { FieldConfigApi, type FieldConfig } from '@/api/field-config'
 import { ProjectApi, type ProjectSimple } from '@/api/project'
 import { PersonnelApi, type Personnel } from '@/api/personnel'
+import { showErrorMessage, showSuccessMessage } from '@/utils/error'
 import TableActions from '@/components/TableActions.vue'
 
 const { t } = useI18n()
@@ -1170,6 +1211,22 @@ const visibleDynamicColumns = computed(() => {
     return config?.visible ?? false
   })
 })
+
+// 详情弹窗中显示的动态字段
+const detailDynamicFields = computed(() => {
+  return dynamicColumns.value
+})
+
+const formatDetailValue = (value: any, col: FieldConfig): string => {
+  if (value === undefined || value === null || value === '') return '-'
+  if (col.type === 'date' || col.type === 'datetime') {
+    return value
+  }
+  if (col.type === 'select' && col.options) {
+    return value
+  }
+  return String(value)
+}
 
 const allDynamicColumns = ref<ColumnConfig[]>([])
 
@@ -1578,10 +1635,10 @@ const handleExport = async () => {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
     exportDialogVisible.value = false
-    ElMessage.success('导出成功')
+    showSuccessMessage('导出成功')
     trackExport?.(true)
   } catch (error: any) {
-    ElMessage.error(error?.message || '导出失败')
+    showErrorMessage(error, '导出失败')
   } finally {
     exporting.value = false
   }
@@ -1598,6 +1655,22 @@ const createForm = reactive({
   createdAt: '',
   data: {} as Record<string, any>
 })
+
+// 扩展信息展开状态
+const createExpanded = ref(true)
+const editExpanded = ref(true)
+
+// 字段类型中文标签
+const fieldTypeLabel = (type: string) => {
+  const map: Record<string, string> = {
+    text: '文本',
+    number: '数字',
+    select: '选项',
+    date: '日期',
+    datetime: '时间'
+  }
+  return map[type] || type
+}
 
 const pagination = reactive({
   page: 1,
@@ -1707,7 +1780,7 @@ const loadRecords = async () => {
     const stats = await UploadRecordApi.statistics()
   } catch (error) {
     console.error('Failed to load records:', error)
-    ElMessage.error(t('uploadRecord.list.loadFailed'))
+    showErrorMessage(error, t('uploadRecord.list.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -1783,12 +1856,12 @@ const handleDelete = async (row: UploadRecord) => {
     )
 
     await UploadRecordApi.del(row.id)
-    ElMessage.success(t('uploadRecord.list.deleteSuccess'))
+    showSuccessMessage(t('uploadRecord.list.deleteSuccess'))
     loadRecords()
     loadListStats()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(t('uploadRecord.list.deleteFailed'))
+      showErrorMessage(error, t('uploadRecord.list.deleteFailed'))
     }
   }
 }
@@ -1814,13 +1887,13 @@ const handleBatchDelete = async () => {
 
     const ids = selectedRows.value.map(row => row.id)
     await UploadRecordApi.batchDelete(ids)
-    ElMessage.success(t('uploadRecord.list.batchDeleteSuccess', [selectedRows.value.length]))
+    showSuccessMessage(t('uploadRecord.list.batchDeleteSuccess', [selectedRows.value.length]))
     selectedRows.value = []
     loadRecords()
     loadListStats()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(t('uploadRecord.list.batchDeleteFailed'))
+      showErrorMessage(error, t('uploadRecord.list.batchDeleteFailed'))
     }
   }
 }
@@ -1841,13 +1914,13 @@ const handleBatchUpdateStatus = async (status: string) => {
 
     const ids = selectedRows.value.map(row => row.id)
     await UploadRecordApi.batchUpdateStatus(ids, status as any)
-    ElMessage.success(t('uploadRecord.list.batchUpdateStatusSuccess', [selectedRows.value.length, getStatusText(status)]))
+    showSuccessMessage(t('uploadRecord.list.batchUpdateStatusSuccess', [selectedRows.value.length, getStatusText(status)]))
     selectedRows.value = []
     loadRecords()
     loadListStats()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(t('uploadRecord.list.batchUpdateStatusFailed'))
+      showErrorMessage(error, t('uploadRecord.list.batchUpdateStatusFailed'))
     }
   }
 }
@@ -1888,6 +1961,13 @@ const confirmCreate = async () => {
     ElMessage.error(t('uploadRecord.list.enterUploader'))
     return
   }
+  // 校验必填的动态字段
+  for (const col of dynamicColumns.value) {
+    if (col.required && !createForm.data[col.code] && createForm.data[col.code] !== 0) {
+      ElMessage.error(`请填写必填字段：${col.name}`)
+      return
+    }
+  }
   submitting.value = true
   try {
     const res = await UploadRecordApi.create({
@@ -1902,15 +1982,15 @@ const confirmCreate = async () => {
       data: Object.keys(createForm.data).length > 0 ? createForm.data : undefined
     })
     if (res.code === 200) {
-      ElMessage.success(t('uploadRecord.list.createSuccess'))
+      showSuccessMessage(t('uploadRecord.list.createSuccess'))
       createVisible.value = false
       loadRecords()
       loadListStats()
     } else {
-      ElMessage.error(res.message || t('uploadRecord.list.createFailed'))
+      showErrorMessage(res, t('uploadRecord.list.createFailed'))
     }
   } catch (error) {
-    ElMessage.error(t('uploadRecord.list.createFailed'))
+    showErrorMessage(error, t('uploadRecord.list.createFailed'))
   } finally {
     submitting.value = false
   }
@@ -1926,12 +2006,12 @@ const confirmEdit = async () => {
       fileSize: editForm.fileSize > 0 ? editForm.fileSize : undefined, // 直接发送浮点数，后端统一处理四舍五入
       data: editForm.data
     })
-    ElMessage.success(t('uploadRecord.list.updateSuccess'))
+    showSuccessMessage(t('uploadRecord.list.updateSuccess'))
     editVisible.value = false
     loadRecords()
     loadListStats()
-  } catch (error) {
-    ElMessage.error(t('uploadRecord.list.updateFailed'))
+  } catch (error: any) {
+    showErrorMessage(error, t('uploadRecord.list.updateFailed'))
   } finally {
     submitting.value = false
   }
@@ -1963,7 +2043,7 @@ const handleDownloadTemplate = async () => {
   try {
     await UploadRecordApi.downloadTemplate()
   } catch (e) {
-    ElMessage.error(t('uploadRecord.list.templateDownloadFailed'))
+    showErrorMessage(e, t('uploadRecord.list.templateDownloadFailed'))
   } finally {
     downloadingTemplate.value = false
   }
@@ -2036,10 +2116,10 @@ const handleImport = async () => {
       loadRecords()
       loadListStats()
     } else {
-      ElMessage.error(res.message || t('uploadRecord.list.importFailedMsg'))
+      showErrorMessage(res, t('uploadRecord.list.importFailedMsg'))
     }
   } catch (e: any) {
-    ElMessage.error(e.message || t('uploadRecord.list.importFailedMsg'))
+    showErrorMessage(e, t('uploadRecord.list.importFailedMsg'))
   } finally {
     importing.value = false
     importingDone.value = true
@@ -3672,6 +3752,143 @@ onMounted(() => {
     margin-bottom: 2px;
   }
 
+  /* 表单分隔线 */
+  .form-divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 8px 0;
+  }
+
+  /* ========== 紧凑表单布局 ========== */
+  .create-form--compact {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .form-block {
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &--remark {
+      padding-top: 8px;
+    }
+  }
+
+  .form-block__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+    background: #f8fafc;
+    border-radius: 6px;
+    border-left: 3px solid #3b82f6;
+
+    svg {
+      color: #3b82f6;
+      flex-shrink: 0;
+    }
+
+    &--collapsible {
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+
+      &:hover {
+        background: #f1f5f9;
+      }
+    }
+  }
+
+  .form-block__header-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .field-count {
+    font-size: 10px;
+    font-weight: 500;
+    color: #9ca3af;
+    background: #f1f5f9;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 4px;
+  }
+
+  .chevron {
+    color: #9ca3af;
+    transition: transform 0.2s;
+
+    &.expanded {
+      transform: rotate(180deg);
+    }
+  }
+
+  .form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 4px;
+  }
+
+  .field-row {
+    display: grid;
+    gap: 12px;
+
+    &--2col {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .field-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    &--full {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .field-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #4b5563;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    .required {
+      color: #ef4444;
+      font-weight: 600;
+    }
+  }
+
+  .field-type {
+    font-size: 9px;
+    font-weight: 500;
+    color: #9ca3af;
+    background: #f3f4f6;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-left: auto;
+  }
+
+  .field-hint {
+    font-size: 11px;
+    color: #9ca3af;
+  }
+
   /* 表单行 */
   .form-row {
     display: grid;
@@ -3697,11 +3914,25 @@ onMounted(() => {
     font-size: 12px;
     font-weight: 500;
     color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
 
-    em {
-      font-style: normal;
-      color: #dc2626;
-    }
+  .form-item__name {
+    color: #374151;
+  }
+
+  .form-item__required {
+    color: #ef4444;
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  .form-item__error {
+    font-size: 11px;
+    color: #ef4444;
+    margin-top: 2px;
   }
 
   /* Element Plus 组件样式 */
@@ -3849,6 +4080,12 @@ onMounted(() => {
     font-weight: 500;
     color: #9ca3af;
     white-space: nowrap;
+  }
+
+  .detail-divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 8px 0;
   }
 
   .detail-row__value {

@@ -154,17 +154,39 @@ func (api *UserApi) Update(c *gin.Context) {
 		return
 	}
 
+	// 先获取变更前的数据
+	oldUser, _ := api.userService.GetByID(req.ID)
+
 	user, err := api.userService.Update(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
 
-	// 记录操作日志
-	api.auditService.LogOperation(
+	// 记录操作日志（带变更明细）
+	detail := &service.OperationDetail{
+		After: user,
+	}
+	if oldUser != nil {
+		detail.Before = oldUser
+		// 定义字段中文标签
+		fieldLabels := map[string]string{
+			"username":  "用户名",
+			"nickname":  "昵称",
+			"email":     "邮箱",
+			"phone":     "手机号",
+			"status":    "状态",
+			"roleId":    "角色ID",
+			"groupId":   "用户组ID",
+			"roleName":  "角色名称",
+			"groupName": "用户组名称",
+		}
+		detail.Changes = service.GetChanges(*oldUser, *user, fieldLabels)
+	}
+	api.auditService.LogOperationWithDetail(
 		api.getUserID(c), api.getUsername(c),
 		"用户管理", "update", "User", req.ID,
-		user.Username, c.ClientIP(), c.GetHeader("User-Agent"), nil,
+		user.Username, c.ClientIP(), c.GetHeader("User-Agent"), detail,
 	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "更新成功", Data: user})
@@ -224,6 +246,41 @@ func (api *UserApi) BatchDelete(c *gin.Context) {
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: fmt.Sprintf("成功删除 %d 个用户", len(req.IDs))})
 }
+
+// BatchUpdateRole 批量更新用户角色
+// @Summary 批量更新用户角色
+// @Tags User
+// @Security Bearer
+// @Accept json
+// @Param request body dto.BatchUpdateRoleReq true "批量更新角色信息"
+// @Success 200 {object} dto.Response
+// @Router /api/users/batch-update-role [post]
+func (api *UserApi) BatchUpdateRole(c *gin.Context) {
+	var req dto.BatchUpdateRoleReq
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "请选择要更新的用户"})
+		return
+	}
+	if req.RoleID == 0 {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "请选择要分配的角色"})
+		return
+	}
+
+	if err := api.userService.BatchUpdateRole(req.IDs, req.RoleID); err != nil {
+		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
+		return
+	}
+
+	// 记录操作日志
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"用户管理", "batch_update_role", "User", 0,
+		fmt.Sprintf("批量更新 %d 个用户的角色", len(req.IDs)), c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
+
+	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: fmt.Sprintf("成功更新 %d 个用户的角色", len(req.IDs))})
+}
+
 func (api *UserApi) getUserID(c *gin.Context) uint {
 	if id, exists := c.Get("userId"); exists {
 		return id.(uint)
@@ -538,10 +595,32 @@ func (api *UserApi) Import(c *gin.Context) {
 		return
 	}
 
-	// 解析表头
+	// 动态查找表头行（跳过标题行和说明行）
+	headerRowIndex := -1
+	var headerRow []string
+	for i, row := range rows {
+		for _, cell := range row {
+			cellClean := strings.TrimSpace(cell)
+			if cellClean == "用户名" || strings.ReplaceAll(cellClean, " ", "") == "用户名*" {
+				headerRowIndex = i
+				headerRow = row
+				break
+			}
+		}
+		if headerRowIndex >= 0 {
+			break
+		}
+	}
+
+	if headerRowIndex < 0 {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "未找到有效的表头行（需包含「用户名」列）"})
+		return
+	}
+
+	// 建立列索引映射（去掉末尾的 * 标记）
 	headerMap := make(map[string]int)
-	for col, val := range rows[0] {
-		headerMap[val] = col
+	for idx, colName := range headerRow {
+		headerMap[strings.TrimSuffix(strings.TrimSpace(colName), " *")] = idx
 	}
 
 	// 检查必需列
@@ -555,7 +634,6 @@ func (api *UserApi) Import(c *gin.Context) {
 
 	// 获取角色和用户组映射
 	roleMap, groupMap := api.userService.GetRoleAndGroupMaps()
-	// 反转映射
 	roleNameToID := make(map[string]uint)
 	for id, name := range roleMap {
 		roleNameToID[name] = id
@@ -568,8 +646,9 @@ func (api *UserApi) Import(c *gin.Context) {
 	var success, failed int
 	var failRows []dto.ImportFailRow
 
-	for i, row := range rows[1:] {
-		rowNum := i + 2
+	for i := headerRowIndex + 1; i < len(rows); i++ {
+		row := rows[i]
+		rowNum := i + 1
 		getVal := func(key string) string {
 			if col, ok := headerMap[key]; ok && col < len(row) {
 				return strings.TrimSpace(row[col])
@@ -586,27 +665,22 @@ func (api *UserApi) Import(c *gin.Context) {
 		roleName := getVal("角色")
 		groupName := getVal("用户组")
 
-		// 验证必填字段
 		if username == "" || password == "" {
 			failed++
 			failRows = append(failRows, dto.ImportFailRow{Row: rowNum, Data: username, Reason: "用户名和密码不能为空"})
 			continue
 		}
 
-		// 处理状态
 		if status == "" || status == "启用" {
 			status = "active"
 		} else {
 			status = "inactive"
 		}
 
-		// 处理角色ID
 		var roleID uint
 		if roleName != "" {
 			roleID = roleNameToID[roleName]
 		}
-
-		// 处理用户组ID
 		var groupID uint
 		if groupName != "" {
 			groupID = groupNameToID[groupName]
@@ -633,9 +707,80 @@ func (api *UserApi) Import(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: dto.ImportResultResp{
-		Total:    len(rows) - 1,
-		Success:  success,
-		Failed:   failed,
+		Total:   success + failed,
+		Success: success,
+		Failed:  failed,
 		FailRows: failRows,
+	}})
+}
+
+// Preview 预览导入数据（返回识别的记录数）
+func (api *UserApi) Preview(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "请上传文件"})
+		return
+	}
+	src, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: "无法读取上传文件"})
+		return
+	}
+	defer src.Close()
+
+	f, err := excelize.OpenReader(src)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "无法读取Excel文件"})
+		return
+	}
+	defer f.Close()
+
+	rows, err := f.GetRows("用户列表")
+	if err != nil {
+		rows, err = f.GetRows("Sheet1")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "Excel中没有数据"})
+			return
+		}
+	}
+
+	headerRowIndex := -1
+	var headerRow []string
+	for i, row := range rows {
+		for _, cell := range row {
+			cellClean := strings.TrimSpace(cell)
+			if cellClean == "用户名" || strings.ReplaceAll(cellClean, " ", "") == "用户名*" {
+				headerRowIndex = i
+				headerRow = row
+				break
+			}
+		}
+		if headerRowIndex >= 0 {
+			break
+		}
+	}
+
+	if headerRowIndex < 0 {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: "未找到有效的表头行（需包含「用户名」列）"})
+		return
+	}
+
+	headerMap := make(map[string]int)
+	for idx, colName := range headerRow {
+		headerMap[strings.TrimSuffix(strings.TrimSpace(colName), " *")] = idx
+	}
+
+	usernameCol, hasUsername := headerMap["用户名"]
+	dataRowCount := 0
+	for i := headerRowIndex + 1; i < len(rows); i++ {
+		if hasUsername && usernameCol < len(rows[i]) && strings.TrimSpace(rows[i][usernameCol]) != "" {
+			dataRowCount++
+		}
+	}
+
+	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: map[string]interface{}{
+		"total":     dataRowCount,
+		"sheetName": "用户列表",
+		"fields":    headerRow,
 	}})
 }

@@ -43,7 +43,7 @@ export default defineConfig({
     cssCodeSplit: true,
     // 生成 sourcemap 便于调试
     sourcemap: false,
-    // 启用 gzip 压缩（服务器也建议配置）
-    chunkSizeWarningLimit: 1000
+    // echarts 本身较大，忽略大小警告
+    chunkSizeWarningLimit: 1500
   }
 })

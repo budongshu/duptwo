@@ -483,11 +483,15 @@ type UploadRecordListReq struct {
 	PageSize   int    `form:"pageSize" validate:"min=1,max=100"`
 	DiskLabel   string `form:"diskLabel"`
 	ProjectName string `form:"projectName"`
+	DestPath    string `form:"destPath"`
 	Status     string `form:"status"`
 	Uploader   string `form:"uploader"`
 	StartDate  string `form:"startDate"`
 	EndDate    string `form:"endDate"`
 	Keyword    string `form:"keyword"`
+	SerialNo   string `form:"serialNo"`
+	SortField  string `form:"sortField"`
+	SortOrder  string `form:"sortOrder"`
 }
 
 // UploadRecordResp 上传记录响应
@@ -514,6 +518,7 @@ type UploadRecordStatisticsResp struct {
 	TodayCount   int64            `json:"todayCount"`
 	TodaySize    int64            `json:"todaySize"`
 	TodaySizeStr string           `json:"todaySizeStr"`
+	TodayByStatus []StatusCount   `json:"todayByStatus"`
 	WeekCount    int64            `json:"weekCount"`
 	WeekSize     int64            `json:"weekSize"`
 	WeekSizeStr  string           `json:"weekSizeStr"`
@@ -560,6 +565,7 @@ type DailyTrend struct {
 type DiskLabelStatus struct {
 	DiskLabel string `json:"diskLabel"` // 磁盘标签名称
 	Count     int64  `json:"count"`     // 该标签的记录总数
+	TotalSize int64  `json:"totalSize"` // 该标签的总文件大小
 	Status    string `json:"status"`    // 综合状态: completed/failed/mixed/pending
 }
 

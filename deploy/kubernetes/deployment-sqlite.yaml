@@ -1,0 +1,262 @@
+# ============================================================
+# duptwo Kubernetes 部署 - SQLite 单机版
+# 使用方式:
+#   1. 修改镜像地址 (image)、域名 (host)、密钥 (secret)
+#   2. kubectl apply -f deployment-sqlite.yaml
+# ============================================================
+
+---
+# -------------------- Namespace --------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: duptwo
+
+---
+# -------------------- ConfigMap --------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: duptwo-config
+  namespace: duptwo
+data:
+  app.yaml: |
+    base:
+      mode: prod
+      port: 18421
+      version: v1.0.0
+      language: zh
+      serve_web: true
+      web_root: ./web
+
+    database:
+      type: sqlite
+      path: ./data/registry.db
+      max_idle_conns: 10
+      max_open_conns: 100
+      conn_max_lifetime: 3600
+
+    log:
+      level: info
+      time_zone: Asia/Shanghai
+      log_name: duptwo
+      max_backup: 30
+      max_size: 100
+
+    session:
+      timeout: 86400
+      secret: "CHANGEME_SESSION_SECRET_32CHARS"
+
+    cors:
+      allow_origins:
+        - "http://localhost"
+        - "http://localhost:8080"
+        - "https://your-domain.com"
+      allow_methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      allow_headers:
+        - Origin
+        - Content-Type
+        - Authorization
+        - Accept-Language
+        - X-Submit-Source
+        - X-API-Key
+        - X-Token
+      max_age: 86400
+
+    jwt:
+      secret: "CHANGEME_JWT_SECRET"
+
+---
+# -------------------- Secret --------------------
+apiVersion: v1
+kind: Secret
+metadata:
+  name: duptwo-secret
+  namespace: duptwo
+type: Opaque
+stringData:
+  SESSION_SECRET: "CHANGEME_SESSION_SECRET_32CHARS"
+  JWT_SECRET: "CHANGEME_JWT_SECRET"
+
+---
+# -------------------- PVC --------------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: duptwo-data-pvc
+  namespace: duptwo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  # 如使用阿里云 NAS:
+  # storageClassName: nfs-csi
+  # 如使用阿里云云盘:
+  # storageClassName: alicloud-disk-efficiency
+
+---
+# -------------------- Deployment --------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: duptwo
+  namespace: duptwo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: duptwo
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: duptwo
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - duptwo
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: app
+          # 修改为你的镜像地址，例如:
+          # registry.cn-hangzhou.aliyuncs.com/your-namespace/duptwo:v1.0.0
+          image: duptwo:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 18421
+              protocol: TCP
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+          volumeMounts:
+            - name: config
+              mountPath: /app/conf/app.yaml
+              subPath: app.yaml
+              readOnly: true
+            - name: data
+              mountPath: /app/data
+            - name: logs
+              mountPath: /app/logs
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: config
+          configMap:
+            name: duptwo-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: duptwo-data-pvc
+        - name: logs
+          emptyDir: {}
+      terminationGracePeriodSeconds: 30
+
+---
+# -------------------- Service --------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: duptwo-svc
+  namespace: duptwo
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 18421
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: duptwo
+
+---
+# -------------------- Ingress --------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: duptwo-ingress
+  namespace: duptwo
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+spec:
+  ingressClassName: nginx
+  rules:
+    # 修改为你的域名
+    - host: duptwo.your-domain.com
+      http:
+        paths:
+          - path: /swagger
+            pathType: Prefix
+            backend:
+              service:
+                name: duptwo-svc
+                port:
+                  number: 18421
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: duptwo-svc
+                port:
+                  number: 18421
+          - path: /public
+            pathType: Prefix
+            backend:
+              service:
+                name: duptwo-svc
+                port:
+                  number: 18421
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: duptwo-svc
+                port:
+                  number: 18421

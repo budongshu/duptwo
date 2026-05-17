@@ -10,6 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/xuri/excelize/v2"
@@ -28,7 +31,7 @@ func NewUploadRecordService() *UploadRecordService {
 	}
 }
 
-// ensureProjectExists 校验项目是否存在（项目必须先创建，再录入数据）
+// ensureProjectExists 校验项目是否存在(项目必须先创建，再录入数据)
 // 返回项目ID（仅当 projectName 非空时有效）和 error
 func (s *UploadRecordService) ensureProjectExists(projectName string) (*uint, error) {
 	if projectName == "" {
@@ -239,18 +242,22 @@ func (s *UploadRecordService) GetStatistics(startDate, endDate, projectName, dis
 		Status:      status,
 		Uploader:    uploader,
 	}
-	filterNoDate := repo.StatisticsFilter{
-		ProjectName: projectName,
-		DiskLabel:   diskLabel,
-		Status:      status,
-		Uploader:    uploader,
-	}
 
 	resp := &dto.UploadRecordStatisticsResp{}
 
 	resp.TodayCount, _ = s.uploadRecordRepo.CountByDate(today, filter)
 	resp.TodaySize, _ = s.uploadRecordRepo.SumFileSizeByDate(today, filter)
 	resp.TodaySizeStr = formatFileSize(resp.TodaySize)
+
+	filterToday := repo.StatisticsFilter{
+		ProjectName: projectName,
+		DiskLabel:   diskLabel,
+		StartDate:   today,
+		EndDate:     today,
+		Status:      status,
+		Uploader:    uploader,
+	}
+	resp.TodayByStatus, _ = s.uploadRecordRepo.CountByStatus(filterToday)
 
 	resp.WeekCount, _ = s.uploadRecordRepo.CountByDateRange(weekStart, today, filter)
 	resp.WeekSize, _ = s.uploadRecordRepo.SumFileSizeByDateRange(weekStart, today, filter)
@@ -260,8 +267,17 @@ func (s *UploadRecordService) GetStatistics(startDate, endDate, projectName, dis
 	resp.MonthSize, _ = s.uploadRecordRepo.SumFileSizeByDateRange(monthStart, today, filter)
 	resp.MonthSizeStr = formatFileSize(resp.MonthSize)
 
-	totalCount, _ := s.uploadRecordRepo.CountTotal(filterNoDate)
-	totalSize, _ := s.uploadRecordRepo.SumFileSizeByDateRange("1970-01-01", today, filterNoDate)
+	// 累计总量使用当前日期范围的筛选条件（与 ByProject 等保持一致）
+	filterAll := repo.StatisticsFilter{
+		ProjectName: projectName,
+		DiskLabel:   diskLabel,
+		StartDate:   startDate,
+		EndDate:     endDate,
+		Status:      status,
+		Uploader:    uploader,
+	}
+	totalCount, _ := s.uploadRecordRepo.CountTotal(filterAll)
+	totalSize, _ := s.uploadRecordRepo.SumFileSizeByDateRange(startDate, endDate, filterAll)
 	resp.TotalCount = totalCount
 	resp.TotalSize = totalSize
 	resp.TotalSizeStr = formatFileSize(totalSize)
@@ -291,15 +307,21 @@ func (s *UploadRecordService) GetStatistics(startDate, endDate, projectName, dis
 	return resp, nil
 }
 
-// GetDiskLabelStatuses 获取所有磁盘标签及其综合状态（支持日期范围筛选）
-func (s *UploadRecordService) GetDiskLabelStatuses(startDate, endDate string) ([]dto.DiskLabelStatus, error) {
-	// 获取每个标签的总体记录数（带日期筛选）
-	labels, err := s.uploadRecordRepo.GetDiskLabelStatusAll(startDate, endDate)
+// GetDiskLabelStatuses 获取所有磁盘标签及其综合状态（支持日期范围筛选 + 项目/标签筛选）
+func (s *UploadRecordService) GetDiskLabelStatuses(projectName, diskLabel, startDate, endDate string) ([]dto.DiskLabelStatus, error) {
+	filter := repo.StatisticsFilter{
+		ProjectName: projectName,
+		DiskLabel:  diskLabel,
+		StartDate:  startDate,
+		EndDate:    endDate,
+	}
+	// 获取每个标签的总体记录数（带筛选条件）
+	labels, err := s.uploadRecordRepo.GetDiskLabelStatusAll(filter)
 	if err != nil {
 		return nil, err
 	}
-	// 获取每个标签下各状态的详细数量（带日期筛选）
-	detail, err := s.uploadRecordRepo.GetDiskLabelStatusDetail(startDate, endDate)
+	// 获取每个标签下各状态的详细数量（带筛选条件）
+	detail, err := s.uploadRecordRepo.GetDiskLabelStatusDetail(filter)
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +390,7 @@ func (s *UploadRecordService) GetImportTemplate() *dto.ImportTemplateResp {
 		{Field: "磁盘标签", Code: "diskLabel", Required: true, Type: "text", MaxLength: 64, Example: "原始数据/成果数据"},
 		{Field: "项目名称", Code: "projectName", Required: false, Type: "text", MaxLength: 128, Example: "XX项目"},
 		{Field: "目标路径", Code: "destPath", Required: true, Type: "text", MaxLength: 512, Example: "/data/output/2025"},
-		{Field: "文件大小(字节)", Code: "fileSize", Required: true, Type: "number", MaxLength: 0, Example: "1048576"},
+		{Field: "文件大小", Code: "fileSize", Required: true, Type: "text", MaxLength: 0, Example: "1048576 或 1.5 GB"},
 		{Field: "上传人", Code: "uploader", Required: true, Type: "text", MaxLength: 64, Example: "张三"},
 		{Field: "上传状态", Code: "status", Required: true, Type: "select", Options: "pending,processing,completed,failed", MaxLength: 0, Example: "pending（待处理）/processing（处理中）/completed（已完成）/failed（失败）"},
 		{Field: "创建时间", Code: "createdAt", Required: false, Type: "date", MaxLength: 0, Example: "2025-01-15 10:30:00（文本格式，不可用日期格式）"},
@@ -443,25 +465,10 @@ func (s *UploadRecordService) ImportRecords(rows []map[string]string) *dto.Impor
 			continue
 		}
 
-		// 解析文件大小（支持整数和浮点数，统一四舍五入）
-		var fileSize int64
-		if v := row["fileSize"]; v != "" {
-			// 先尝试解析为 float64，再四舍五入转为 int64
-			var parsedFloat float64
-			if _, err := fmt.Sscanf(v, "%f", &parsedFloat); err != nil {
-				// 尝试解析为整数
-				var parsedInt int64
-				if _, err := fmt.Sscanf(v, "%d", &parsedInt); err != nil {
-					result.FailRows = append(result.FailRows, dto.ImportFailRow{Row: rowNum, Data: string(serialized), Reason: fmt.Sprintf("文件大小（fileSize）格式错误，无法解析为数字: %s", v)})
-					continue
-				}
-				fileSize = parsedInt
-			} else {
-				fileSize = int64(math.Round(parsedFloat)) // 四舍五入
-			}
-		}
+		// 解析文件大小（支持带单位格式如 "1.5 GB"、"500 MB"，也支持纯数字字节）
+		fileSize := parseFileSizeWithUnit(row["fileSize"])
 		if fileSize <= 0 {
-			result.FailRows = append(result.FailRows, dto.ImportFailRow{Row: rowNum, Data: string(serialized), Reason: "文件大小（fileSize）必须大于0"})
+			result.FailRows = append(result.FailRows, dto.ImportFailRow{Row: rowNum, Data: string(serialized), Reason: fmt.Sprintf("文件大小(fileSize)必须大于0，支持纯数字(字节)或带单位格式如 1.5 GB / 500 MB")})
 			continue
 		}
 
@@ -716,4 +723,48 @@ func formatFileSize(size int64) string {
 		return fmt.Sprintf("%.2f KB", float64(size)/KB)
 	}
 	return fmt.Sprintf("%d B", size)
+}
+
+// parseFileSizeWithUnit 解析文件大小，支持带单位格式（1.5 GB / 500 MB / 100 KB）和纯字节数字
+func parseFileSizeWithUnit(s string) int64 {
+	if s == "" {
+		return 0
+	}
+	s = strings.TrimSpace(s)
+	upper := strings.ToUpper(s)
+
+	// 带单位格式优先：数值部分匹配整数或小数
+	unitMap := map[string]int64{
+		"B":  1,
+		"KB": 1024,
+		"MB": 1024 * 1024,
+		"GB": 1024 * 1024 * 1024,
+		"TB": 1024 * 1024 * 1024 * 1024,
+		"PB": 1024 * 1024 * 1024 * 1024 * 1024,
+	}
+	re := regexp.MustCompile(`^([\d.]+)\s*(B|KB|MB|GB|TB|PB)?$`)
+	matches := re.FindStringSubmatch(upper)
+	if len(matches) >= 2 {
+		val, _ := strconv.ParseFloat(matches[1], 64)
+		unit := matches[2]
+		if mult, ok := unitMap[unit]; ok {
+			return int64(math.Round(val * float64(mult)))
+		}
+		// 无单位纯数字：小于 1024 且原始输入不含单位字母，视为合理字节数
+		if !strings.ContainsAny(upper, "BKMGTP") {
+			return int64(math.Round(val))
+		}
+		// 无单位但含单位字母 → 数值太小，返回 0
+		return 0
+	}
+
+	// 无法用正则匹配，兜底纯数字
+	if v, err := strconv.ParseFloat(s, 64); err == nil {
+		// 小数值（如 excelize 把 "1.5GB" 读成数值 1.5）且不含单位字母时，
+		// 视为格式错误（用户可能忘记加单位），返回 0 避免静默接受错误值
+		if !strings.ContainsAny(upper, "BKMGTP") {
+			return int64(math.Round(v))
+		}
+	}
+	return 0
 }

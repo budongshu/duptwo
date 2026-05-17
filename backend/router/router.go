@@ -16,12 +16,12 @@ import (
 	"datauptwo/middleware"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "datauptwo/docs"
 	"github.com/swaggo/gin-swagger"
 	"github.com/swaggo/files"
 
-	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 )
 
@@ -57,6 +57,33 @@ var RouterGroupApp = &RouterGroup{
 	SyncApi:               sync.NewSyncApi(),
 }
 
+// resolveWebRoot resolves web root path.
+// Priority: config value > ./cmd/server/web (dev) > ./web (release).
+// Relative paths are resolved relative to the project root (parent of conf/).
+func resolveWebRoot() string {
+	webRoot := global.CONF.Base.WebRoot
+	if webRoot == "" {
+		for _, candidate := range []string{"./cmd/server/web", "./web"} {
+			if _, err := os.Stat(candidate); err == nil {
+				webRoot = candidate
+				break
+			}
+		}
+	}
+	if webRoot == "" {
+		return ""
+	}
+	if filepath.IsAbs(webRoot) {
+		return webRoot
+	}
+	if global.CONF.Base.ConfigFile == "" {
+		return webRoot
+	}
+	confDir := filepath.Dir(global.CONF.Base.ConfigFile)
+	projectRoot := filepath.Dir(confDir)
+	return filepath.Join(projectRoot, webRoot)
+}
+
 func InitRouter() *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
@@ -68,54 +95,20 @@ func InitRouter() *gin.Engine {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
-	// Swagger 重定向 /swagger -> /swagger/
+	// Swagger：统一由 ginSwagger 处理裸路径（gin-swagger v1.6.1 对 /swagger/ 等裸路径有匹配 bug，
+	// 直接在 handler 内部重定向到 /swagger/index.html，避免 Gin 路由冲突）
+	swaggerHandler := ginSwagger.WrapHandler(swaggerFiles.Handler)
 	r.GET("/swagger", func(c *gin.Context) {
-		c.Redirect(301, "/swagger/")
+		c.Redirect(301, "/swagger/index.html")
 	})
-
-	// Swagger API 文档
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	// 自定义中间件：运行时检查 serve_web 配置，实现热切换
-	r.Use(func(c *gin.Context) {
-		if !global.CONF.Base.ServeWeb {
-			// 禁用 Web 时，对于前端路由返回 404
-			// 保留 API 接口正常访问
-			path := c.Request.URL.Path
-			if path == "/" || (len(path) > 0 && path[0] != '/') || (len(path) > 1 && path[:2] != "/a" && path[:2] != "/p" && path != "/health" && path[:8] != "/swagger") {
-				c.AbortWithStatusJSON(404, gin.H{"code": 404, "message": "Web frontend is disabled"})
-				return
-			}
+	r.GET("/swagger/*any", func(c *gin.Context) {
+		path := c.Param("any")
+		if path == "" || path == "/" {
+			c.Redirect(301, "/swagger/index.html")
+			return
 		}
-		c.Next()
+		swaggerHandler(c)
 	})
-
-	// 静态文件服务（前端）
-	// web_root 可以是绝对路径，或相对于"配置文件所在目录/../"的路径（即项目根目录）
-	// 配置示例: ./cmd/server/web (dev) 或 ./web (release) 或 /etc/duptwo/web (prod)
-	if global.CONF.Base.ServeWeb {
-		webRoot := global.CONF.Base.WebRoot
-		if webRoot == "" {
-			// 未配置时自动推导：优先尝试 ./cmd/server/web（开发），再尝试 ./web（release）
-			for _, candidate := range []string{"./cmd/server/web", "./web"} {
-				if _, err := os.Stat(candidate); err == nil {
-					webRoot = candidate
-					break
-				}
-			}
-		}
-		if !filepath.IsAbs(webRoot) {
-			// 相对路径：相对于配置文件所在目录的父目录（即项目根目录）
-			if global.CONF.Base.ConfigFile != "" {
-				confDir := filepath.Dir(global.CONF.Base.ConfigFile)
-				projectRoot := filepath.Dir(confDir) // conf/ → 项目根目录
-				webRoot = filepath.Join(projectRoot, webRoot)
-			}
-		}
-		if webRoot != "" {
-			r.Use(static.Serve("/", static.LocalFile(webRoot, false)))
-		}
-	}
 
 	// 公开上传记录接口（无需认证）
 	r.POST("/public/upload-records", RouterGroupApp.PublicUploadRecordApi.Create)
@@ -140,7 +133,7 @@ func InitRouter() *gin.Engine {
 	authGroup := r.Group("/api")
 	authGroup.Use(middleware.JWTAuth())
 	{
-		// 认证相关（无需额外权限，用户自己操作）
+		// 认证相关
 		authGroup.GET("/auth/current", RouterGroupApp.AuthApi.GetCurrentUser)
 		authGroup.PUT("/auth/profile", RouterGroupApp.AuthApi.UpdateProfile)
 		authGroup.POST("/auth/change-password", RouterGroupApp.AuthApi.ChangePassword)
@@ -188,6 +181,7 @@ func InitRouter() *gin.Engine {
 		authGroup.GET("/personnels", middleware.RequirePermission("personnel:read"), RouterGroupApp.PersonnelApi.List)
 		authGroup.POST("/personnels", middleware.RequirePermission("personnel:create"), RouterGroupApp.PersonnelApi.Create)
 		authGroup.GET("/personnels/all", middleware.RequirePermission("personnel:read"), RouterGroupApp.PersonnelApi.ListAll)
+		authGroup.GET("/personnels/statistics", middleware.RequirePermission("personnel:read"), RouterGroupApp.PersonnelApi.Statistics)
 		authGroup.GET("/personnels/export", middleware.RequirePermission("personnel:export"), RouterGroupApp.PersonnelApi.Export)
 		authGroup.GET("/personnels/template", middleware.RequirePermission("personnel:read"), RouterGroupApp.PersonnelApi.GetTemplate)
 		authGroup.POST("/personnels/preview", middleware.RequirePermission("personnel:read"), RouterGroupApp.PersonnelApi.Preview)
@@ -205,8 +199,10 @@ func InitRouter() *gin.Engine {
 		authGroup.PUT("/users", middleware.RequirePermission("user:update"), RouterGroupApp.UserApi.Update)
 		authGroup.DELETE("/users/:id", middleware.RequirePermission("user:delete"), RouterGroupApp.UserApi.Delete)
 		authGroup.POST("/users/batch-delete", middleware.RequirePermission("user:delete"), RouterGroupApp.UserApi.BatchDelete)
+		authGroup.POST("/users/batch-update-role", middleware.RequirePermission("user:update"), RouterGroupApp.UserApi.BatchUpdateRole)
 		authGroup.GET("/users/export", middleware.RequirePermission("user:read"), RouterGroupApp.UserApi.Export)
 		authGroup.GET("/users/template", middleware.RequirePermission("user:create"), RouterGroupApp.UserApi.GetTemplate)
+		authGroup.POST("/users/preview", middleware.RequirePermission("user:create"), RouterGroupApp.UserApi.Preview)
 		authGroup.POST("/users/import", middleware.RequirePermission("user:create"), RouterGroupApp.UserApi.Import)
 		authGroup.POST("/users/reset-password", middleware.RequirePermission("admin:all"), RouterGroupApp.UserApi.ResetPassword)
 		authGroup.POST("/users/reset-mfa", middleware.RequirePermission("admin:all"), RouterGroupApp.UserApi.ResetMFA)
@@ -243,6 +239,9 @@ func InitRouter() *gin.Engine {
 		authGroup.GET("/admin/ad-config", middleware.RequirePermission("config:read"), RouterGroupApp.AdminApi.GetADConfig)
 		authGroup.POST("/admin/ad-config", middleware.RequirePermission("config:update"), RouterGroupApp.AdminApi.UpdateADConfig)
 		authGroup.POST("/admin/ad-config/test", middleware.RequirePermission("config:update"), RouterGroupApp.AdminApi.TestADConnection)
+		authGroup.POST("/admin/ad-users/sync", middleware.RequirePermission("config:update"), RouterGroupApp.AdminApi.SyncADUsers)
+		authGroup.POST("/admin/ad-users/reset-all", middleware.RequirePermission("config:update"), RouterGroupApp.AdminApi.ResetAllADUsers)
+		authGroup.GET("/admin/ad-users", middleware.RequirePermission("config:read"), RouterGroupApp.AdminApi.GetADUsers)
 
 		// 安全设置接口
 		authGroup.GET("/admin/security-settings", middleware.RequirePermission("config:read"), RouterGroupApp.SecurityApi.GetSettings)
@@ -267,28 +266,34 @@ func InitRouter() *gin.Engine {
 		authGroup.GET("/sync/status", middleware.RequirePermission("config:read"), RouterGroupApp.SyncApi.GetStatus)
 	}
 
-	// SPA 路由兜底
-	r.NoRoute(func(c *gin.Context) {
-		if global.CONF.Base.ServeWeb {
-			webRoot := global.CONF.Base.WebRoot
-			if webRoot == "" {
-				for _, candidate := range []string{"./cmd/server/web", "./web"} {
-					if _, err := os.Stat(candidate); err == nil {
-						webRoot = candidate
-						break
-					}
+	// 静态文件服务 + SPA 兜底
+	// 注意：不能使用 r.Static("/", root)，因为它会注册 /*filepath 通配路由，
+	// 与已有的 /api/* 等前缀路由冲突。故改用 NoRoute 统一兜底。
+	if global.CONF.Base.ServeWeb {
+		webRoot := resolveWebRoot()
+		if webRoot != "" {
+			r.NoRoute(func(c *gin.Context) {
+				path := c.Request.URL.Path
+				// index.html 禁用缓存（避免浏览器缓存旧前端）
+				if path == "/" {
+					c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+					c.Header("Pragma", "no-cache")
+					c.Header("Expires", "0")
 				}
-			}
-			if !filepath.IsAbs(webRoot) && global.CONF.Base.ConfigFile != "" {
-				confDir := filepath.Dir(global.CONF.Base.ConfigFile)
-				projectRoot := filepath.Dir(confDir)
-				webRoot = filepath.Join(projectRoot, webRoot)
-			}
-			c.File(filepath.Join(webRoot, "index.html"))
-		} else {
-			c.AbortWithStatusJSON(404, gin.H{"code": 404, "message": "Web frontend is disabled"})
+				// 文件存在则直接服务，否则返回 index.html（SPA 兜底）
+				fullPath := filepath.Join(webRoot, filepath.Clean(strings.TrimPrefix(path, "/")))
+				if _, err := os.Stat(fullPath); err == nil {
+					c.File(fullPath)
+					return
+				}
+				c.File(filepath.Join(webRoot, "index.html"))
+			})
 		}
-	})
+	} else {
+		r.NoRoute(func(c *gin.Context) {
+			c.AbortWithStatusJSON(404, gin.H{"code": 404, "message": "Web frontend is disabled"})
+		})
+	}
 
 	return r
 }

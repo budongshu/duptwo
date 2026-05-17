@@ -3,6 +3,7 @@ package sync
 import (
 	"datauptwo/app/dto"
 	"datauptwo/app/service"
+	"datauptwo/global"
 	"datauptwo/middleware"
 	"net/http"
 	"strconv"
@@ -117,6 +118,32 @@ func (api *SyncApi) GetStation(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: station})
 }
 
+// ResetApiKey 重置站点API Key
+// @Summary 重置站点API Key
+// @Tags Sync
+// @Security Bearer
+// @Param id path int true "站点ID"
+// @Success 200 {object} dto.Response
+// @Router /api/sync/stations/{id}/reset-key [post]
+func (api *SyncApi) ResetApiKey(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+
+	resp, err := api.syncService.ResetApiKey(uint(id))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Response{Code: 400, Message: err.Error()})
+		return
+	}
+
+	// 记录操作日志
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"同步站点管理", "reset-key", "SyncStation", uint(id),
+		"", c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
+
+	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "API Key 已重新生成，请告知该 Agent 重新同步（Agent 会自动用新 Key 重新注册）", Data: resp})
+}
+
 // UpdateStation 更新站点
 // @Summary 更新站点
 // @Tags Sync
@@ -205,6 +232,27 @@ func (api *SyncApi) Register(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "注册成功", Data: resp})
 }
 
+// Heartbeat Agent 心跳（由 Agent 定期调用，Center 更新该站点的最后心跳时间）
+// @Summary Agent 心跳
+// @Tags Sync
+// @Security Bearer
+// @Success 200 {object} dto.Response
+// @Router /api/sync/heartbeat [post]
+func (api *SyncApi) Heartbeat(c *gin.Context) {
+	stationID := middleware.GetStationID(c)
+	if stationID == 0 {
+		c.JSON(http.StatusUnauthorized, dto.Response{Code: 401, Message: "未注册站点"})
+		return
+	}
+
+	if err := api.syncService.UpdateHeartbeat(stationID); err != nil {
+		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "ok"})
+}
+
 // ============ 记录同步 ============
 
 // UploadRecords 上传记录同步
@@ -229,6 +277,7 @@ func (api *SyncApi) UploadRecords(c *gin.Context) {
 
 	// 获取站点ID
 	stationID := middleware.GetStationID(c)
+	global.AppLogger.Info("[API/UploadRecords] 收到同步请求, stationID=%d, records=%d", stationID, len(req.Records))
 
 	resp, err := api.syncService.UploadRecords(req, stationID)
 	if err != nil {
@@ -275,18 +324,44 @@ func (api *SyncApi) GetHistory(c *gin.Context) {
 // @Tags Sync
 // @Security Bearer
 // @Param id path int true "历史ID"
+// @Param result query string false "过滤：success/failed/conflict"
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
 // @Success 200 {object} dto.Response
 // @Router /api/sync/history/{id} [get]
 func (api *SyncApi) GetHistoryDetails(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
+	result := c.Query("result")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "50"))
 
-	result, err := api.syncService.GetHistoryDetails(uint(id))
+	resp, err := api.syncService.GetHistoryDetails(uint(id), result, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusNotFound, dto.Response{Code: 404, Message: "同步历史不存在"})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: result})
+	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: resp})
+}
+
+// GetStationSummaries 获取各站点同步汇总
+// @Summary 获取各站点同步汇总
+// @Tags Sync
+// @Security Bearer
+// @Param stationId query int false "站点ID"
+// @Param startDate query string false "开始日期"
+// @Param endDate query string false "结束日期"
+// @Success 200 {object} dto.Response
+// @Router /api/sync/station-summaries [get]
+func (api *SyncApi) GetStationSummaries(c *gin.Context) {
+	var req dto.SyncStationSummaryReq
+	c.ShouldBindQuery(&req)
+	summaries, err := api.syncService.GetStationSummaries(req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: summaries})
 }
 
 // ============ 同步状态 ============

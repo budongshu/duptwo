@@ -5,6 +5,7 @@ import (
 	"datauptwo/app/repo"
 	"datauptwo/app/service"
 	"datauptwo/global"
+	"datauptwo/middleware"
 	"datauptwo/router"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	_ "datauptwo/docs"
 
@@ -21,7 +23,6 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 // @title datauptwo API
@@ -75,10 +76,10 @@ func main() {
 }
 
 func runServer(cmd *cobra.Command, args []string) {
-	// 初始化配置
+	// 初始化配置（必须最先，InitLogger 需要用到 CONF.Base.InstallDir）
 	initConfig()
 
-	// 初始化日志
+	// 初始化日志：同时输出到终端 + 按天滚动的日志文件
 	global.InitLogger()
 	global.AppLogger.Info("Starting Data Registry server...")
 
@@ -121,7 +122,10 @@ func initConfig() {
 	// 存储配置文件路径，供路由层推导相对路径（如 web_root）
 	global.CONF.Base.ConfigFile = configFile
 
-	os.Setenv("TZ", global.CONF.Log.TimeZone)
+	// 设置时区：空则使用系统时区（推荐，WSL2 会跟随 Windows）
+	if global.CONF.Log.TimeZone != "" {
+		os.Setenv("TZ", global.CONF.Log.TimeZone)
+	}
 }
 
 func initDatabase() {
@@ -137,8 +141,8 @@ func initDatabase() {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			log.Fatalf("Failed to create database directory: %v", err)
 		}
-		db, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Info),
+		db, err = gorm.Open(sqlite.Open(dbPath+"?_busy_timeout=5000"), &gorm.Config{
+			Logger: global.NewGormLogger(200 * time.Millisecond),
 		})
 
 	case "mysql":
@@ -150,7 +154,7 @@ func initDatabase() {
 			global.CONF.Database.Name,
 		)
 		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Info),
+			Logger: global.NewGormLogger(200 * time.Millisecond),
 		})
 
 	case "postgres":
@@ -162,7 +166,7 @@ func initDatabase() {
 			global.CONF.Database.Port,
 		)
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Info),
+			Logger: global.NewGormLogger(200 * time.Millisecond),
 		})
 
 	default:
@@ -270,7 +274,7 @@ func openDatabase() (*gorm.DB, error) {
 	}
 
 	db, err := gorm.Open(dial, &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Warn),
+		Logger: global.NewGormLogger(200 * time.Millisecond),
 	})
 	return db, err
 }
@@ -288,6 +292,8 @@ func initData() {
 	initDefaultUser()
 	// 初始化默认安全设置
 	initDefaultSecuritySettings()
+	// 从数据库加载 AD 配置到内存
+	loadADConfigFromDB()
 
 	global.AppLogger.Info("Data initialization completed")
 }
@@ -367,6 +373,30 @@ func initDefaultSecuritySettings() {
 		global.AppLogger.Error("Failed to create default security settings: %v", err)
 	} else {
 		global.AppLogger.Info("Default security settings created")
+	}
+}
+
+// loadADConfigFromDB 从数据库加载 AD 配置到内存（启动时调用）
+func loadADConfigFromDB() {
+	var settings model.SecuritySettings
+	if err := global.DB.First(&settings).Error; err != nil {
+		global.AppLogger.Warn("Failed to load AD config from DB: %v", err)
+		return
+	}
+	// 同步到全局配置
+	global.CONF.AD.Enabled = settings.ADEnabled
+	global.CONF.AD.Server = settings.ADServer
+	global.CONF.AD.Port = settings.ADPort
+	global.CONF.AD.UseSSL = settings.ADUseSSL
+	global.CONF.AD.BaseDN = settings.ADBaseDN
+	global.CONF.AD.BindDN = settings.ADBindDN
+	global.CONF.AD.BindPassword = settings.ADBindPassword
+	global.CONF.AD.UserFilter = settings.ADUserFilter
+	global.CONF.AD.AutoRegister = settings.ADAutoRegister
+	global.CONF.AD.DefaultRoleID = settings.ADDefaultRoleID
+	if settings.ADEnabled {
+		global.AppLogger.Info("AD config loaded from DB: server=%s, port=%d, base_dn=%s",
+			settings.ADServer, settings.ADPort, settings.ADBaseDN)
 	}
 }
 
@@ -498,30 +528,60 @@ func migrateModels() error {
 	)
 }
 
-// initSyncScheduler 初始化同步调度器（Agent 模式自动注册）
+// initSyncScheduler 初始化同步调度器（仅 Agent 模式）
 func initSyncScheduler() {
-	if !global.CONF.Sync.Enabled {
-		return
-	}
+	// 预热 API Key 缓存（Center 和 Agent 都执行，缓存为空则不影响）
+	middleware.InitAPIKeyCache()
 
-	scheduler := service.NewSyncScheduler()
+	if global.CONF.Sync.Mode == "agent" {
+		scheduler := service.NewSyncScheduler()
 
-	// 从配置设置过滤器
-	if len(global.CONF.Sync.Filter.ProjectNames) > 0 {
-		filter := &service.SyncFilter{
-			ProjectNames: global.CONF.Sync.Filter.ProjectNames,
+		// 从配置设置过滤器
+		if len(global.CONF.Sync.Agent.Filter.ProjectNames) > 0 {
+			filter := &service.SyncFilter{
+				ProjectNames: global.CONF.Sync.Agent.Filter.ProjectNames,
+			}
+			scheduler.SetFilter(filter)
+			global.AppLogger.Info("同步过滤器已设置，项目: %v", global.CONF.Sync.Agent.Filter.ProjectNames)
 		}
-		scheduler.SetFilter(filter)
-		global.AppLogger.Info("同步过滤器已设置，项目: %v", global.CONF.Sync.Filter.ProjectNames)
+
+		if err := scheduler.Start(); err != nil {
+			global.AppLogger.Error("启动同步调度器失败: %v", err)
+			return
+		}
+
+		// 保存调度器实例到全局变量
+		global.SetSyncScheduler(scheduler)
 	}
 
-	if err := scheduler.Start(); err != nil {
-		global.AppLogger.Error("启动同步调度器失败: %v", err)
-		return
+	// Center 模式：启动主动探测循环
+	if global.CONF.Sync.Mode == "center" {
+		go startCenterProbeLoop()
+	}
+}
+
+// startCenterProbeLoop Center 主动探测所有 Agent 的循环
+func startCenterProbeLoop() {
+	svc := service.NewSyncService()
+	interval := 30 * time.Second // 默认每 30 秒探测一次
+
+	// 解析配置间隔
+	if iv := global.CONF.Sync.Agent.Interval; iv != "" {
+		if d, err := time.ParseDuration(iv); err == nil && d >= 10*time.Second {
+			interval = d
+		}
 	}
 
-	// 保存调度器实例到全局变量
-	global.SetSyncScheduler(scheduler)
+	global.AppLogger.Info("[CenterProbe] 启动主动探测循环，间隔: %v", interval)
+
+	// 启动后立即探测一次
+	svc.ProbeAllAgents()
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for range ticker.C {
+		svc.ProbeAllAgents()
+	}
 }
 
 func startServer() {

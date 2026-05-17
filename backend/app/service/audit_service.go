@@ -9,15 +9,30 @@ import (
 )
 
 type AuditService struct {
-	opLogRepo  *repo.OperationLogRepo
-	loginRepo  *repo.LoginLogRepo
+	opLogRepo *repo.OperationLogRepo
+	loginRepo *repo.LoginLogRepo
 }
 
 func NewAuditService() *AuditService {
 	return &AuditService{
-		opLogRepo:  repo.NewOperationLogRepo(),
-		loginRepo:  repo.NewLoginLogRepo(),
+		opLogRepo: repo.NewOperationLogRepo(),
+		loginRepo: repo.NewLoginLogRepo(),
 	}
+}
+
+// FieldChange 字段变更结构
+type FieldChange struct {
+	Field    string      `json:"field"`    // 字段名
+	Label    string      `json:"label"`    // 字段中文名
+	OldValue interface{} `json:"oldValue"` // 变更前的值
+	NewValue interface{} `json:"newValue"` // 变更后的值
+}
+
+// OperationDetail 操作明细
+type OperationDetail struct {
+	Before interface{}     `json:"before,omitempty"` // 操作前的完整数据
+	After  interface{}     `json:"after,omitempty"`  // 操作后的完整数据
+	Changes []FieldChange  `json:"changes,omitempty"` // 变更的字段列表
 }
 
 // LogOperation 记录操作日志
@@ -40,6 +55,59 @@ func (s *AuditService) LogOperation(userID uint, username, menuName, action, res
 		Detail:       detailStr,
 	}
 	return s.opLogRepo.Create(log)
+}
+
+// LogOperationWithDetail 记录操作日志（带变更明细）
+func (s *AuditService) LogOperationWithDetail(userID uint, username, menuName, action, resourceType string, resourceID uint, resourceName, ipAddress, userAgent string, operationDetail *OperationDetail) error {
+	detailJSON, _ := json.Marshal(operationDetail)
+	log := &model.OperationLog{
+		UserID:       userID,
+		Username:     username,
+		MenuName:     menuName,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		ResourceName: resourceName,
+		IPAddress:    ipAddress,
+		UserAgent:    userAgent,
+		Detail:       string(detailJSON),
+	}
+	return s.opLogRepo.Create(log)
+}
+
+// GetChanges 计算两个对象之间的字段变更
+func GetChanges[T any](oldObj, newObj T, fieldLabels map[string]string) []FieldChange {
+	var changes []FieldChange
+	oldJSON, _ := json.Marshal(oldObj)
+	newJSON, _ := json.Marshal(newObj)
+
+	// 如果完全相同，不记录变更
+	if string(oldJSON) == string(newJSON) {
+		return changes
+	}
+
+	oldMap := make(map[string]interface{})
+	newMap := make(map[string]interface{})
+	json.Unmarshal(oldJSON, &oldMap)
+	json.Unmarshal(newJSON, &newMap)
+
+	for key, newVal := range newMap {
+		oldVal := oldMap[key]
+		// 比较值是否变化（简单比较，复杂类型可能不准确）
+		if fmt.Sprintf("%v", oldVal) != fmt.Sprintf("%v", newVal) {
+			label := fieldLabels[key]
+			if label == "" {
+				label = key
+			}
+			changes = append(changes, FieldChange{
+				Field:    key,
+				Label:    label,
+				OldValue: oldVal,
+				NewValue: newVal,
+			})
+		}
+	}
+	return changes
 }
 
 // ListOperationLogs 获取操作日志列表

@@ -37,9 +37,9 @@
       <el-table ref="tableRef" v-model:selection="selectedRows" :data="tableData" v-loading="loading" stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="38" fixed="left" />
         <el-table-column prop="name" :label="t('role.list.table.name')" min-width="120">
-          <template #default="{ row }">
+          <template #default="{ row, $index }">
             <div class="role-cell">
-              <div class="role-avatar">{{ (row.name || 'R').charAt(0).toUpperCase() }}</div>
+              <div class="role-avatar" :style="{ background: getRoleColor(row.name, $index) }">{{ (row.name || 'R').charAt(0).toUpperCase() }}</div>
               <span class="role-name">{{ row.name }}</span>
             </div>
           </template>
@@ -180,6 +180,14 @@ const form = reactive<CreateRoleReq & { id?: number }>({ name: '', code: '', des
 const formRules = {
   name: [{ required: true, message: t('role.list.messages.nameRequired'), trigger: 'blur' }],
   code: [{ required: true, message: t('role.list.messages.codeRequired'), trigger: 'blur' }],
+}
+
+// 角色颜色配置
+const roleColors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399', '#00BFA5', '#7C3AED', '#DB2777', '#06B6D4', '#84CC16']
+const getRoleColor = (name: string, index?: number) => {
+  if (index !== undefined) return roleColors[index % roleColors.length]
+  const idx = (name || '').charCodeAt(0) % roleColors.length
+  return roleColors[idx]
 }
 
 // 权限分组

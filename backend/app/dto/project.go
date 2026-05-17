@@ -24,7 +24,10 @@ type ProjectCreateReq struct {
 	OpsStaffPerson  string           `json:"opsStaffPerson"`   // 运营人员（逗号分隔）
 	DeveloperPerson string           `json:"developerPerson"`   // 开发人员（逗号分隔）
 	TesterPerson    string           `json:"testerPerson"`     // 测试人员（逗号分隔）
-	BusinessPerson  string           `json:"businessPerson"`   // 商务人员（逗号分隔）
+	BusinessPerson  string           `json:"businessPerson"`   // 业务人员（逗号分隔）
+	Business2Person string           `json:"business2Person"`  // 商务人员（逗号分隔）
+	BusinessCostPerson string       `json:"businessCostPerson"` // 成本人员（逗号分隔）
+	ProductPerson   string           `json:"productPerson"`   // 产品人员（逗号分隔）
 	CompliancePerson string          `json:"compliancePerson"`  // 合规专员（逗号分隔）
 	SecurityPerson  string           `json:"securityPerson"`    // 安全人员（逗号分隔）
 	NetworkPerson   string           `json:"networkPerson"`     // 网络人员（逗号分隔）
@@ -49,7 +52,10 @@ type ProjectUpdateReq struct {
 	OpsStaffPerson  string           `json:"opsStaffPerson"`   // 运营人员（逗号分隔）
 	DeveloperPerson string           `json:"developerPerson"`   // 开发人员（逗号分隔）
 	TesterPerson    string           `json:"testerPerson"`     // 测试人员（逗号分隔）
-	BusinessPerson  string           `json:"businessPerson"`   // 商务人员（逗号分隔）
+	BusinessPerson  string           `json:"businessPerson"`   // 业务人员（逗号分隔）
+	Business2Person string           `json:"business2Person"`  // 商务人员（逗号分隔）
+	BusinessCostPerson string       `json:"businessCostPerson"` // 成本人员（逗号分隔）
+	ProductPerson   string           `json:"productPerson"`   // 产品人员（逗号分隔）
 	CompliancePerson string          `json:"compliancePerson"`  // 合规专员（逗号分隔）
 	SecurityPerson  string           `json:"securityPerson"`    // 安全人员（逗号分隔）
 	NetworkPerson   string           `json:"networkPerson"`     // 网络人员（逗号分隔）

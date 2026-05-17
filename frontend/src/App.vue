@@ -1,5 +1,5 @@
 <template>
-  <el-config-provider :locale="elLocale">
+  <el-config-provider :locale="elLocale" :message="{ max: 3 }">
     <router-view />
   </el-config-provider>
   <DeveloperTerminal
@@ -8,45 +8,23 @@
     :loading="terminalLoading"
     @submit="processCommand"
   />
-  <MilestoneBadge
-    ref="milestoneBadgeRef"
-    v-model:visible="milestoneVisible"
-    v-model:badge="currentMilestone"
-    @dismiss="milestoneVisible = false"
-  />
 </template>
 
 <script setup lang="ts">
-import { ref, provide, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, provide, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElConfigProvider } from 'element-plus'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import en from 'element-plus/es/locale/lang/en'
 import DeveloperTerminal from '@/components/DeveloperTerminal.vue'
-import MilestoneBadge from '@/components/MilestoneBadge.vue'
-import { useMilestones } from '@/composables/useMilestones'
 import { useUser } from '@/composables/useUser'
 
 const { locale } = useI18n()
 
 const elLocale = computed(() => (locale.value === 'zh' ? zhCn : en))
 
-const milestone = useMilestones()
 const user = useUser()
-const milestoneVisible = ref(false)
-const currentMilestone = ref<any>(null)
-const milestoneBadgeRef = ref<any>(null)
 
-// Watch for milestone unlocks and show notification
-watch(() => milestone.showBadge.value, (v) => {
-  if (v) {
-    currentMilestone.value = milestone.currentBadge.value
-    milestoneVisible.value = true
-  }
-})
-
-// Provide trackExport for child components
-provide('trackExport', milestone.trackExport)
 // Provide refreshUser for permission refresh after role changes
 provide('refreshUser', user.refreshUser)
 
@@ -398,9 +376,6 @@ onMounted(() => {
 // Provide easter egg handlers for child components
 provide('easterEggs', {
   handleLogoClick,
-  openMilestones: () => {
-    milestoneBadgeRef.value?.openDrawer?.()
-  },
 })
 
 onUnmounted(() => {

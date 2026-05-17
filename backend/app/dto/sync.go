@@ -26,20 +26,23 @@ type SyncStationUpdateReq struct {
 
 // SyncStationResp 站点响应
 type SyncStationResp struct {
-	ID          uint       `json:"id"`
-	Name        string     `json:"name"`
-	Code        string     `json:"code"`
-	URL         string     `json:"url"`
-	Status      string     `json:"status"`
-	StatusText  string     `json:"statusText"`
-	Description string     `json:"description"`
-	IsCenter    bool       `json:"isCenter"`
-	APIKey      string     `json:"apiKey,omitempty"` // 创建时返回API Key
-	LastSyncAt  *time.Time `json:"lastSyncAt"`
-	SyncCount   int64      `json:"syncCount"`
-	Remark      string     `json:"remark"`
-	CreatedAt   time.Time  `json:"createdAt"`
-	UpdatedAt   time.Time  `json:"updatedAt"`
+	ID              uint   `json:"id"`
+	Name            string `json:"name"`
+	Code            string `json:"code"`
+	URL             string `json:"url"`
+	Status          string `json:"status"`
+	StatusText      string `json:"statusText"`
+	Description     string `json:"description"`
+	IsCenter        bool   `json:"isCenter"`
+	APIKey          string `json:"apiKey,omitempty"`        // 创建时返回API Key
+	LastSyncAt      int64  `json:"lastSyncAt"`             // Unix ms
+	SyncCount       int64  `json:"syncCount"`
+	Remark          string `json:"remark"`
+	CreatedAt       int64  `json:"createdAt"`   // Unix ms
+	UpdatedAt       int64  `json:"updatedAt"`   // Unix ms
+	LastHeartbeatAt int64  `json:"lastHeartbeatAt"` // Unix ms
+	LastConnectedAt int64  `json:"lastConnectedAt"` // Unix ms，最后探测成功时间
+	IsConnected     bool   `json:"isConnected"`      // 主动探测结果
 }
 
 // SyncStationListReq 站点列表请求
@@ -54,10 +57,10 @@ type SyncStationListReq struct {
 
 // SyncRegisterReq 站点注册请求
 type SyncRegisterReq struct {
-	StationCode string `json:"stationCode" validate:"required,max=64"` // 站点代码
-	StationName string `json:"stationName" validate:"required,max=128"` // 站点名称
-	URL         string `json:"url" validate:"required,max=512"`         // 站点URL
-	Password    string `json:"password" validate:"required,max=128"`    // 站点密码
+	StationCode string `json:"stationCode" validate:"required,max=64"`   // 站点代码
+	StationName string `json:"stationName" validate:"required,max=128"`  // 站点名称
+	URL         string `json:"url" validate:"required,max=512"`          // 站点URL
+	Password    string `json:"password"`                                 // 站点密码（可选，用于安全验证）
 }
 
 // SyncRegisterResp 站点注册响应
@@ -120,63 +123,74 @@ type SyncHistoryListReq struct {
 	Status     string `form:"status"`
 	StartDate  string `form:"startDate"`
 	EndDate    string `form:"endDate"`
+	Keyword    string `form:"keyword"` // 搜索流水号/备注
+}
+
+// SyncStationSummaryResp 站点同步汇总（用于 Center 首页卡片）
+type SyncStationSummaryResp struct {
+	ID            uint   `json:"id"`
+	Name          string `json:"name"`
+	Code          string `json:"code"`
+	Status        string `json:"status"`
+	LastSyncAt    int64  `json:"lastSyncAt"`    // Unix ms，DB存为INTEGER
+	TotalSyncs    int    `json:"totalSyncs"`    // 历史总同步次数
+	TotalRecords  int    `json:"totalRecords"`   // 历史累计记录数
+	SuccessCount  int    `json:"successCount"`   // 历史累计成功数
+	FailCount     int    `json:"failCount"`      // 历史累计失败数
+	ConflictCount int    `json:"conflictCount"`  // 历史累计冲突数
+}
+
+// SyncStationSummaryReq 站点汇总查询请求
+type SyncStationSummaryReq struct {
+	StationID uint   `form:"stationId"`
+	StartDate string `form:"startDate"`
+	EndDate   string `form:"endDate"`
 }
 
 // SyncHistoryResp 同步历史响应
 type SyncHistoryResp struct {
-	ID           uint        `json:"id"`
-	StationID    uint        `json:"stationId"`
-	StationName  string      `json:"stationName"`
-	Direction    string      `json:"direction"`
-	DirectionText string     `json:"directionText"`
-	Status       string      `json:"status"`
-	StatusText   string      `json:"statusText"`
-	TotalRecords int         `json:"totalRecords"`
-	SuccessCount int         `json:"successCount"`
-	FailCount    int         `json:"failCount"`
-	ConflictCount int        `json:"conflictCount"`
-	StartedAt    *time.Time  `json:"startedAt"`
-	CompletedAt  *time.Time  `json:"completedAt"`
-	ErrorMsg     string      `json:"errorMsg"`
-	Remark       string      `json:"remark"`
-	CreatedAt    time.Time   `json:"createdAt"`
+	ID            uint   `json:"id"`
+	StationID     uint   `json:"stationId"`
+	StationName   string `json:"stationName"`
+	StationCode   string `json:"stationCode"`
+	Direction     string `json:"direction"`
+	DirectionText string `json:"directionText"`
+	Status        string `json:"status"`
+	StatusText    string `json:"statusText"`
+	TotalRecords  int    `json:"totalRecords"`
+	SuccessCount  int    `json:"successCount"`
+	FailCount     int    `json:"failCount"`
+	ConflictCount int    `json:"conflictCount"`
+	StartedAt     int64  `json:"startedAt"`    // Unix ms，DB存为string
+	CompletedAt   int64  `json:"completedAt"`  // Unix ms
+	ErrorMsg      string `json:"errorMsg"`
+	Remark        string `json:"remark"`
+	CreatedAt     int64  `json:"createdAt"`   // Unix ms
 }
 
 // SyncHistoryDetailResp 同步历史详情响应
 type SyncHistoryDetailResp struct {
 	SyncHistoryResp
-	Details []SyncDetailResp `json:"details"`
+	Total   int64             `json:"total"`    // 详情总条数（分页用）
+	Details []SyncDetailResp   `json:"details"`
 }
 
 // SyncDetailResp 同步详情响应
 type SyncDetailResp struct {
 	ID          uint   `json:"id"`
-	SerialNo     string `json:"serialNo"`
-	ProjectName  string `json:"projectName"`
-	Action       string `json:"action"`
-	ActionText   string `json:"actionText"`
-	Result       string `json:"result"`
-	ErrorMsg     string `json:"errorMsg"`
-	OldSerialNo  string `json:"oldSerialNo"`
-	NewSerialNo  string `json:"newSerialNo"`
-	CreatedAt   time.Time `json:"createdAt"`
+	HistoryID   uint   `json:"historyId"`
+	SerialNo    string `json:"serialNo"`
+	ProjectName string `json:"projectName"`
+	Action      string `json:"action"`
+	ActionText  string `json:"actionText"`
+	Result      string `json:"result"`
+	ErrorMsg    string `json:"errorMsg"`
+	OldSerialNo string `json:"oldSerialNo"`
+	NewSerialNo string `json:"newSerialNo"`
+	CreatedAt   int64  `json:"createdAt"` // unix timestamp 毫秒
 }
 
 // ============ 同步状态相关 ============
-
-// SyncStatusResp 同步状态响应
-type SyncStatusResp struct {
-	Enabled       bool       `json:"enabled"`
-	Mode          string     `json:"mode"`           // center/agent
-	IsCenter      bool       `json:"isCenter"`
-	StationID     string     `json:"stationId"`
-	StationName   string     `json:"stationName"`
-	CenterURL     string     `json:"centerUrl"`
-	LastSyncAt    *time.Time `json:"lastSyncAt"`
-	SyncQueueCount int       `json:"syncQueueCount"` // 队列中的同步任务数
-	Registered    bool       `json:"registered"`      // 是否已注册到 Center
-	LastErrorAt   *time.Time `json:"lastErrorAt"`     // 最后错误时间
-}
 
 // SyncQueueItem 同步队列项
 type SyncQueueItem struct {
@@ -188,4 +202,40 @@ type SyncQueueItem struct {
 	NextRetryAt *time.Time `json:"nextRetryAt"`
 	CreatedAt   time.Time `json:"createdAt"`
 	ErrorMsg    string    `json:"errorMsg"`
+}
+
+// SyncStatusResp 同步状态响应（增强版，包含调度器完整状态）
+type SyncStatusResp struct {
+	Enabled        bool       `json:"enabled"`
+	Mode           string     `json:"mode"`            // center/agent
+	IsCenter       bool       `json:"isCenter"`
+	StationID      string     `json:"stationId"`
+	StationName    string     `json:"stationName"`
+	CenterURL      string     `json:"centerUrl"`
+	Registered     bool       `json:"registered"`        // Agent是否已注册到Center
+	Interval          string     `json:"interval"`          // 同步间隔
+	HeartbeatInterval string     `json:"heartbeatInterval"` // 心跳间隔
+	HeartbeatTimeout int        `json:"heartbeatTimeout"`  // 心跳超时（秒）
+	BatchSize        int        `json:"batchSize"`        // 每批数量
+	Filter         *SyncFilterResp `json:"filter"`      // 同步过滤器
+	LastSyncAt     *time.Time `json:"lastSyncAt"`       // 上次同步时间
+	LastSerialNo   string     `json:"lastSerialNo"`     // 上次同步最后SerialNo
+	SyncQueueCount int        `json:"syncQueueCount"`   // 队列中任务数
+	QueueTotal     int        `json:"queueTotal"`       // 队列总任务数
+	QueuePending   int        `json:"queuePending"`     // 等待中
+	QueueCompleted int        `json:"queueCompleted"`    // 已完成
+	QueueFailed    int        `json:"queueFailed"`      // 失败
+	LastErrorAt    *time.Time `json:"lastErrorAt"`      // 最后错误时间
+	LastError      string     `json:"lastError"`        // 最后错误信息
+}
+
+// SyncFilterResp 同步过滤器响应
+type SyncFilterResp struct {
+	ProjectNames []string `json:"projectNames"` // 只同步这些项目
+}
+
+// SyncResetKeyResp 重置API Key响应
+type SyncResetKeyResp struct {
+	ID      uint   `json:"id"`
+	APIKey  string `json:"apiKey"` // 新API Key（仅返回一次）
 }

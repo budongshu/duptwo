@@ -1,0 +1,123 @@
+[2026-04-22 23:14:59] [INFO] Starting Data Registry server...
+[2026-04-22 23:14:59] [INFO] Database(sqlite) initialized successfully
+[2026-04-22 23:15:03] [INFO] Default role created: 管理员
+[2026-04-22 23:15:03] [INFO] Default role created: 数据操作员
+[2026-04-22 23:15:03] [INFO] Default role created: 项目管理员
+[2026-04-22 23:15:03] [INFO] Default role created: 审计账号
+[2026-04-22 23:15:04] [INFO] Default role created: 普通查看者
+[2026-04-22 23:15:04] [INFO] Default admin user created: admin / admin123 (roleID=1)
+[2026-04-22 23:15:04] [INFO] Default security settings created
+[2026-04-22 23:15:04] [INFO] Data initialization completed
+[2026-04-22 23:15:04] [INFO] [CenterProbe] 启动主动探测循环，间隔: 1m0s
+[2026-04-22 23:15:04] [INFO] Server listening on :18421
+[2026-04-22 23:19:48] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:20:18] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:20:47] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:21:17] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:21:47] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:22:16] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:22:46] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:23:15] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:23:45] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:24:15] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:24:45] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:25:14] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:27:54] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:27:59] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:28:29] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:28:53] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:28:59] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:29:28] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:29:52] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:29:58] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:30:27] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:30:51] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:30:56] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:31:26] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:31:50] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:31:56] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:32:26] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:32:50] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:32:55] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:33:25] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:33:50] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:33:55] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:34:25] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:34:49] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:34:55] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:35:25] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:35:49] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:35:54] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:36:24] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:36:48] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:36:54] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:37:23] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:37:47] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:37:53] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:38:22] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:38:46] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:38:52] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:39:21] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:39:45] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:39:51] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:40:20] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:40:44] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:40:50] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:41:19] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:41:43] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:41:49] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:42:18] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:42:42] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:42:48] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:43:18] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:43:41] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:43:47] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:44:16] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:44:40] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:44:46] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:45:15] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:45:40] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:45:45] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:46:15] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:46:38] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:46:44] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:47:13] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:47:37] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:47:43] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:48:12] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:48:36] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:48:42] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:49:11] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:49:35] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:49:41] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:50:10] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:50:34] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:50:40] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:51:09] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:51:33] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:51:38] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:52:08] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:52:31] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:52:37] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:53:07] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:53:30] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:53:36] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:54:05] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:54:29] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:54:35] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:55:04] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:55:28] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:55:33] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:56:03] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:56:27] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:56:33] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:57:02] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:57:26] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:57:32] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:58:01] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:58:25] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:58:30] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:59:00] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:59:23] [INFO] [CenterProbe] 本地测试Agent [local-agent-test] 在线
+[2026-04-22 23:59:29] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用
+[2026-04-22 23:59:58] [WARN] [ApiKeyAuth] API Key 验证失败: 无效或站点已禁用

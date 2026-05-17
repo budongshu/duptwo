@@ -1,0 +1,99 @@
+# ============================================================
+# datauptwo Agent 配置 - 生产环境
+# 说明: 数据采集节点，向 Center 上报数据
+# ============================================================
+
+base:
+  mode: prod
+  port: 18422                  # Agent 监听端口（避免与 Center 冲突）
+  username: "admin"                  # 必填：本地管理员用户名
+  password: "admin123"                  # 必填：本地管理员密码
+  version: v1.0.0
+  language: zh
+  install_dir: ./data_agent     # 数据目录
+  serve_web: true          # Agent 通常不需要 Web 界面
+
+database:
+  # Agent 建议使用 SQLite（轻量、零配置）
+  type: sqlite
+  path: ./data_agent/duptwo.db
+
+  # 如需更高可靠性可使用 MySQL
+  # type: mysql
+  # host: 127.0.0.1
+  # port: 3306
+  # user: root
+  # pass: ""
+  # name: datauptwo_agent
+
+log:
+  level: info                   # info / debug
+  time_zone: Asia/Shanghai
+  log_name: agent
+  max_backup: 30
+  max_size: 100
+
+session:
+  timeout: 7200
+  secret: "AJtGnt9enlhfemz9UVlTtMjkuxiNpNIZ"                    # 必填：随机生成的 32+ 字符密钥
+
+cors:
+  allow_origins:
+    - "*"
+    - "https://duptwo.your-domain.com"   # Center 域名（用于跨域）
+  allow_methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  allow_headers:
+    - Origin
+    - Content-Type
+    - Authorization
+    - X-API-Key
+
+jwt:
+  secret: "E1U4JvPDkPxt8MnsnnF5r7u4ix4bVeCj"                    # 必填：随机生成的 JWT 签名密钥
+
+sync:
+  # ===== 同步模式 =====
+  mode: agent                   # agent：代理节点，推送数据到 Center
+
+  center:
+    heartbeat_timeout: 120      # 心跳超时（Agent 端不生效，仅 Center 使用）
+
+  agent:
+    # ===== 必填配置 =====
+    center_url: "http://localhost:18421"   # Center 站点地址（必填，https 强烈推荐）
+    station_id: "sh-agent-01"                 # 本站点唯一标识（必填，建议用机房/区域+编号）
+    station_name: "sh-agent-01"            # 站点显示名称
+    url: "http://localhost:18422"   # 本 Agent 公开地址（Center 探测用，https 强烈推荐）
+
+    # ===== 可选配置 =====
+    interval: "1m"              # 同步间隔（建议 1m-5m，频繁上报可缩短）
+    batch_size: 100             # 每批同步记录数（建议 50-200）
+    retry_count: 3              # 失败重试次数
+    retry_interval: "30s"       # 重试间隔
+    heartbeat_interval: "60s"  # 心跳间隔（建议 30s-60s，太短增加负载，太长延迟发现故障）
+
+    # ===== 同步过滤器（可选）=====
+    # 只同步特定项目，不配置则同步所有项目
+    filter:
+      project_names:
+        # - "项目A"
+        # - "项目B"
+      # start_time: "2024-01-01T00:00:00Z"   # 只同步此时间之后的记录
+      # end_time: "2024-12-31T23:59:59Z"
+
+    # ===== HTTP 代理（可选）=====
+    # 用于无法直接访问 Center 的内网环境
+    proxy:
+      enabled: false
+      url: "http://proxy.your-domain.com:8080"
+      username: ""              # 代理认证用户名（可选）
+      password: ""              # 代理认证密码（可选）
+
+  # API Key（Agent 启动后自动从 Center 获取，持久化在此）
+  # 首次启动时会自动注册，无需手动配置
+  # api_key: ""

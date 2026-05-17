@@ -29,8 +29,8 @@ func NewSyncClient(baseURL, apiKey string) *SyncClient {
 	}
 
 	// 配置代理
-	proxyEnabled := global.CONF.Sync.Proxy.Enabled
-	proxyURL := global.CONF.Sync.Proxy.URL
+	proxyEnabled := global.CONF.Sync.Agent.Proxy.Enabled
+	proxyURL := global.CONF.Sync.Agent.Proxy.URL
 
 	if proxyEnabled && proxyURL != "" {
 		client.proxyURL = proxyURL
@@ -138,16 +138,16 @@ type SyncRecordData struct {
 	Data        map[string]interface{} `json:"data"`
 }
 
-// SyncUploadResponse 上传记录同步响应
+// SyncUploadResponse 上传记录同步响应（与 dto.SyncUploadResp 格式对齐）
 type SyncUploadResponse struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Code    int `json:"code"`
 	Data    struct {
-		TotalRecords   int `json:"totalRecords"`
-		SuccessCount   int `json:"successCount"`
-		FailCount      int `json:"failCount"`
-		ConflictCount  int `json:"conflictCount"`
+		TotalRecords  int `json:"totalRecords"`
+		SuccessCount  int `json:"successCount"`
+		FailCount     int `json:"failCount"`
+		ConflictCount int `json:"conflictCount"`
 	} `json:"data"`
+	Message string `json:"message"`
 }
 
 // UploadRecords 上传记录到中心站点
@@ -262,6 +262,18 @@ func (c *SyncClient) Register(req *RegisterRequest) (*RegisterResponse, error) {
 	}
 
 	return &resp, nil
+}
+
+// Heartbeat 发送心跳到 Center
+func (c *SyncClient) Heartbeat() error {
+	_, statusCode, err := c.Post("/api/sync/heartbeat", nil)
+	if err != nil {
+		return err
+	}
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("心跳失败，状态码: %d", statusCode)
+	}
+	return nil
 }
 
 // Close 关闭客户端

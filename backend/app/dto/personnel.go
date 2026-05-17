@@ -6,8 +6,8 @@ import "time"
 
 // PersonnelCreateReq 创建人员请求
 type PersonnelCreateReq struct {
-	Name            string `json:"name" validate:"required,max=64"`
-	Phone           string `json:"phone" validate:"max=32"`
+	Name             string `json:"name" validate:"required,max=64"`
+	Phone            string `json:"phone" validate:"max=32"`
 	Email           string `json:"email" validate:"max=128"`
 	Company         string `json:"company" validate:"max=128"`
 	Position        string `json:"position" validate:"max=64"`
@@ -24,9 +24,9 @@ type PersonnelCreateReq struct {
 
 // PersonnelUpdateReq 更新人员请求
 type PersonnelUpdateReq struct {
-	ID              uint   `json:"id" validate:"required"`
-	Name            string `json:"name" validate:"required,max=64"`
-	Phone           string `json:"phone" validate:"max=32"`
+	ID               uint   `json:"id" validate:"required"`
+	Name             string `json:"name" validate:"required,max=64"`
+	Phone            string `json:"phone" validate:"max=32"`
 	Email           string `json:"email" validate:"max=128"`
 	Company         string `json:"company" validate:"max=128"`
 	Position        string `json:"position" validate:"max=64"`
@@ -48,6 +48,7 @@ type PersonnelListReq struct {
 	Keyword   string `form:"keyword"`
 	Status    string `form:"status"`
 	OnProject string `form:"onProject"`
+	Position  string `form:"position"`
 }
 
 // PersonnelResp 人员响应
@@ -60,7 +61,7 @@ type PersonnelResp struct {
 	Position         string    `json:"position"`
 	WorkExperience   string    `json:"workExperience"`
 	EntryDate        string    `json:"entryDate"`
-	ProjectStartDate string    `json:"projectStartDate"`
+	ProjectStartDate  string    `json:"projectStartDate"`
 	OnProjectStatus  string    `json:"onProjectStatus"`
 	Salary           string    `json:"salary"`
 	Location         string    `json:"location"`
@@ -69,4 +70,16 @@ type PersonnelResp struct {
 	Sort             int       `json:"sort"`
 	CreatedAt        time.Time `json:"createdAt"`
 	UpdatedAt        time.Time `json:"updatedAt"`
+}
+
+// PersonnelStatisticsResp 人员统计响应
+type PersonnelStatisticsResp struct {
+	Total      int64           `json:"total"`
+	ByPosition []PositionCount `json:"byPosition"`
+}
+
+// PositionCount 职位统计
+type PositionCount struct {
+	Position string `json:"position"`
+	Count    int64  `json:"count"`
 }

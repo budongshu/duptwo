@@ -8,10 +8,10 @@
       </div>
     </header>
 
-    <!-- 人员统计（基于所有数据，不受分页影响） -->
-    <div class="person-stats" v-if="!loading && allPersonnelData.length > 0">
+    <!-- 人员统计（基于后端统计数据，避免多次请求） -->
+    <div class="person-stats" v-if="!loading && statisticsData.total > 0">
       <div class="person-stat person-stat--total" @click="filterByPosition('')">
-        <span class="person-stat-num">{{ allPersonnelData.length }}</span>
+        <span class="person-stat-num">{{ statisticsData.total }}</span>
         <span class="person-stat-label">全部人员</span>
       </div>
       <div class="stat-divider"></div>
@@ -692,8 +692,6 @@ const previewInfo = ref<{ totalRows: number; dataRows: number; sheetName: string
 const importResult = ref<{ total: number; success: number; failed: number; failRows: { row: number; data: string; reason: string }[] } | null>(null)
 const importTemplateFields = ref<{ field: string; code: string; required: boolean; type: string; options?: string; maxLength?: number; example?: string }[]>([])
 const tableData = ref<Personnel[]>([])
-// 所有人员数据（用于统计，不受当前页筛选影响）
-const allPersonnelData = ref<Personnel[]>([])
 const tableRef = ref()
 const selectedRows = ref<Personnel[]>([])
 const drawerVisible = ref(false)
@@ -708,6 +706,7 @@ const currentDetail = ref<Personnel | null>(null)
 const allUsers = ref<User[]>([])
 const selectedUserId = ref<number | undefined>()
 const userSelectLoading = ref(false)
+const isEditingPerson = ref(false) // 编辑时禁止 watch 自动填充
 
 // 字段显示配置
 const STORAGE_KEY = 'personnel_columns_visible'
@@ -783,6 +782,9 @@ const isColumnVisible = (key: string) => {
 
 // 筛选相关
 const allPositions = ['测试工程师', '前端工程师', '算法工程师', 'DBA数据库', '网络工程师', '安全工程师', '开发工程师', '运维工程师', '运营人员', '合规专家', '解决方案', '商务人员', '成本人员', '驻场人员', '驻场人员-ODC', '项目管理', '合规负责人', '产品人员', '其他人员']
+
+// 统计数据（后端返回，避免前端加载全量数据）
+const statisticsData = ref<{ total: number; byPosition: { position: string; count: number }[] }>({ total: 0, byPosition: [] })
 
 const hasActiveFilters = computed(() => !!(searchKeyword.value || searchStatus.value || searchOnProject.value || searchPosition.value))
 
@@ -871,11 +873,13 @@ const positionColors: Record<string, { bg: string; border: string; text: string;
   '其他人员':      { bg: '#f5f5f5', border: '#737373', text: '#525252', label: '#737373' },
 }
 
-// 职位统计（基于所有数据，不受分页影响）
+// 职位统计（基于后端统计数据）
 const positionStats = computed(() => {
-  const positions = ['测试工程师', '前端工程师', '算法工程师', 'DBA数据库', '网络工程师', '安全工程师', '开发工程师', '运维工程师', '运营人员', '合规专家', '解决方案', '商务人员', '成本人员', '驻场人员', '驻场人员-ODC', '项目管理', '合规负责人', '产品人员', '其他人员']
-  return positions
-    .map(p => ({ position: p, count: allPersonnelData.value.filter(r => r.position === p).length, color: positionColors[p] }))
+  return allPositions
+    .map(p => {
+      const found = statisticsData.value.byPosition.find(bp => bp.position === p)
+      return { position: p, count: found?.count || 0, color: positionColors[p] }
+    })
     .filter(s => s.count > 0)
 })
 
@@ -914,6 +918,7 @@ const formRules = computed(() => ({
 
 // 加载可选用户列表（用于关联选择）
 const loadUsers = async () => {
+  if (allUsers.value.length > 0) return
   userSelectLoading.value = true
   try {
     const res = await UserApi.getAll()
@@ -925,9 +930,9 @@ const loadUsers = async () => {
   }
 }
 
-// 关联用户变化时，自动填充姓名和邮箱
+// 关联用户变化时，自动填充姓名和邮箱（仅新建时生效，编辑时保持原有）
 watch(selectedUserId, (uid) => {
-  if (!uid) return
+  if (!uid || isEditingPerson.value) return
   const user = allUsers.value.find(u => u.id === uid)
   if (user) {
     form.name = user.nickname || user.username
@@ -938,34 +943,33 @@ watch(selectedUserId, (uid) => {
 const loadData = async () => {
   loading.value = true
   try {
-    // 先加载所有数据用于统计（不使用分页）
-    const allRes = await PersonnelApi.list({
-      page: 1, pageSize: 10000,
-      keyword: searchKeyword.value || undefined,
-      status: searchStatus.value || undefined,
-      onProject: searchOnProject.value || undefined,
-    })
-    if (allRes.code === 200) {
-      // 不受职位筛选影响，用于统计所有人员
-      allPersonnelData.value = allRes.data.items || []
+    // 分别请求：统计数据 + 分页列表（避免一次请求全量数据）
+    const [statsRes, listRes] = await Promise.all([
+      PersonnelApi.statistics({
+        keyword: searchKeyword.value || undefined,
+        status: searchStatus.value || undefined,
+        onProject: searchOnProject.value || undefined,
+        position: searchPosition.value || undefined,
+      }),
+      PersonnelApi.list({
+        page: pagination.page, pageSize: pagination.pageSize,
+        keyword: searchKeyword.value || undefined,
+        status: searchStatus.value || undefined,
+        onProject: searchOnProject.value || undefined,
+        position: searchPosition.value || undefined,
+      }),
+    ])
+
+    if (statsRes.code === 200) {
+      statisticsData.value = statsRes.data || { total: 0, byPosition: [] }
     }
 
-    // 再加载当前页数据
-    const res = await PersonnelApi.list({
-      page: pagination.page, pageSize: pagination.pageSize,
-      keyword: searchKeyword.value || undefined,
-      status: searchStatus.value || undefined,
-      onProject: searchOnProject.value || undefined,
-    })
-    if (res.code === 200) {
-      tableData.value = res.data.items || []
-      pagination.total = res.data.total || 0
-      // 如果有职位筛选，客户端过滤（后端不支持position过滤则使用前端过滤）
-      if (searchPosition.value) {
-        tableData.value = tableData.value.filter(r => r.position === searchPosition.value)
-        pagination.total = tableData.value.length
-      }
+    if (listRes.code === 200) {
+      tableData.value = listRes.data.items || []
+      pagination.total = listRes.data.total || 0
     }
+  } catch (error) {
+    console.error('Failed to load personnel data:', error)
   } finally { loading.value = false }
 }
 
@@ -1081,6 +1085,7 @@ const closeImportDialog = () => {
 
 const handleCreate = async () => {
   isEdit.value = false
+  isEditingPerson.value = false
   selectedUserId.value = undefined
   await loadUsers()
   Object.assign(form, { id: undefined, name: '', phone: '', email: '', company: '', position: '', workExperience: '', entryDate: '', projectStartDate: '', onProjectStatus: '在项', salary: '', location: '', remark: '', status: 'active', sort: 0 })
@@ -1089,6 +1094,7 @@ const handleCreate = async () => {
 
 const handleEdit = async (row: Personnel) => {
   isEdit.value = true
+  isEditingPerson.value = true
   await loadUsers()
   // 尝试根据邮箱匹配已有用户
   selectedUserId.value = allUsers.value.find(u => u.email === row.email)?.id
@@ -1171,7 +1177,8 @@ const copyText = async (text: string) => {
 
 watch(() => pagination.page, () => loadData())
 watch(() => pagination.pageSize, () => { pagination.page = 1; loadData() })
-onMounted(() => { loadColumnVisibility(); loadData() })
+watch(() => drawerVisible, (v) => { if (!v) isEditingPerson.value = false })
+onMounted(() => { loadColumnVisibility(); loadData(); loadUsers() })
 </script>
 
 <script lang="ts">

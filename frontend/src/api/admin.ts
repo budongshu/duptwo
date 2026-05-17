@@ -133,4 +133,29 @@ export namespace AdminApi {
   export const unlockIP = (ip: string) => {
     return request.post<null>('/admin/security/unlock-ip', undefined, { params: { ip } })
   }
+
+  // 同步 AD 用户
+  export const syncADUsers = (mode: 'full' | 'incremental' = 'incremental') => {
+    return request.post<{ total: number; created: number; updated: number; disabled: number; skipped: number; mode: string; lastSyncAt: string }>('/admin/ad-users/sync', { mode })
+  }
+
+  // 重置所有 AD 同步用户（删除所有 Source=AD 的用户）
+  export const resetAllADUsers = () => {
+    return request.post<{ count: number }>('/admin/ad-users/reset-all')
+  }
+
+  // 获取 AD 用户列表（预览）
+  export const getADUsers = () => {
+    return request.get<{ total: number; synced: number; users: ADUserPreview[] }>('/admin/ad-users')
+  }
+}
+
+// AD 用户预览
+export interface ADUserPreview {
+  username: string
+  nickname: string
+  email: string
+  dn: string
+  synced: boolean
+  localStatus: string
 }

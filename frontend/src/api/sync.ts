@@ -12,11 +12,14 @@ export interface SyncStation {
   description: string
   isCenter: boolean
   apiKey?: string
-  lastSyncAt: string | null
+  lastSyncAt: number | null  // Unix ms
   syncCount: number
   remark: string
-  createdAt: string
-  updatedAt: string
+  createdAt: number           // Unix ms
+  updatedAt: number           // Unix ms
+  lastHeartbeatAt: number | null  // Unix ms
+  lastConnectedAt: number | null // Unix ms，最后探测成功时间
+  isConnected: boolean
 }
 
 export interface SyncStationCreateReq {
@@ -99,6 +102,7 @@ export interface SyncHistory {
   id: number
   stationId: number
   stationName: string
+  stationCode: string
   direction: string
   directionText: string
   status: string
@@ -107,24 +111,38 @@ export interface SyncHistory {
   successCount: number
   failCount: number
   conflictCount: number
-  startedAt: string | null
-  completedAt: string | null
+  startedAt: number    // Unix ms
+  completedAt: number  // Unix ms
   errorMsg: string
   remark: string
-  createdAt: string
+  createdAt: number    // Unix ms
 }
 
 export interface SyncHistoryDetail {
   id: number
+  historyId: number
   serialNo: string
   projectName: string
   action: string
   actionText: string
   result: string
-  errorMsg?: string
-  oldSerialNo?: string
-  newSerialNo?: string
-  createdAt: string
+  errorMsg: string
+  oldSerialNo: string
+  newSerialNo: string
+  createdAt: number // unix ms
+}
+
+export interface SyncStationSummary {
+  id: number
+  name: string
+  code: string
+  status: string
+  lastSyncAt: number | null  // Unix ms
+  totalSyncs: number
+  totalRecords: number
+  successCount: number
+  failCount: number
+  conflictCount: number
 }
 
 export interface SyncHistoryListReq {
@@ -135,6 +153,26 @@ export interface SyncHistoryListReq {
   status?: string
   startDate?: string
   endDate?: string
+  keyword?: string
+}
+
+export interface SyncHistoryDetailResp {
+  id: number
+  stationId: number
+  stationName: string
+  direction: string
+  directionText: string
+  status: string
+  statusText: string
+  totalRecords: number
+  successCount: number
+  failCount: number
+  conflictCount: number
+  startedAt: number    // Unix ms
+  completedAt: number  // Unix ms
+  errorMsg: string
+  total: number
+  details: SyncHistoryDetail[]
 }
 
 // 同步状态
@@ -145,8 +183,27 @@ export interface SyncStatus {
   stationId: string
   stationName: string
   centerUrl: string
-  lastSyncAt: string | null
+  registered: boolean
+  interval: string
+  heartbeatInterval: string
+  batchSize: number
+  filter: {
+    projectNames: string[]
+  } | null
+  lastSyncAt: number | null  // Unix ms
+  lastSerialNo: string
   syncQueueCount: number
+  queueTotal: number
+  queuePending: number
+  queueCompleted: number
+  queueFailed: number
+  lastErrorAt: number | null  // Unix ms
+  lastError: string
+}
+
+export interface SyncResetKeyResp {
+  id: number
+  apiKey: string
 }
 
 // API 函数
@@ -170,6 +227,10 @@ export const syncApi = {
   deleteStation: (id: number) =>
     request.delete<ResultData<null>>(`/sync/stations/${id}`),
 
+  // 重置API Key
+  resetApiKey: (id: number) =>
+    request.post<ResultData<SyncResetKeyResp>>(`/sync/stations/${id}/reset-key`),
+
   // 站点注册
   register: (data: SyncRegisterReq) =>
     request.post<ResultData<SyncRegisterResp>>('/sync/register', data),
@@ -182,8 +243,14 @@ export const syncApi = {
   getHistory: (params?: SyncHistoryListReq) =>
     request.get<ResultData<PageResult<SyncHistory>>>('/sync/history', { params }),
 
-  getHistoryDetails: (id: number) =>
-    request.get<ResultData<{ details: SyncHistoryDetail[] }>>(`/sync/history/${id}`),
+  getHistoryDetails: (id: number, result?: string, page = 1, pageSize = 50) =>
+    request.get<ResultData<SyncHistoryDetailResp>>(`/sync/history/${id}`, {
+      params: { result, page, pageSize }
+    }),
+
+  // 站点同步汇总
+  getStationSummaries: (params?: { stationId?: number; startDate?: string; endDate?: string }) =>
+    request.get<ResultData<SyncStationSummary[]>>('/sync/station-summaries', { params }),
 
   // 同步状态
   getStatus: () =>

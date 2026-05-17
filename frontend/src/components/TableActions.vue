@@ -4,9 +4,10 @@
       v-for="action in visibleActions"
       :key="action.key"
       class="ta-btn"
-      :class="`ta-btn--${action.type || 'default'}`"
-      :title="action.label"
-      @click="$emit('action', action.key, currentRow)"
+      :class="[`ta-btn--${action.type || 'default'}`, { 'ta-btn--disabled': action.disabled }]"
+      :title="action.disabled && action.disabledTip ? action.disabledTip : action.label"
+      :disabled="action.disabled"
+      @click="!action.disabled && $emit('action', action.key, currentRow)"
     >
       <!-- 查看 -->
       <svg v-if="action.key === 'detail' || action.key === 'view'" class="ta-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -75,6 +76,8 @@ interface Action {
   key: string
   label: string
   type?: 'primary' | 'danger' | 'warning' | 'default' | 'info'
+  disabled?: boolean
+  disabledTip?: string
 }
 
 const props = withDefaults(defineProps<{
@@ -163,6 +166,13 @@ defineEmits<{
       color: var(--color-text-primary);
       background: var(--gray-100);
     }
+  }
+
+  // 禁用状态
+  &--disabled {
+    cursor: not-allowed !important;
+    opacity: 0.4;
+    pointer-events: none;
   }
 }
 

@@ -6,31 +6,47 @@
         <h1 class="page-title">{{ t('adSettings.title') }}</h1>
         <span class="page-subtitle">{{ t('adSettings.subtitle') }}</span>
       </div>
+      <div class="header-right">
+        <el-button
+          v-if="form.enabled"
+          type="primary"
+          size="default"
+          class="sync-btn"
+          @click="handleSync"
+          :loading="syncing"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+          {{ t('adSettings.actions.sync') }}
+        </el-button>
+      </div>
     </header>
 
-  <!-- 当前AD状态 -->
-    <div class="ad-status-panel">
-      <div class="ad-status-title">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span>{{ t('adSettings.statusTitle') || '当前状态' }}</span>
-      </div>
-      <div class="ad-status-tags">
-        <span class="ad-status-tag" :class="form.enabled ? 'tag--on' : 'tag--off'">
+    <!-- 状态面板 -->
+    <div class="status-bar">
+      <div class="status-bar-left">
+        <div class="status-item" :class="form.enabled ? 'status--on' : 'status--off'">
           <span class="status-dot"></span>
-          {{ form.enabled ? (t('adSettings.enabled') || '已启用') : (t('adSettings.disabled') || '已禁用') }}
-        </span>
-        <span class="ad-status-tag tag--info" v-if="form.server">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          {{ form.server }}:{{ form.port }}
-        </span>
-        <span class="ad-status-tag tag--info" v-if="form.use_ssl">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          SSL
-        </span>
-        <span class="ad-status-tag tag--warn" v-if="form.enabled && form.auto_register">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-          {{ t('adSettings.autoReg.autoRegLabel') || '自动注册' }}
-        </span>
+          <span class="status-label">{{ form.enabled ? t('adSettings.enabled') : t('adSettings.disabled') }}</span>
+        </div>
+        <template v-if="form.enabled && form.server">
+          <div class="status-sep"></div>
+          <div class="status-info">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span>{{ form.server }}:{{ form.port }}</span>
+          </div>
+          <div class="status-info" v-if="form.use_ssl">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>LDAPS</span>
+          </div>
+        </template>
+      </div>
+      <div class="status-bar-right">
+        <div class="sync-stat" v-if="lastSyncTime">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>{{ t('adSettings.sync.lastSync') }}: {{ formatTime(lastSyncTime) }}</span>
+        </div>
       </div>
     </div>
 
@@ -38,8 +54,8 @@
     <div class="enable-card" :class="{ 'enable-card--active': form.enabled }">
       <div class="enable-left">
         <div class="enable-icon" :class="form.enabled ? 'icon-active' : 'icon-inactive'">
-          <svg v-if="form.enabled" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <svg v-if="form.enabled" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </div>
         <div class="enable-text">
           <div class="enable-title">{{ form.enabled ? t('adSettings.enabled') : t('adSettings.disabled') }}</div>
@@ -49,15 +65,14 @@
       <el-switch v-model="form.enabled" size="large" @change="onEnabledChange" />
     </div>
 
-    <!-- 配置内容（disabled状态统一覆盖） -->
+    <!-- 配置内容 -->
     <div class="config-content" :class="{ 'config-content--disabled': !form.enabled }">
 
-      <!-- 连接配置区块 -->
+      <!-- 连接配置 -->
       <div class="config-card">
         <div class="config-card-header">
           <div class="config-card-dot" style="background: #005eeb"></div>
           <span class="config-card-title">{{ t('adSettings.connection.title') }}</span>
-          <span class="config-card-badge">{{ t('adSettings.connection.badge') }}</span>
         </div>
         <div class="config-card-body">
           <el-form ref="formRef" :model="form" :rules="rules" label-position="top" :disabled="loading">
@@ -92,12 +107,11 @@
         </div>
       </div>
 
-      <!-- 认证配置区块 -->
+      <!-- 认证配置 -->
       <div class="config-card">
         <div class="config-card-header">
           <div class="config-card-dot" style="background: #06b6d4"></div>
           <span class="config-card-title">{{ t('adSettings.auth.title') }}</span>
-          <span class="config-card-badge">{{ t('adSettings.auth.badge') }}</span>
         </div>
         <div class="config-card-body">
           <el-form ref="formRef2" :model="form" :rules="rules" label-position="top" :disabled="loading">
@@ -120,20 +134,18 @@
               <el-input v-model="form.user_filter" :placeholder="t('adSettings.auth.userFilterPlaceholder')" clearable size="default" class="field-input">
                 <template #prefix><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></template>
               </el-input>
-              <div class="field-hint">
-                {{ t('adSettings.auth.userFilterHint') }}
-              </div>
+              <div class="field-hint">{{ t('adSettings.auth.userFilterHint') }}</div>
             </div>
           </el-form>
         </div>
       </div>
 
-      <!-- 自动注册区块 -->
+      <!-- 自动注册 -->
       <div class="config-card" :class="{ 'config-card--warn': form.enabled && form.auto_register }">
         <div class="config-card-header">
           <div class="config-card-dot" style="background: #f59e0b"></div>
           <span class="config-card-title">{{ t('adSettings.autoReg.title') }}</span>
-          <span class="config-card-badge config-card-badge--warn">{{ t('adSettings.autoReg.badge') }}</span>
+          <span class="config-card-badge config-card-badge--warn" v-if="form.enabled && form.auto_register">{{ t('adSettings.autoReg.badge') }}</span>
         </div>
         <div class="config-card-body">
           <div class="auto-reg-row">
@@ -167,6 +179,54 @@
         </div>
       </div>
 
+      <!-- 同步配置 -->
+      <div class="config-card">
+        <div class="config-card-header">
+          <div class="config-card-dot" style="background: #8b5cf6"></div>
+          <span class="config-card-title">{{ t('adSettings.sync.title') }}</span>
+        </div>
+        <div class="config-card-body">
+          <div class="sync-info">
+            <div class="sync-info-item">
+              <span class="sync-info-label">{{ t('adSettings.sync.totalAD') }}</span>
+              <span class="sync-info-value">{{ syncStats.total }}</span>
+            </div>
+            <div class="sync-info-item">
+              <span class="sync-info-label">{{ t('adSettings.sync.synced') }}</span>
+              <span class="sync-info-value sync-info-value--success">{{ syncStats.synced }}</span>
+            </div>
+            <div class="sync-info-item" v-if="lastSyncResult">
+              <span class="sync-info-label">{{ t('adSettings.sync.lastResult') }}</span>
+              <div class="sync-result-tags">
+                <span class="sync-tag sync-tag--created" v-if="lastSyncResult.created > 0">+{{ lastSyncResult.created }} {{ t('adSettings.sync.created') }}</span>
+                <span class="sync-tag sync-tag--updated" v-if="lastSyncResult.updated > 0">~{{ lastSyncResult.updated }} {{ t('adSettings.sync.updated') }}</span>
+                <span class="sync-tag sync-tag--skipped" v-if="lastSyncResult.skipped > 0">{{ lastSyncResult.skipped }} {{ t('adSettings.sync.skipped') }}</span>
+                <span class="sync-tag sync-tag--disabled" v-if="lastSyncResult.disabled > 0">-{{ lastSyncResult.disabled }} {{ t('adSettings.sync.disabled') }}</span>
+                <span class="sync-tag sync-tag--deleted" v-if="lastSyncResult.deleted > 0">x{{ lastSyncResult.deleted }} {{ t('adSettings.sync.deleted') }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="sync-actions">
+            <el-button @click="handlePreview" :loading="previewLoading" :disabled="!form.enabled || !form.server" size="default">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              {{ t('adSettings.sync.preview') }}
+            </el-button>
+            <el-button @click="handleSync('incremental')" :loading="syncing" :disabled="!form.enabled || !form.server" size="default">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+              {{ t('adSettings.sync.incrementalSync') }}
+            </el-button>
+            <el-button type="primary" @click="handleSync('full')" :loading="syncing" :disabled="!form.enabled || !form.server" size="default" class="sync-submit-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              {{ t('adSettings.sync.fullSync') }}
+            </el-button>
+            <el-button type="danger" plain @click="handleResetAll" :loading="resetting" :disabled="!form.enabled || !form.server" size="default">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>
+              {{ t('adSettings.sync.resetAll') }}
+            </el-button>
+          </div>
+        </div>
+      </div>
+
       <!-- 操作区 -->
       <div class="actions-card">
         <div class="actions-left">
@@ -174,7 +234,6 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 2 13 9 20 9"/><path d="M20 14.66V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"/></svg>
             {{ t('adSettings.actions.test') }}
           </el-button>
-          <!-- 测试结果 -->
           <transition name="result-fade">
             <span v-if="testResult !== null" class="test-result" :class="testResult ? 'result--ok' : 'result--fail'">
               <svg v-if="testResult" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -192,14 +251,45 @@
         </div>
       </div>
     </div>
+
+    <!-- 用户预览弹窗 -->
+    <el-dialog v-model="previewDialogVisible" :title="t('adSettings.sync.previewTitle')" width="700px" class="preview-dialog">
+      <div class="preview-header">
+        <div class="preview-stats">
+          <span class="preview-stat">
+            <span class="preview-stat-num">{{ previewData.total || 0 }}</span>
+            <span class="preview-stat-label">{{ t('adSettings.sync.totalAD') }}</span>
+          </span>
+          <span class="preview-stat preview-stat--synced">
+            <span class="preview-stat-num">{{ previewData.synced || 0 }}</span>
+            <span class="preview-stat-label">{{ t('adSettings.sync.synced') }}</span>
+          </span>
+        </div>
+        <el-input v-model="previewSearch" :placeholder="t('adSettings.sync.searchPlaceholder')" clearable size="default" style="width: 200px">
+          <template #prefix><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></template>
+        </el-input>
+      </div>
+      <el-table :data="filteredPreviewUsers" max-height="400" class="preview-table" stripe>
+        <el-table-column prop="username" :label="t('adSettings.sync.columns.username')" width="150" />
+        <el-table-column prop="nickname" :label="t('adSettings.sync.columns.nickname')" width="150" />
+        <el-table-column prop="email" :label="t('adSettings.sync.columns.email')" min-width="180" />
+        <el-table-column :label="t('adSettings.sync.columns.status')" width="100" align="center">
+          <template #default="{ row }">
+            <span class="sync-status-tag" :class="row.synced ? 'synced' : 'not-synced'">
+              {{ row.synced ? t('adSettings.sync.syncedTag') : t('adSettings.sync.notSyncedTag') }}
+            </span>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { AdminApi, type ADConfig } from '@/api/admin'
+import { AdminApi, type ADConfig, type ADUserPreview } from '@/api/admin'
 import { RoleApi } from '@/api/role'
 
 const { t } = useI18n()
@@ -208,6 +298,15 @@ const loading = ref(false)
 const saving = ref(false)
 const testLoading = ref(false)
 const testResult = ref<boolean | null>(null)
+const syncing = ref(false)
+const resetting = ref(false)
+const previewLoading = ref(false)
+const previewDialogVisible = ref(false)
+const previewSearch = ref('')
+const previewData = ref<{ total: number; synced: number; users: ADUserPreview[] }>({ total: 0, synced: 0, users: [] })
+const lastSyncTime = ref<string | null>(null)
+const lastSyncResult = ref<{ created: number; updated: number; disabled: number; skipped: number } | null>(null)
+const syncStats = reactive({ total: 0, synced: 0 })
 const formRef = ref()
 const formRef2 = ref()
 
@@ -226,10 +325,25 @@ const form = reactive<ADConfig>({
   default_role_id: 3
 })
 
+const filteredPreviewUsers = computed(() => {
+  if (!previewSearch.value) return previewData.value.users
+  const keyword = previewSearch.value.toLowerCase()
+  return previewData.value.users.filter(u =>
+    u.username.toLowerCase().includes(keyword) ||
+    u.nickname.toLowerCase().includes(keyword) ||
+    u.email?.toLowerCase().includes(keyword)
+  )
+})
+
 const rules = {
   server: [{ required: true, message: t('adSettings.rules.serverRequired'), trigger: 'blur' }],
   base_dn: [{ required: true, message: t('adSettings.rules.baseDnRequired'), trigger: 'blur' }],
   bind_dn: [{ required: true, message: t('adSettings.rules.bindDnRequired'), trigger: 'blur' }]
+}
+
+const formatTime = (time: string) => {
+  const d = new Date(time)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 const loadConfig = async () => {
@@ -238,7 +352,11 @@ const loadConfig = async () => {
     const res = await AdminApi.getADConfig()
     if (res.code === 200) {
       Object.assign(form, res.data)
-      form.bind_password = '' // 清空密码显示
+      // 保存旧密码到全局变量，用于后续操作（如测试连接、同步），留空保持不变
+      if (res.data.bind_password) {
+        ;(globalThis as any).__adBindPassword__ = res.data.bind_password
+        form.bind_password = '' // 前端显示留空，提示"留空保持密码不变"
+      }
     }
   } catch (e) {
     console.error(t('adSettings.messages.loadFailed'), e)
@@ -258,6 +376,18 @@ const loadRoles = async () => {
   }
 }
 
+const loadSyncStats = async () => {
+  try {
+    const res = await AdminApi.getADUsers()
+    if (res.code === 200) {
+      syncStats.total = res.data.total
+      syncStats.synced = res.data.synced
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
 const onEnabledChange = (val: boolean) => {
   if (!val) {
     form.auto_register = false
@@ -265,7 +395,6 @@ const onEnabledChange = (val: boolean) => {
 }
 
 const handleSave = async () => {
-  // 合并两个form的校验
   const valid1 = await formRef.value?.validate().catch(() => false)
   const valid2 = await formRef2.value?.validate().catch(() => false)
   if (!valid1 || !valid2) return
@@ -313,15 +442,86 @@ const handleTest = async () => {
   }
 }
 
+const handlePreview = async () => {
+  previewLoading.value = true
+  previewDialogVisible.value = true
+  previewSearch.value = ''
+  try {
+    const res = await AdminApi.getADUsers()
+    if (res.code === 200) {
+      previewData.value = res.data
+    } else {
+      ElMessage.error(res.message || t('adSettings.messages.previewFailed'))
+    }
+  } catch (e: any) {
+    ElMessage.error(e.message || t('adSettings.messages.previewFailed'))
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+const handleSync = async (mode: 'full' | 'incremental' = 'incremental') => {
+  syncing.value = true
+  try {
+    const res = await AdminApi.syncADUsers(mode)
+    if (res.code === 200) {
+      lastSyncTime.value = res.data.lastSyncAt
+      lastSyncResult.value = res.data
+      syncStats.total = res.data.total
+      syncStats.synced = res.data.total
+      const modeText = mode === 'full' ? t('adSettings.sync.fullSync') : t('adSettings.sync.incrementalSync')
+      const disabledStr = res.data.deleted > 0 ? ` -${res.data.disabled} ~-${res.data.deleted}` : ` -${res.data.disabled}`
+      ElMessage.success(t('adSettings.messages.syncSuccess') + ` [${modeText}]: +${res.data.created} ~${res.data.updated} ${res.data.skipped}${disabledStr}`)
+      // 同步完成后刷新统计数据
+      loadSyncStats()
+    } else {
+      ElMessage.error(res.message || t('adSettings.messages.syncFailed'))
+    }
+  } catch (e: any) {
+    ElMessage.error(e.message || t('adSettings.messages.syncFailed'))
+  } finally {
+    syncing.value = false
+  }
+}
+
+// 重置所有AD同步用户（删除所有Source=AD的用户）
+const handleResetAll = async () => {
+  await ElMessageBox.confirm(
+    t('adSettings.sync.resetAllConfirm'),
+    t('adSettings.sync.resetAllTitle'),
+    { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+  )
+  resetting.value = true
+  try {
+    const res = await AdminApi.resetAllADUsers()
+    if (res.code === 200) {
+      ElMessage.success(t('adSettings.sync.resetAllSuccess') + `: ${res.data.count}`)
+      lastSyncResult.value = null
+      syncStats.total = 0
+      syncStats.synced = 0
+      // 重置完成后刷新统计数据
+      loadSyncStats()
+    } else {
+      ElMessage.error(res.message || t('adSettings.messages.resetFailed'))
+    }
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || t('adSettings.messages.resetFailed'))
+    }
+  } finally {
+    resetting.value = false
+  }
+}
+
 onMounted(() => {
   testResult.value = null
   loadConfig()
   loadRoles()
+  loadSyncStats()
 })
 </script>
 
 <style scoped lang="scss">
-/* ==================== 页面布局 ==================== */
 .ad-page {
   padding: var(--space-4);
   min-height: 100vh;
@@ -332,87 +532,7 @@ onMounted(() => {
   overflow: visible;
 }
 
-/* ==================== AD状态面板 ==================== */
-.ad-status-panel {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  animation: card-rise 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.ad-status-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #9ca3af;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  white-space: nowrap;
-  svg { color: #9ca3af; }
-}
-
-.ad-status-tags {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.ad-status-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1px solid;
-
-  &.tag--on {
-    background: #f0fdf4;
-    border-color: #bbf7d0;
-    color: #16a34a;
-    .status-dot { background: #16a34a; }
-  }
-  &.tag--off {
-    background: #f9fafb;
-    border-color: #e5e7eb;
-    color: #9ca3af;
-    .status-dot { background: #9ca3af; }
-  }
-  &.tag--info {
-    background: #f0f9ff;
-    border-color: #bae6fd;
-    color: #0369a1;
-    svg { color: #0369a1; }
-  }
-  &.tag--warn {
-    background: #fffbeb;
-    border-color: #fde68a;
-    color: #92400e;
-    svg { color: #92400e; }
-  }
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  animation: dot-pulse 2s ease-in-out infinite;
-}
-@keyframes dot-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-/* ==================== 页面标题栏 ==================== */
+/* 页面标题栏 */
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -445,7 +565,101 @@ onMounted(() => {
   font-weight: 500;
 }
 
-/* ==================== 总开关卡片 ==================== */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sync-btn {
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 状态栏 */
+.status-bar {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-xs);
+}
+
+.status-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-bar-right {
+  display: flex;
+  align-items: center;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+
+  &.status--on {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+    .status-dot { background: var(--color-success); }
+  }
+
+  &.status--off {
+    background: var(--gray-100);
+    color: var(--gray-500);
+    .status-dot { background: var(--gray-500); }
+  }
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.status-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--color-border-light);
+}
+
+.status-info {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  svg { color: var(--color-text-muted); }
+}
+
+.sync-stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  svg { color: var(--color-text-muted); }
+}
+
+/* 总开关卡片 */
 .enable-card {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
@@ -457,17 +671,11 @@ onMounted(() => {
   justify-content: space-between;
   gap: var(--space-4);
   transition: all 0.25s ease;
-  animation: card-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 
   &--active {
     border-color: rgba(0, 94, 235, 0.35);
     box-shadow: 0 4px 20px rgba(0, 94, 235, 0.08), var(--shadow-xs);
   }
-}
-
-@keyframes card-rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 .enable-left {
@@ -477,8 +685,8 @@ onMounted(() => {
 }
 
 .enable-icon {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 14px;
   display: flex;
   align-items: center;
@@ -508,7 +716,6 @@ onMounted(() => {
   font-size: 15px;
   font-weight: 800;
   color: var(--color-text-primary);
-  letter-spacing: -0.2px;
 }
 
 .enable-desc {
@@ -516,7 +723,7 @@ onMounted(() => {
   color: var(--color-text-muted);
 }
 
-/* ==================== 配置内容 ==================== */
+/* 配置内容 */
 .config-content {
   display: flex;
   flex-direction: column;
@@ -529,16 +736,13 @@ onMounted(() => {
   }
 }
 
-/* ==================== 配置卡片区块 ==================== */
+/* 配置卡片 */
 .config-card {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-light);
   box-shadow: var(--shadow-xs);
   overflow: hidden;
-  animation: card-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-  animation-delay: 0.05s;
-  animation-fill-mode: both;
 
   &--warn {
     border-color: rgba(245, 158, 11, 0.3);
@@ -575,15 +779,10 @@ onMounted(() => {
   font-weight: 700;
   padding: 2px 8px;
   border-radius: var(--radius-full);
-  background: var(--color-surface-2);
-  color: var(--color-text-muted);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
   text-transform: uppercase;
   letter-spacing: 0.3px;
-
-  &--warn {
-    background: var(--color-warning-bg);
-    color: var(--color-warning);
-  }
 }
 
 .config-card-body {
@@ -593,7 +792,7 @@ onMounted(() => {
   gap: var(--space-3);
 }
 
-/* ==================== 表单样式 ==================== */
+/* 表单 */
 .form-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -653,7 +852,7 @@ onMounted(() => {
   svg { color: var(--color-text-muted); }
 }
 
-/* ==================== 自动注册 ==================== */
+/* 自动注册 */
 .auto-reg-row {
   display: flex;
   align-items: center;
@@ -733,7 +932,88 @@ onMounted(() => {
   li { margin-bottom: 1px; }
 }
 
-/* ==================== 操作区 ==================== */
+/* 同步区块 */
+.sync-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.sync-info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-info-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.sync-info-value {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+
+  &--success {
+    color: var(--color-success);
+  }
+}
+
+.sync-result-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sync-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+
+  &--created {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+  }
+
+  &--updated {
+    background: var(--color-primary-light-9);
+    color: var(--color-primary);
+  }
+
+  &--skipped {
+    background: var(--gray-100);
+    color: var(--color-text-muted);
+  }
+
+  &--disabled {
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+  }
+
+  &--deleted {
+    background: var(--gray-200);
+    color: var(--color-text-secondary);
+  }
+}
+
+.sync-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.sync-submit-btn {
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 操作区 */
 .actions-card {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
@@ -744,8 +1024,6 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  animation: card-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.1s;
-  animation-fill-mode: both;
 }
 
 .actions-left {
@@ -799,6 +1077,61 @@ onMounted(() => {
   transform: scale(0.9);
 }
 
+/* 预览弹窗 */
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.preview-stats {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.preview-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 16px;
+  background: var(--gray-100);
+  border-radius: var(--radius-md);
+
+  &--synced {
+    background: var(--color-success-bg);
+  }
+}
+
+.preview-stat-num {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.preview-stat-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.sync-status-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+
+  &.synced {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+  }
+
+  &.not-synced {
+    background: var(--gray-100);
+    color: var(--color-text-muted);
+  }
+}
+
 /* Element Plus overrides */
 :deep(.el-input-number .el-input__inner) {
   text-align: left;
@@ -810,5 +1143,7 @@ onMounted(() => {
   .enable-card { flex-direction: column; align-items: flex-start; }
   .actions-card { flex-direction: column; align-items: stretch; }
   .actions-left, .actions-right { flex-wrap: wrap; }
+  .sync-info { flex-direction: column; align-items: flex-start; }
+  .preview-header { flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 }
 </style>

@@ -1,0 +1,14 @@
+[2026-04-25 00:51:19] [INFO] Starting Data Registry server...
+[2026-04-25 00:51:19] [INFO] Database(sqlite) initialized successfully
+[2026-04-25 00:51:23] [INFO] Default role created: 管理员
+[2026-04-25 00:51:23] [INFO] Default role created: 数据操作员
+[2026-04-25 00:51:23] [INFO] Default role created: 项目管理员
+[2026-04-25 00:51:23] [INFO] Default role created: 审计账号
+[2026-04-25 00:51:23] [INFO] Default role created: 普通查看者
+[2026-04-25 00:51:23] [INFO] Default admin user created: admin / admin123 (roleID=1)
+[2026-04-25 00:51:23] [INFO] Default security settings created
+[2026-04-25 00:51:23] [INFO] Data initialization completed
+[2026-04-25 00:51:23] [INFO] [ApiKeyCache] 缓存已刷新，共 0 个活跃站点
+[2026-04-25 00:51:23] [INFO] [StationKeys] 已加载 1 个站点的明文 Key
+[2026-04-25 00:51:23] [INFO] [CenterProbe] 启动主动探测循环，间隔: 1m0s
+[2026-04-25 00:51:23] [INFO] Server listening on :18421

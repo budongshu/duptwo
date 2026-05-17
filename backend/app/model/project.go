@@ -20,12 +20,16 @@ type Project struct {
 	Status          string `json:"status" gorm:"size:16;default:active"`          // 状态: active/inactive
 	Stage           string `json:"stage" gorm:"size:32;default:planning"`        // 阶段: planning/deploying/running/paused/archived
 	Sort            int    `json:"sort" gorm:"default:0"`                         // 排序
+	EndDate         *time.Time `json:"endDate" gorm:"type:datetime"`             // 结束日期（用于到期提醒）
 	ProjectPerson   string `json:"projectPerson" gorm:"size:512"`                 // 项目人员（逗号分隔）
 	OpsPerson       string `json:"opsPerson" gorm:"size:512"`                    // 运维人员（逗号分隔）
 	OpsStaffPerson  string `json:"opsStaffPerson" gorm:"size:512"`               // 运营人员（逗号分隔）
 	DeveloperPerson string `json:"developerPerson" gorm:"size:512"`              // 开发人员（逗号分隔）
 	TesterPerson    string `json:"testerPerson" gorm:"size:512"`               // 测试人员（逗号分隔）
-	BusinessPerson  string `json:"businessPerson" gorm:"size:512"`             // 商务人员（逗号分隔）
+	BusinessPerson  string `json:"businessPerson" gorm:"size:512"`             // 业务人员（逗号分隔）
+	Business2Person string `json:"business2Person" gorm:"size:512"`            // 商务人员（逗号分隔）
+	BusinessCostPerson string `json:"businessCostPerson" gorm:"size:512"`       // 成本人员（逗号分隔）
+	ProductPerson string `json:"productPerson" gorm:"size:512"`                 // 产品人员（逗号分隔）
 	CompliancePerson string `json:"compliancePerson" gorm:"size:512"`            // 合规专员（逗号分隔）
 	SecurityPerson  string `json:"securityPerson" gorm:"size:512"`              // 安全人员（逗号分隔）
 	NetworkPerson   string `json:"networkPerson" gorm:"size:512"`              // 网络人员（逗号分隔）

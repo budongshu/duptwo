@@ -296,14 +296,18 @@ func (s *AuthService) ADAutoLogin(username, password, ip, userAgent string) (*dt
 
 	// 创建AD用户
 	user := &model.User{
-		Username: username,
-		Status:   "active",
-		Source:   "AD",
-		ADDN:     adInfo.DN,
-		Nickname: adInfo.Nickname,
-		Email:    adInfo.Email,
-		Password: "", // AD用户无本地密码
-		RoleID:   global.CONF.AD.DefaultRoleID,
+		Username:   username,
+		Status:     "active",
+		Source:     "AD",
+		ADDN:       adInfo.DN,
+		Nickname:   adInfo.Nickname,
+		Email:      adInfo.Email,
+		Phone:      adInfo.Phone,
+		Department: adInfo.Department,
+		Title:      adInfo.Title,
+		Company:    adInfo.Company,
+		Password:   "", // AD用户无本地密码
+		RoleID:     global.CONF.AD.DefaultRoleID,
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
@@ -342,6 +346,18 @@ func (s *AuthService) syncADUserInfo(user *model.User, adInfo *ldap.ADUserInfo) 
 	}
 	if adInfo.Nickname != "" && user.Nickname != adInfo.Nickname {
 		user.Nickname = adInfo.Nickname
+		updated = true
+	}
+	if adInfo.Phone != "" && user.Phone != adInfo.Phone {
+		user.Phone = adInfo.Phone
+		updated = true
+	}
+	if adInfo.Department != "" && user.Department != adInfo.Department {
+		user.Department = adInfo.Department
+		updated = true
+	}
+	if adInfo.Title != "" && user.Title != adInfo.Title {
+		user.Title = adInfo.Title
 		updated = true
 	}
 	if adInfo.DN != "" && user.ADDN != adInfo.DN {

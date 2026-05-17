@@ -7,17 +7,22 @@ import (
 // SyncStation 同步站点表
 type SyncStation struct {
 	BaseModel
-	Name        string `json:"name" gorm:"size:128;not null"`           // 站点名称
-	Code        string `json:"code" gorm:"size:64;uniqueIndex"`          // 站点代码
-	URL         string `json:"url" gorm:"size:512"`                      // 站点URL
-	APIKey      string `json:"-" gorm:"size:256"`                        // API Key (加密存储)
-	Status      string `json:"status" gorm:"size:16;default:active"`    // 状态: active/inactive
-	Description string `json:"description" gorm:"size:512"`              // 描述
-	IsCenter    bool   `json:"isCenter" gorm:"default:false"`            // 是否为中心站点
-	LastSyncAt  *time.Time `json:"lastSyncAt" gorm:"size:64"`            // 最后同步时间
-	SyncCount   int64  `json:"syncCount" gorm:"default:0"`               // 同步次数
-	Remark      string `json:"remark" gorm:"size:512"`                   // 备注
-	IsDeleted   bool   `json:"-" gorm:"default:false"`                   // 软删除标记
+	Name            string     `json:"name" gorm:"size:128;not null"`              // 站点名称
+	Code            string     `json:"code" gorm:"size:64;uniqueIndex"`             // 站点代码
+	URL             string     `json:"url" gorm:"size:512"`                        // 站点URL
+	APIKey          string     `json:"-" gorm:"size:256"`                         // API Key (SHA256 哈希存储)
+	PlainAPIKey     string     `json:"-" gorm:"size:256"`                         // 明文 API Key（仅 Agent 存储，Center 不存）
+	Status          string     `json:"status" gorm:"size:16;default:active"`      // 状态: active/inactive
+	Description     string     `json:"description" gorm:"size:512"`                // 描述
+	IsCenter        bool       `json:"isCenter" gorm:"default:false"`             // 是否为中心站点
+	LastSyncAt      *time.Time `json:"lastSyncAt" gorm:"size:64"`                 // 最后同步时间
+	LastSerialNo    string     `json:"lastSerialNo" gorm:"size:64"`               // 最后同步的 SerialNo（断点）
+	SyncCount       int64      `json:"syncCount" gorm:"default:0"`                // 同步次数
+	Remark          string     `json:"remark" gorm:"size:512"`                    // 备注
+	IsDeleted       bool       `json:"-" gorm:"default:false"`                    // 软删除标记
+	LastHeartbeatAt *time.Time `json:"lastHeartbeatAt" gorm:"size:64"`            // 最后心跳时间
+	IsConnected     bool       `json:"isConnected" gorm:"-"`                     // 是否在线（内存计算，不存库）
+	LastConnectedAt *time.Time `json:"lastConnectedAt" gorm:"size:64"`            // 最后探测成功时间
 }
 
 func (SyncStation) TableName() string {

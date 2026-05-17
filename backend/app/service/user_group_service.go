@@ -9,11 +9,13 @@ import (
 
 type UserGroupService struct {
 	groupRepo *repo.UserGroupRepo
+	roleRepo  *repo.RoleRepo
 }
 
 func NewUserGroupService() *UserGroupService {
 	return &UserGroupService{
 		groupRepo: repo.NewUserGroupRepo(),
+		roleRepo:  repo.NewRoleRepo(),
 	}
 }
 
@@ -29,6 +31,7 @@ func (s *UserGroupService) Create(req dto.UserGroupCreateReq) (*dto.UserGroupRes
 		Name:        req.Name,
 		Code:        req.Code,
 		Description: req.Description,
+		RoleID:      req.RoleID,
 		Sort:        req.Sort,
 	}
 
@@ -57,6 +60,7 @@ func (s *UserGroupService) Update(req dto.UserGroupUpdateReq) (*dto.UserGroupRes
 	group.Name = req.Name
 	group.Code = req.Code
 	group.Description = req.Description
+	group.RoleID = req.RoleID
 	group.Sort = req.Sort
 
 	if err := s.groupRepo.Update(group); err != nil {
@@ -131,13 +135,20 @@ func (s *UserGroupService) GetAll() ([]dto.UserGroupResp, error) {
 
 // toGroupResp 转换为用户组响应
 func (s *UserGroupService) toGroupResp(group *model.UserGroup) *dto.UserGroupResp {
-	return &dto.UserGroupResp{
+	resp := &dto.UserGroupResp{
 		ID:          group.ID,
 		Name:        group.Name,
 		Code:        group.Code,
 		Description: group.Description,
+		RoleID:      group.RoleID,
 		Sort:        group.Sort,
 		CreatedAt:   group.CreatedAt,
 		UpdatedAt:   group.UpdatedAt,
 	}
+	if group.RoleID > 0 {
+		if role, err := s.roleRepo.GetByID(group.RoleID); err == nil {
+			resp.RoleName = role.Name
+		}
+	}
+	return resp
 }

@@ -11,13 +11,29 @@ import (
 )
 
 type RoleApi struct {
-	roleService *service.RoleService
+	roleService  *service.RoleService
+	auditService *service.AuditService
 }
 
 func NewRoleApi() *RoleApi {
 	return &RoleApi{
-		roleService: service.NewRoleService(),
+		roleService:  service.NewRoleService(),
+		auditService: service.NewAuditService(),
 	}
+}
+
+func (api *RoleApi) getUserID(c *gin.Context) uint {
+	if id, exists := c.Get("userId"); exists {
+		return id.(uint)
+	}
+	return 0
+}
+
+func (api *RoleApi) getUsername(c *gin.Context) string {
+	if username, exists := c.Get("username"); exists {
+		return username.(string)
+	}
+	return ""
 }
 
 // Create 创建角色
@@ -40,6 +56,12 @@ func (api *RoleApi) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"角色管理", "create", "Role", role.ID,
+		role.Name, c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "创建成功", Data: role})
 }
@@ -119,11 +141,24 @@ func (api *RoleApi) Update(c *gin.Context) {
 		return
 	}
 
+	// 先获取角色信息用于日志
+	role, _ := api.roleService.GetByID(req.ID)
+	roleName := ""
+	if role != nil {
+		roleName = role.Name
+	}
+
 	role, err := api.roleService.Update(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"角色管理", "update", "Role", req.ID,
+		roleName, c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "更新成功", Data: role})
 }
@@ -138,10 +173,23 @@ func (api *RoleApi) Update(c *gin.Context) {
 func (api *RoleApi) Delete(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 
+	// 先获取角色信息用于日志
+	role, _ := api.roleService.GetByID(uint(id))
+	roleName := ""
+	if role != nil {
+		roleName = role.Name
+	}
+
 	if err := api.roleService.Delete(uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"角色管理", "delete", "Role", uint(id),
+		roleName, c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "删除成功"})
 }
@@ -165,6 +213,13 @@ func (api *RoleApi) BatchDelete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"角色管理", "batch_delete", "Role", 0,
+		fmt.Sprintf("批量删除 %d 个角色", len(req.IDs)), c.ClientIP(), c.GetHeader("User-Agent"),
+		map[string]interface{}{"ids": req.IDs},
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: fmt.Sprintf("成功删除 %d 个角色", len(req.IDs))})
 }

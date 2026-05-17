@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -12,12 +13,28 @@ import (
 
 type ProjectApi struct {
 	projectService *service.ProjectService
+	auditService  *service.AuditService
 }
 
 func NewProjectApi() *ProjectApi {
 	return &ProjectApi{
 		projectService: service.NewProjectService(),
+		auditService:  service.NewAuditService(),
 	}
+}
+
+func (api *ProjectApi) getUserID(c *gin.Context) uint {
+	if id, exists := c.Get("userId"); exists {
+		return id.(uint)
+	}
+	return 0
+}
+
+func (api *ProjectApi) getUsername(c *gin.Context) string {
+	if username, exists := c.Get("username"); exists {
+		return username.(string)
+	}
+	return ""
 }
 
 // Create 创建项目
@@ -39,6 +56,12 @@ func (api *ProjectApi) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"项目管理", "create", "Project", project.ID,
+		project.Name, c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "创建成功", Data: project})
 }
@@ -100,10 +123,23 @@ func (api *ProjectApi) Update(c *gin.Context) {
 		return
 	}
 
+	// 先获取项目信息用于日志
+	project, _ := api.projectService.GetByID(req.ID)
+	projectName := ""
+	if project != nil {
+		projectName = project.Name
+	}
+
 	if err := api.projectService.Update(req); err != nil {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"项目管理", "update", "Project", req.ID,
+		projectName, c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "更新成功"})
 }
@@ -117,10 +153,23 @@ func (api *ProjectApi) Update(c *gin.Context) {
 func (api *ProjectApi) Delete(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 
+	// 先获取项目信息用于日志
+	project, _ := api.projectService.GetByID(uint(id))
+	projectName := ""
+	if project != nil {
+		projectName = project.Name
+	}
+
 	if err := api.projectService.Delete(uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"项目管理", "delete", "Project", uint(id),
+		projectName, c.ClientIP(), c.GetHeader("User-Agent"), nil,
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "删除成功"})
 }
@@ -143,6 +192,13 @@ func (api *ProjectApi) BatchDelete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
 		return
 	}
+
+	api.auditService.LogOperation(
+		api.getUserID(c), api.getUsername(c),
+		"项目管理", "batch_delete", "Project", 0,
+		fmt.Sprintf("批量删除 %d 个项目", len(req.IDs)), c.ClientIP(), c.GetHeader("User-Agent"),
+		map[string]interface{}{"ids": req.IDs},
+	)
 
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Message: "成功删除"})
 }

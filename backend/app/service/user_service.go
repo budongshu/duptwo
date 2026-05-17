@@ -117,6 +117,22 @@ func (s *UserService) BatchDelete(ids []uint) error {
 	return s.userRepo.BatchDelete(ids)
 }
 
+// BatchUpdateRole 批量更新用户角色
+func (s *UserService) BatchUpdateRole(ids []uint, roleId uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	// 验证角色是否存在
+	role, err := s.roleRepo.GetByID(roleId)
+	if err != nil {
+		return errors.New("角色不存在")
+	}
+	if role == nil {
+		return errors.New("角色不存在")
+	}
+	return s.userRepo.BatchUpdateRole(ids, roleId)
+}
+
 // GetByID 获取用户详情
 func (s *UserService) GetByID(id uint) (*dto.UserResp, error) {
 	user, err := s.userRepo.GetByID(id)
@@ -191,6 +207,10 @@ func (s *UserService) toUserResp(user *model.User, locked bool) *dto.UserResp {
 		Locked:      locked,
 		RoleID:      user.RoleID,
 		GroupID:     user.GroupID,
+		Department:  user.Department,
+		Title:       user.Title,
+		Company:     user.Company,
+		Source:      user.Source,
 		MFAEnabled:  user.MFAEnabled,
 		LastLoginAt: user.LastLoginAt,
 		LastLoginIP: user.LastLoginIP,

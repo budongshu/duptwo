@@ -12,6 +12,7 @@ export interface UploadRecordReq {
   startDate?: string
   endDate?: string
   keyword?: string
+  serialNo?: string
 }
 
 // 上传记录响应
@@ -58,6 +59,7 @@ export interface UploadRecordStatistics {
   todayCount: number
   todaySize: number
   todaySizeStr: string
+  todayByStatus: StatusCount[]
   weekCount: number
   weekSize: number
   weekSizeStr: string
@@ -99,6 +101,7 @@ export interface ProjectCount {
 export interface DiskLabelStatus {
   diskLabel: string
   count: number
+  totalSize: number
   status: 'completed' | 'failed' | 'mixed' | 'pending'
 }
 
@@ -180,7 +183,7 @@ export namespace UploadRecordApi {
   }
 
   // 获取磁盘标签状态列表
-  export const diskLabels = (params?: { startDate?: string; endDate?: string }) => {
+  export const diskLabels = (params?: { projectName?: string; diskLabel?: string; startDate?: string; endDate?: string }) => {
     return request.get<DiskLabelStatus[]>('/upload-records/disk-labels', params)
   }
 

@@ -31,6 +31,13 @@ func (r *UserRepo) BatchDelete(ids []uint) error {
 	return global.DB.Model(&model.User{}).Where("id IN ?", ids).Update("is_deleted", true).Error
 }
 
+func (r *UserRepo) BatchUpdateRole(ids []uint, roleId uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return global.DB.Model(&model.User{}).Where("id IN ?", ids).Update("role_id", roleId).Error
+}
+
 func (r *UserRepo) GetByID(id uint) (*model.User, error) {
 	var user model.User
 	err := global.DB.Where("id = ? AND is_deleted = ?", id, false).First(&user).Error
@@ -76,7 +83,16 @@ func (r *UserRepo) List(req dto.UserListReq) ([]model.User, int64, error) {
 	}
 
 	offset := (req.Page - 1) * req.PageSize
-	if err := db.Offset(offset).Limit(req.PageSize).Order("id DESC").Find(&users).Error; err != nil {
+	// 排序
+	order := "id DESC"
+	if req.SortField != "" && req.SortOrder != "" {
+		// 安全：只允许特定字段
+		safeFields := map[string]bool{"nickname": true, "username": true, "email": true, "status": true, "created_at": true, "locked": false} // locked 特殊处理
+		if safeFields[req.SortField] {
+			order = req.SortField + " " + req.SortOrder
+		}
+	}
+	if err := db.Offset(offset).Limit(req.PageSize).Order(order).Find(&users).Error; err != nil {
 		return nil, 0, err
 	}
 

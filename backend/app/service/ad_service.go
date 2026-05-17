@@ -32,7 +32,11 @@ func (s *ADService) Authenticate(username, password string) (*ldap.ADUserInfo, e
 		port = 389
 	}
 
-	return ldap.Authenticate(
+	// 记录调试日志
+	global.AppLogger.Info("AD认证尝试: server=%s, port=%d, base_dn=%s, user=%s, filter=%s",
+		cfg.Server, port, cfg.BaseDN, username, cfg.UserFilter)
+
+	userInfo, err := ldap.Authenticate(
 		cfg.Server,
 		port,
 		cfg.UseSSL,
@@ -43,6 +47,12 @@ func (s *ADService) Authenticate(username, password string) (*ldap.ADUserInfo, e
 		username,
 		password,
 	)
+	if err != nil {
+		global.AppLogger.Error("AD认证失败: user=%s, error=%v", username, err)
+	} else {
+		global.AppLogger.Info("AD认证成功: user=%s, dn=%s", username, userInfo.DN)
+	}
+	return userInfo, err
 }
 
 // IsEnabled AD认证是否启用

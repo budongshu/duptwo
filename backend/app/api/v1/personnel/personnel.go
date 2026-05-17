@@ -222,6 +222,27 @@ func (api *PersonnelApi) ListAll(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: personnels})
 }
 
+// Statistics 获取人员统计
+// @Summary 人员统计
+// @Tags Personnel
+// @Param keyword query string false "关键词"
+// @Param status query string false "状态"
+// @Param onProject query string false "在项状态"
+// @Success 200 {object} dto.Response
+// @Router /api/personnels/statistics [get]
+func (api *PersonnelApi) Statistics(c *gin.Context) {
+	var req dto.PersonnelListReq
+	c.ShouldBindQuery(&req)
+
+	stats, err := api.personnelService.Statistics(req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.Response{Code: 500, Message: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Response{Code: 200, Data: stats})
+}
+
 // Export 导出人员Excel
 // @Summary 导出人员Excel
 // @Tags Personnel

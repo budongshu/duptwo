@@ -14,12 +14,14 @@ type RegisterReq struct {
 
 // UserListReq 用户列表请求
 type UserListReq struct {
-	Page     int    `form:"page" validate:"min=1"`
-	PageSize int    `form:"pageSize" validate:"min=1,max=100"`
-	Keyword  string `form:"keyword"`
-	Status   string `form:"status"`
-	RoleID   uint   `form:"roleId"`
-	GroupID  uint   `form:"groupId"`
+	Page      int    `form:"page" validate:"min=1"`
+	PageSize  int    `form:"pageSize" validate:"min=1,max=100"`
+	Keyword   string `form:"keyword"`
+	Status    string `form:"status"`
+	RoleID    uint   `form:"roleId"`
+	GroupID   uint   `form:"groupId"`
+	SortField string `form:"sortField"`
+	SortOrder string `form:"sortOrder"`
 }
 
 // UserResp 用户响应
@@ -36,6 +38,10 @@ type UserResp struct {
 	RoleName    string     `json:"roleName"`
 	GroupID     uint       `json:"groupId"`
 	GroupName   string     `json:"groupName"`
+	Department  string     `json:"department"`
+	Title       string     `json:"title"`
+	Company     string     `json:"company"`
+	Source      string     `json:"source"` // LOCAL / AD
 	MFAEnabled  bool       `json:"mfaEnabled"`
 	Locked      bool       `json:"locked"`
 	LastLoginAt *time.Time `json:"lastLoginAt"`
@@ -98,6 +104,7 @@ type UserGroupCreateReq struct {
 	Name        string `json:"name" validate:"required,max=64"`
 	Code        string `json:"code" validate:"required,max=64"`
 	Description string `json:"description" validate:"max=256"`
+	RoleID      uint   `json:"roleId"`
 	Sort        int    `json:"sort"`
 }
 
@@ -107,6 +114,7 @@ type UserGroupUpdateReq struct {
 	Name        string `json:"name" validate:"required,max=64"`
 	Code        string `json:"code" validate:"required,max=64"`
 	Description string `json:"description" validate:"max=256"`
+	RoleID      uint   `json:"roleId"`
 	Sort        int    `json:"sort"`
 }
 
@@ -123,6 +131,8 @@ type UserGroupResp struct {
 	Name        string    `json:"name"`
 	Code        string    `json:"code"`
 	Description string    `json:"description"`
+	RoleID      uint      `json:"roleId"`
+	RoleName    string    `json:"roleName"`
 	Sort        int       `json:"sort"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
@@ -151,4 +161,10 @@ type AdminEnableMFAReq struct {
 type GenerateMFASecretResp struct {
 	Secret string `json:"secret"`
 	QRCode string `json:"qrCode"` // otpauth:// URL
+}
+
+// BatchUpdateRoleReq 批量更新用户角色请求
+type BatchUpdateRoleReq struct {
+	IDs    []uint `json:"ids" validate:"required,min=1"`
+	RoleID uint   `json:"roleId" validate:"required"`
 }

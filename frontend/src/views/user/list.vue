@@ -34,13 +34,13 @@
         </span>
         <span v-if="filterRoleId" class="filter-chip">
           {{ t('user.list.filter.role') }}: {{ getRoleName(filterRoleId) }}
-          <button class="chip-remove" @click="filterRoleId = ''; handleSearch()">
+          <button class="chip-remove" @click="filterRoleId = undefined; handleSearch()">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </span>
         <span v-if="filterGroupId" class="filter-chip">
           {{ t('user.list.filter.group') }}: {{ getGroupName(filterGroupId) }}
-          <button class="chip-remove" @click="filterGroupId = ''; handleSearch()">
+          <button class="chip-remove" @click="filterGroupId = undefined; handleSearch()">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </span>
@@ -87,7 +87,7 @@
                       :key="r.id"
                       class="fp-tag"
                       :class="{ 'is-selected': filterRoleId === r.id }"
-                      @click="filterRoleId = filterRoleId === r.id ? '' : r.id; handleSearch()"
+                      @click="filterRoleId = filterRoleId === r.id ? undefined : r.id; handleSearch()"
                     >{{ r.name }}</button>
                   </div>
                 </div>
@@ -99,7 +99,7 @@
                       :key="g.id"
                       class="fp-tag"
                       :class="{ 'is-selected': filterGroupId === g.id }"
-                      @click="filterGroupId = filterGroupId === g.id ? '' : g.id; handleSearch()"
+                      @click="filterGroupId = filterGroupId === g.id ? undefined : g.id; handleSearch()"
                     >{{ g.name }}</button>
                   </div>
                 </div>
@@ -158,6 +158,12 @@
           {{ t('common.batchDelete') }} ({{ selectedRows.length }})
         </button>
 
+        <!-- 批量修改角色 -->
+        <button v-if="selectedRows.length > 0" class="action-btn action-btn--warning" @click="showBatchRoleDialog">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 14.5a4.5 4.5 0 1 1 4.5-4.5 4.5 4.5 0 0 1-4.5 4.5z"/></svg>
+          {{ t('user.list.messages.batchUpdateRole') }} ({{ selectedRows.length }})
+        </button>
+
         <!-- 新建 -->
         <button class="action-btn action-btn--primary" @click="handleCreate">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -182,7 +188,7 @@
         <el-table-column v-if="isColumnVisible('email')" prop="email" :label="t('user.list.table.email')" min-width="160" show-overflow-tooltip sortable="custom" />
         <el-table-column v-if="isColumnVisible('roleName')" prop="roleName" :label="t('user.list.table.role')" min-width="100" show-overflow-tooltip sortable="custom">
           <template #default="{ row }">
-            <el-tag v-if="row.roleName" type="info" size="small" effect="plain">{{ row.roleName }}</el-tag>
+            <span v-if="row.roleName" class="role-tag role-link" :style="{ '--role-color': getRoleTagColor(row.roleName) }" @click="jumpToRole(row.roleId)">{{ row.roleName }}</span>
             <span v-else class="empty-text">—</span>
           </template>
         </el-table-column>
@@ -256,12 +262,48 @@
           v-model:current-page="pagination.page"
           v-model:page-size="pagination.pageSize"
           :total="pagination.total"
-          :page-sizes="[10, 20, 50, 100]"
+          :page-sizes="[10, 20, 50, 100, 200]"
           layout="sizes, prev, pager, next"
           background
         />
       </div>
     </div>
+
+    <!-- 批量修改角色对话框 -->
+    <el-dialog v-model="batchRoleDialogVisible" :title="t('user.list.messages.batchUpdateRole')" width="420px" :close-on-click-modal="false" class="batch-role-dialog">
+      <div class="batch-role-form">
+        <div class="batch-role-header">
+          <div class="batch-role-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <div class="batch-role-info">
+            <span class="batch-role-count">{{ selectedRows.length }}</span>
+            <span class="batch-role-label">{{ t('user.list.messages.batchRoleTip', { count: selectedRows.length }) }}</span>
+          </div>
+        </div>
+        <el-form-item :label="t('user.list.table.role')">
+          <el-select v-model="batchRoleForm.roleId" :placeholder="t('user.list.form.rolePlaceholder')" class="batch-role-select" clearable>
+            <el-option v-for="(r, idx) in roles" :key="r.id" :label="r.name" :value="r.id">
+              <span class="role-option">
+                <span class="role-dot" :style="{ background: roleColors[idx % roleColors.length] }"></span>
+                {{ r.name }}
+              </span>
+            </el-option>
+          </el-select>
+        </el-form-item>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="batchRoleDialogVisible = false">{{ t('common.cancel') }}</el-button>
+          <el-button type="primary" @click="handleBatchRoleSubmit">{{ t('common.confirm') }}</el-button>
+        </span>
+      </template>
+    </el-dialog>
 
     <!-- 编辑/新增抽屉 -->
     <el-drawer v-model="drawerVisible" direction="rtl" size="460px" :destroy-on-close="true" class="personnel-drawer">
@@ -280,10 +322,10 @@
             <el-input v-model="form.username" :placeholder="t('user.list.form.usernamePlaceholder')" :disabled="isEdit" />
           </el-form-item>
           <el-form-item :label="t('user.list.form.email')" prop="email">
-            <el-input v-model="form.email" :placeholder="t('user.list.form.emailPlaceholder')" />
+            <el-input v-model="form.email" :placeholder="t('user.list.form.emailPlaceholder')" autocomplete="off" />
           </el-form-item>
           <el-form-item :label="t('user.list.form.password')" :prop="isEdit ? '' : 'password'">
-            <el-input v-model="form.password" type="password" show-password :placeholder="isEdit ? t('user.list.form.passwordEditTip') : t('user.list.form.passwordPlaceholder')" />
+            <el-input v-model="form.password" type="password" show-password :placeholder="isEdit ? t('user.list.form.passwordEditTip') : t('user.list.form.passwordPlaceholder')" autocomplete="new-password" />
           </el-form-item>
 
           <!-- 密码要求（新增时显示） -->
@@ -372,6 +414,7 @@
               size="large"
               :placeholder="t('user.list.form.newPasswordPlaceholder')"
               class="pwd-input"
+              autocomplete="new-password"
             />
           </el-form-item>
         </div>
@@ -400,6 +443,7 @@
               size="large"
               :placeholder="t('user.list.form.confirmPasswordPlaceholder')"
               class="pwd-input"
+              autocomplete="new-password"
             />
           </el-form-item>
         </div>
@@ -663,8 +707,8 @@ const activeFilterCount = computed(() => {
   if (filterGroupId.value) count++
   return count
 })
-const getRoleName = (id: number | undefined) => roles.find(r => r.id === id)?.name || ''
-const getGroupName = (id: number | undefined) => groups.find(g => g.id === id)?.name || ''
+const getRoleName = (id: number | undefined) => id == null ? '' : (roles.value.find(r => r.id === id)?.name || '')
+const getGroupName = (id: number | undefined) => id == null ? '' : (groups.value.find(g => g.id === id)?.name || '')
 
 // 数据操作
 const handleDataAction = (cmd: string) => {
@@ -709,9 +753,19 @@ const getAvatarColor = (name: string) => {
   return avatarColors[idx]
 }
 
+// 角色标签颜色 - 根据角色名称分配一致的颜色
+const roleColors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399', '#00BFA5', '#7C3AED', '#DB2777', '#06B6D4', '#84CC16']
+const getRoleTagColor = (roleName: string) => {
+  const idx = (roleName || '').charCodeAt(0) % roleColors.length
+  return roleColors[idx]
+}
+
 // 跳转到用户组
 const jumpToGroup = (groupId: number | undefined) => {
   if (groupId) router.push({ path: '/user-groups', query: { id: String(groupId) } })
+}
+const jumpToRole = (roleId: number | undefined) => {
+  if (roleId) router.push({ path: '/roles', query: { id: String(roleId) } })
 }
 
 const loadRolesAndGroups = async () => {
@@ -840,6 +894,30 @@ const handleBatchDelete = async () => {
     ElMessage.success(t('user.list.messages.batchDeleteSuccess', { count: selectedRows.value.length }))
     selectedRows.value = []; loadData()
   } catch {}
+}
+
+// 批量修改角色
+const batchRoleDialogVisible = ref(false)
+const batchRoleForm = reactive({ roleId: undefined as number | undefined })
+const showBatchRoleDialog = () => {
+  batchRoleForm.roleId = undefined
+  batchRoleDialogVisible.value = true
+}
+const handleBatchRoleSubmit = async () => {
+  if (!batchRoleForm.roleId) {
+    ElMessage.warning(t('user.list.messages.roleRequired'))
+    return
+  }
+  try {
+    const ids = selectedRows.value.map(r => r.id)
+    await UserApi.batchUpdateRole(ids, batchRoleForm.roleId)
+    ElMessage.success(t('user.list.messages.batchUpdateRoleSuccess', { count: selectedRows.value.length }))
+    batchRoleDialogVisible.value = false
+    selectedRows.value = []
+    loadData()
+  } catch (e: any) {
+    ElMessage.error(e.message || t('common.failed'))
+  }
 }
 
 const handleResetPwd = async (row: User) => {
@@ -1044,7 +1122,7 @@ const resetImport = () => {
 
 watch(() => pagination.page, () => loadData())
 watch(() => pagination.pageSize, () => { pagination.page = 1; loadData() })
-onMounted(() => { loadData(); loadRolesAndGroups(); loadColumnSettings() })
+onMounted(async () => { await loadRolesAndGroups(); loadData(); loadColumnSettings() })
 </script>
 
 <script lang="ts">
@@ -1362,6 +1440,31 @@ export default { name: 'UserList' }
 
 .empty-text { color: var(--el-text-color-placeholder); }
 
+.role-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--role-color) 15%, transparent);
+  color: var(--role-color);
+  border: 1px solid color-mix(in srgb, var(--role-color) 30%, transparent);
+  &.role-link { cursor: pointer; &:hover { opacity: 0.8; } }
+}
+
+.role-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 .time-text {
   font-size: 12px;
   color: var(--color-text-secondary);
@@ -1654,4 +1757,116 @@ export default { name: 'UserList' }
 .fail-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fef2f2; border-radius: 6px; font-size: 12px; }
 .fail-row { color: #dc2626; font-weight: 600; }
 .fail-reason { color: #7f1d1d; }
+
+/* 批量分配角色弹窗 - 日式简约美学 */
+:deep(.batch-role-dialog) {
+  .el-dialog {
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  }
+  .el-dialog__header {
+    padding: 24px 28px 20px;
+    border-bottom: 1px solid var(--color-border-light);
+    background: var(--color-surface);
+    margin-right: 0;
+  }
+  .el-dialog__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    letter-spacing: -0.3px;
+  }
+  .el-dialog__body {
+    padding: 28px;
+  }
+  .el-dialog__footer {
+    padding: 20px 28px;
+    border-top: 1px solid var(--color-border-light);
+    background: var(--color-surface-2);
+  }
+}
+
+.batch-role-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.batch-role-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(64, 158, 255, 0.08) 0%, rgba(64, 158, 255, 0.04) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(64, 158, 255, 0.12);
+}
+
+.batch-role-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  border-radius: 12px;
+  color: #fff;
+}
+
+.batch-role-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.batch-role-count {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: 'Manrope', sans-serif;
+  color: var(--color-primary);
+  line-height: 1;
+}
+
+.batch-role-label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.batch-role-select {
+  width: 100%;
+  :deep(.el-input__wrapper) {
+    border-radius: 10px;
+    padding: 12px 16px;
+    box-shadow: 0 0 0 1px var(--color-border-light);
+    transition: all 0.2s ease;
+    &:hover {
+      box-shadow: 0 0 0 1px var(--color-primary);
+    }
+    &.is-focus {
+      box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+    }
+  }
+}
+
+.role-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.role-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
 </style>
